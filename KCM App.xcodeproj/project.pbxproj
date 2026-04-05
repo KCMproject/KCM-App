@@ -30,11 +30,6 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		62DC586B2F82B5BB00DACA33 /* KCM App */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "KCM App";
-			sourceTree = "<group>";
-		};
 		62DC58792F82B5BC00DACA33 /* KCM AppTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "KCM AppTests";
@@ -75,7 +70,10 @@
 		62DC58602F82B5BB00DACA33 = {
 			isa = PBXGroup;
 			children = (
-				62DC586B2F82B5BB00DACA33 /* KCM App */,
+				62DC58972F82D57100DACA33 /* Apps */,
+				62DC58962F82D54100DACA33 /* Network */,
+				62DC58952F82D53200DACA33 /* Models */,
+				62DC58942F82D51400DACA33 /* Views */,
 				62DC58792F82B5BC00DACA33 /* KCM AppTests */,
 				62DC58832F82B5BC00DACA33 /* KCM AppUITests */,
 				62DC586A2F82B5BB00DACA33 /* Products */,
@@ -92,6 +90,34 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		62DC58942F82D51400DACA33 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		62DC58952F82D53200DACA33 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		62DC58962F82D54100DACA33 /* Network */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Network;
+			sourceTree = "<group>";
+		};
+		62DC58972F82D57100DACA33 /* Apps */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Apps;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -106,9 +132,6 @@
 			buildRules = (
 			);
 			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				62DC586B2F82B5BB00DACA33 /* KCM App */,
 			);
 			name = "KCM App";
 			packageProductDependencies = (
