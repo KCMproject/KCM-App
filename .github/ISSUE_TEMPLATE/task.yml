@@ -1,0 +1,61 @@
+name: "開発タスク"
+description: "機能追加、実装、調査、修正用のチケット"
+title: "[Task] "
+labels:
+  - task
+body:
+  - type: textarea
+    id: overview
+    attributes:
+      label: "タスク概要"
+      description: "何を作るか、何を対応するかを記載してください。"
+      placeholder: |
+        例:
+        掲示板一覧画面のUIを実装する。
+        Figmaに合わせて未読・既読表示を反映する。
+    validations:
+      required: true
+  - type: textarea
+    id: background
+    attributes:
+      label: "背景・目的"
+      description: "なぜ必要か、この対応で何を達成したいかを記載してください。"
+      placeholder: |
+        例:
+        MVPで必要な掲示板一覧の表示を成立させるため。
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: "対応内容"
+      description: "実施する作業を箇条書きで記載してください。"
+      value: |
+        - [ ] 実装方針を確認する
+        - [ ] 必要なコードを追加・修正する
+        - [ ] 動作確認を行う
+        - [ ] PRを作成する
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: "完了条件"
+      description: "この issue を完了にしてよい条件を記載してください。"
+      placeholder: |
+        例:
+        - 一覧が表示される
+        - 未読/既読が見分けられる
+        - 主要ケースの確認が終わっている
+    validations:
+      required: true
+  - type: textarea
+    id: related
+    attributes:
+      label: "関連 issue / 補足"
+      description: "親issue、依存タスク、補足事項があれば記載してください。"
+      placeholder: |
+        例:
+        Depends on: #12
+        Related to: #20
+
