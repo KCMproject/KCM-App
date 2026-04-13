@@ -330,9 +330,9 @@ struct TodayTimelineView: View {
                                 .padding(.trailing, 12)
 
                             Rectangle()
-                                .fill(hour % 3 == 0 ? AppTheme.textSoft.opacity(0.25) : AppTheme.lightBlueBorder.opacity(0.4))
+                                .fill(hour % 3 == 0 ? AppTheme.textSoft.opacity(0.5) : AppTheme.lightBlueBorder.opacity(0.7))
                                 .frame(maxWidth: .infinity)
-                                .frame(height: 1)
+                                .frame(height: 2)
                         }
                         .frame(height: hourHeight, alignment: .top)
                         .offset(y: y)
