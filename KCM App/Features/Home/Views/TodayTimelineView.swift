@@ -61,6 +61,7 @@ struct TodayTimelineView: View {
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
+                .ignoresSafeArea(.all, edges: .top)
                 .animation(.easeInOut(duration: 0.3), value: dateOffset)
                 .onChange(of: dateOffset) { _, newOffset in
                     selectedDate = calendar.date(byAdding: .day, value: newOffset, to: today) ?? today
@@ -313,71 +314,74 @@ struct TodayTimelineView: View {
         let totalHeight = CGFloat(slots.count) * hourHeight
 
         return ScrollView(.vertical, showsIndicators: false) {
-            ZStack(alignment: .topLeading) {
-                // 背景のグリッド線
-                ForEach(slots, id: \.self) { hour in
-                    let y = CGFloat(hour - startHour) * hourHeight
-                    HStack(spacing: 0) {
-                        Text("\(hour):00")
-                            .font(.system(size: 14))
-                            .foregroundStyle(AppTheme.textMuted)
-                            .frame(width: timeLabelWidth, alignment: .topLeading)
-                            .padding(.top, 8)
-                            .padding(.trailing, 12)
+            GeometryReader { geo in
+                let cardMaxWidth = geo.size.width - (sidePadding * 2)
 
-                        Rectangle()
-                            .fill(hour % 3 == 0 ? AppTheme.textSoft.opacity(0.25) : AppTheme.lightBlueBorder.opacity(0.4))
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 1)
+                ZStack(alignment: .topLeading) {
+                    // 背景のグリッド線
+                    ForEach(slots, id: \.self) { hour in
+                        let y = CGFloat(hour - startHour) * hourHeight
+                        HStack(spacing: 0) {
+                            Text("\(hour):00")
+                                .font(.system(size: 14))
+                                .foregroundStyle(AppTheme.textMuted)
+                                .frame(width: timeLabelWidth, alignment: .topLeading)
+                                .padding(.top, 8)
+                                .padding(.trailing, 12)
+
+                            Rectangle()
+                                .fill(hour % 3 == 0 ? AppTheme.textSoft.opacity(0.25) : AppTheme.lightBlueBorder.opacity(0.4))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 1)
+                        }
+                        .frame(height: hourHeight, alignment: .top)
+                        .offset(y: y)
                     }
-                    .frame(height: hourHeight, alignment: .top)
-                    .offset(y: y)
-                }
 
-                // イベントカード
-                ForEach(events) { event in
-                    let layout = event.layout(hourHeight: hourHeight, startHour: startHour)
-                    let cardMaxWidth = UIScreen.main.bounds.width - timeLabelWidth - (sidePadding * 2) - 16
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(event.title)
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(AppTheme.textPrimary)
-                        Text("\(event.startTime) - \(event.endTime)")
-                            .font(.system(size: 12))
-                            .foregroundStyle(AppTheme.textBlue)
-                        Text(event.location)
-                            .font(.system(size: 12))
-                            .foregroundStyle(AppTheme.textMuted)
+                    // イベントカード
+                    ForEach(events) { event in
+                        let layout = event.layout(hourHeight: hourHeight, startHour: startHour)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(event.title)
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(AppTheme.textPrimary)
+                            Text("\(event.startTime) - \(event.endTime)")
+                                .font(.system(size: 12))
+                                .foregroundStyle(AppTheme.textBlue)
+                            Text(event.location)
+                                .font(.system(size: 12))
+                                .foregroundStyle(AppTheme.textMuted)
+                        }
+                        .padding(10)
+                        .frame(width: cardMaxWidth, height: max(layout.height, 50), alignment: .topLeading)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color.white)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(AppTheme.blueCardBorder, lineWidth: 1)
+                        )
+                        .shadow(color: .black.opacity(0.04), radius: 3, y: 1)
+                        .offset(x: timeLabelWidth, y: layout.top)
                     }
-                    .padding(10)
-                    .frame(width: cardMaxWidth, height: max(layout.height, 50), alignment: .topLeading)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(Color.white)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .stroke(AppTheme.blueCardBorder, lineWidth: 1)
-                    )
-                    .shadow(color: .black.opacity(0.04), radius: 3, y: 1)
-                    .offset(x: timeLabelWidth + sidePadding, y: layout.top)
-                }
 
-                // 現在時刻の線＋ラベル
-                if let indicatorTop = currentIndicatorTop {
-                    HStack(spacing: 0) {
-                        Text(currentTimeLabel)
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Capsule().fill(Color.red.opacity(0.7)))
+                    // 現在時刻の線＋ラベル（今日のみ）
+                    if calendar.isDate(date, inSameDayAs: currentTime), let indicatorTop = currentIndicatorTop {
+                        HStack(spacing: 0) {
+                            Text(currentTimeLabel)
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Capsule().fill(Color.red.opacity(0.7)))
 
-                        Rectangle()
-                            .fill(Color.red.opacity(0.4))
-                            .frame(height: 1)
+                            Rectangle()
+                                .fill(Color.red.opacity(0.4))
+                                .frame(height: 1)
+                        }
+                        .offset(x: timeLabelWidth, y: indicatorTop)
                     }
-                    .offset(x: timeLabelWidth + sidePadding, y: indicatorTop)
                 }
             }
             .frame(height: totalHeight)
