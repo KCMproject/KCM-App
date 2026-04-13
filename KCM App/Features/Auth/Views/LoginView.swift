@@ -15,13 +15,17 @@ struct LoginView: View {
 
                 VStack(spacing: 16) {
                     TextField("学籍番号", text: $viewModel.studentID)
+                        .textFieldStyle(.plain)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
+                        .foregroundStyle(AppTheme.textPrimary)
                         .padding()
                         .background(AppTheme.surface)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
 
                     SecureField("パスワード", text: $viewModel.password)
+                        .textFieldStyle(.plain)
+                        .foregroundStyle(AppTheme.textPrimary)
                         .padding()
                         .background(AppTheme.surface)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
