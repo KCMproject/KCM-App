@@ -318,24 +318,30 @@ struct TodayTimelineView: View {
                 let cardMaxWidth = geo.size.width - (sidePadding * 2)
 
                 ZStack(alignment: .topLeading) {
-                    // 背景のグリッド線
+                    // 背景のグリッド線（左端まで届く）
                     ForEach(slots, id: \.self) { hour in
                         let y = CGFloat(hour - startHour) * hourHeight
-                        HStack(spacing: 0) {
-                            Text("\(hour):00")
-                                .font(.system(size: 14))
-                                .foregroundStyle(AppTheme.textMuted)
-                                .frame(width: timeLabelWidth, alignment: .topLeading)
-                                .padding(.top, 8)
-                                .padding(.trailing, 12)
+                        Rectangle()
+                            .fill(hour % 3 == 0 ? AppTheme.textSoft.opacity(0.5) : AppTheme.lightBlueBorder.opacity(0.7))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 2)
+                            .offset(y: y)
+                    }
 
-                            Rectangle()
-                                .fill(hour % 3 == 0 ? AppTheme.textSoft.opacity(0.5) : AppTheme.lightBlueBorder.opacity(0.7))
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 2)
-                        }
-                        .frame(height: hourHeight, alignment: .top)
-                        .offset(y: y)
+                    // 時刻ラベル（線の上に配置）
+                    ForEach(slots, id: \.self) { hour in
+                        let y = CGFloat(hour - startHour) * hourHeight
+                        Text("\(hour):00")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(AppTheme.textPrimary)
+                            .frame(width: timeLabelWidth, alignment: .center)
+                            .padding(.top, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                    .fill(AppTheme.pageBackground)
+                                    .frame(width: timeLabelWidth, height: 28)
+                            )
+                            .offset(y: y)
                     }
 
                     // イベントカード
@@ -356,7 +362,7 @@ struct TodayTimelineView: View {
                         .frame(width: cardMaxWidth, height: max(layout.height, 50), alignment: .topLeading)
                         .background(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(Color.white)
+                                .fill(Color.white.opacity(0.85))
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
