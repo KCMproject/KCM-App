@@ -53,19 +53,7 @@ struct TodayTimelineView: View {
             VStack(spacing: 0) {
                 header
                 weekStrip(for: selectedDate)
-                TabView(selection: $dateOffset) {
-                    ForEach(-365...365, id: \.self) { offset in
-                        let date = calendar.date(byAdding: .day, value: offset, to: today) ?? today
-                        timeline(for: date)
-                            .tag(offset)
-                    }
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                .ignoresSafeArea(.all, edges: .top)
-                .animation(.easeInOut(duration: 0.3), value: dateOffset)
-                .onChange(of: dateOffset) { _, newOffset in
-                    selectedDate = calendar.date(byAdding: .day, value: newOffset, to: today) ?? today
-                }
+                timelinePage(for: selectedDate)
             }
 
             // カレンダーポップオーバー（全体を覆う）
@@ -91,12 +79,43 @@ struct TodayTimelineView: View {
         }
     }
 
+    private func timelinePage(for date: Date) -> some View {
+        timeline(for: date)
+            .overlay {
+                GeometryReader { geo in
+                    let centerDeadZoneWidth: CGFloat = min(140, geo.size.width * 0.32)
+                    let sideZoneWidth = max((geo.size.width - centerDeadZoneWidth) / 2, 0)
+
+                    HStack(spacing: 0) {
+                        sideTapZone(width: sideZoneWidth) {
+                            shiftDate(by: -1)
+                        }
+
+                        Color.clear
+                            .frame(width: centerDeadZoneWidth)
+
+                        sideTapZone(width: sideZoneWidth) {
+                            shiftDate(by: 1)
+                        }
+                    }
+                }
+            }
+            .animation(.easeInOut(duration: 0.22), value: dateOffset)
+    }
+
     @ViewBuilder
     private func dayPage(for date: Date) -> some View {
         VStack(spacing: 0) {
             weekStrip(for: date)
             timeline(for: date)
         }
+    }
+
+    private func sideTapZone(width: CGFloat, action: @escaping () -> Void) -> some View {
+        Color.clear
+            .contentShape(Rectangle())
+            .frame(width: width)
+            .onTapGesture(perform: action)
     }
 
     private var today: Date {
@@ -127,8 +146,7 @@ struct TodayTimelineView: View {
                 .buttonStyle(.plain)
 
                 Button("今日") {
-                    selectedDate = Date()
-                    dateOffset = 0
+                    setDisplayedDate(Date())
                 }
                 .font(.system(size: 14))
                 .foregroundStyle(AppTheme.textMuted)
@@ -208,11 +226,7 @@ struct TodayTimelineView: View {
                 get: { selectedDate },
                 set: { newDate in
                     selectedDate = newDate
-                    if let newOffset = calendar.dateComponents([.day], from: today, to: newDate).day {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            dateOffset = newOffset
-                        }
-                    }
+                    syncDateOffset(with: newDate, animated: true)
                     withAnimation(.easeInOut(duration: 0.2)) {
                         showingCalendar = false
                     }
@@ -274,12 +288,7 @@ struct TodayTimelineView: View {
                 let textColor: Color = dayIndex == 0 ? .red.opacity(0.7) : dayIndex == 6 ? AppTheme.accent.opacity(0.8) : AppTheme.textMuted
 
                 Button {
-                    selectedDate = date
-                    if let newOffset = calendar.dateComponents([.day], from: today, to: date).day {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            dateOffset = newOffset
-                        }
-                    }
+                    setDisplayedDate(date)
                 } label: {
                     VStack(spacing: 4) {
                         Text(WeekdayLabels.full[dayIndex])
@@ -310,6 +319,7 @@ struct TodayTimelineView: View {
         let events = eventsByDay[calendar.component(.weekday, from: date)] ?? []
         let slots = Array(startHour...endHour)
         let timeLabelWidth: CGFloat = 64
+        let timeLabelHeight: CGFloat = 28
         let sidePadding: CGFloat = 8
         let totalHeight = CGFloat(slots.count) * hourHeight
 
@@ -322,7 +332,7 @@ struct TodayTimelineView: View {
                     ForEach(slots, id: \.self) { hour in
                         let y = CGFloat(hour - startHour) * hourHeight + 16
                         Capsule()
-                            .fill(hour % 3 == 0 ? AppTheme.textSoft.opacity(0.6) : AppTheme.lightBlueBorder.opacity(0.8))
+                            .fill(AppTheme.lightBlueBorder.opacity(0.8))
                             .frame(maxWidth: .infinity)
                             .frame(height: 1.5)
                             .offset(y: y)
@@ -334,13 +344,12 @@ struct TodayTimelineView: View {
                         Text("\(hour):00")
                             .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(AppTheme.textPrimary)
-                            .frame(width: timeLabelWidth, alignment: .center)
+                            .frame(width: timeLabelWidth, height: timeLabelHeight, alignment: .center)
                             .background(
                                 RoundedRectangle(cornerRadius: 6, style: .continuous)
                                     .fill(AppTheme.pageBackground)
-                                    .frame(width: timeLabelWidth, height: 28)
                             )
-                            .offset(y: y)
+                            .offset(y: y - (timeLabelHeight / 2))
                     }
 
                     // イベントカード
@@ -373,19 +382,22 @@ struct TodayTimelineView: View {
 
                     // 現在時刻の線＋ラベル（今日のみ）
                     if calendar.isDate(date, inSameDayAs: currentTime), let indicatorTop = currentIndicatorTop {
-                        HStack(spacing: 0) {
+                        let indicatorLabelHeight: CGFloat = 22
+                        ZStack(alignment: .leading) {
+                            Rectangle()
+                                .fill(Color.red.opacity(0.4))
+                                .frame(height: 1)
+                                .offset(x: timeLabelWidth)
+
                             Text(currentTimeLabel)
                                 .font(.system(size: 11, weight: .medium))
                                 .foregroundStyle(.white)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
                                 .background(Capsule().fill(Color.red.opacity(0.7)))
-
-                            Rectangle()
-                                .fill(Color.red.opacity(0.4))
-                                .frame(height: 1)
                         }
-                        .offset(x: timeLabelWidth, y: indicatorTop + 16)
+                        .frame(height: indicatorLabelHeight, alignment: .leading)
+                        .offset(y: indicatorTop + 16 - (indicatorLabelHeight / 2))
                     }
                 }
             }
@@ -424,6 +436,31 @@ struct TodayTimelineView: View {
 
     private func dateLabel(_ date: Date) -> String {
         Self.fullDateFormatter.string(from: date)
+    }
+
+    private func shiftDate(by days: Int) {
+        guard let nextDate = calendar.date(byAdding: .day, value: days, to: selectedDate) else { return }
+        setDisplayedDate(nextDate)
+    }
+
+    private func setDisplayedDate(_ date: Date) {
+        let normalizedDate = calendar.startOfDay(for: date)
+        withAnimation(.easeInOut(duration: 0.22)) {
+            selectedDate = normalizedDate
+            syncDateOffset(with: normalizedDate)
+        }
+    }
+
+    private func syncDateOffset(with date: Date, animated: Bool = false) {
+        guard let newOffset = calendar.dateComponents([.day], from: today, to: date).day else { return }
+
+        if animated {
+            withAnimation(.easeInOut(duration: 0.22)) {
+                dateOffset = newOffset
+            }
+        } else {
+            dateOffset = newOffset
+        }
     }
 }
 

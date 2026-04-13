@@ -20,11 +20,12 @@ struct AccountProfileCloneView: View {
     @State private var tabOrder: [TabOrderItem] = [
         .init(id: "today", title: "今日", icon: "calendar"),
         .init(id: "timetable", title: "時間割", icon: "calendar.badge.clock"),
-        .init(id: "board", title: "掲示板", icon: "tray.full"),
-        .init(id: "account", title: "アカウント", icon: "person.crop.circle")
+        .init(id: "board", title: "掲示板", icon: "tray.full")
     ]
     let onLogout: () -> Void
     let onTabOrderChanged: ([TabOrderItem]) -> Void
+    let onNavigatePreviousTab: () -> Void
+    let onNavigateNextTab: () -> Void
 
     private let threads: [MessageThread] = [
         .init(name: "田中 蓮", avatar: "田", sharedCourse: "線形代数学", lastMessage: "今週の課題、一緒にやらない？", lastTime: "10:32", unread: 2, status: .online, messages: [
@@ -54,20 +55,24 @@ struct AccountProfileCloneView: View {
                 openThread = nil
             }
         } else {
-            VStack(spacing: 0) {
-                header
-                ScrollView {
-                    if activeTab == .inbox {
-                        InboxListView(threads: threads) { thread in
-                            openThread = thread
+            GeometryReader { geo in
+                VStack(spacing: 0) {
+                    header
+                    ScrollView {
+                        if activeTab == .inbox {
+                            InboxListView(threads: threads) { thread in
+                                openThread = thread
+                            }
+                        } else {
+                            settingsView
                         }
-                    } else {
-                        settingsView
                     }
+                    .background(AppTheme.accountBackground)
+                    .simultaneousGesture(accountContentSwipeGesture(width: geo.size.width))
+                    .simultaneousGesture(accountEdgeSwipeGesture(width: geo.size.width))
                 }
                 .background(AppTheme.accountBackground)
             }
-            .background(AppTheme.accountBackground)
         }
     }
 
@@ -144,6 +149,49 @@ struct AccountProfileCloneView: View {
             }
         }
         .buttonStyle(.plain)
+    }
+
+    private func accountContentSwipeGesture(width: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 24)
+            .onEnded { value in
+                let horizontal = value.translation.width
+                let vertical = value.translation.height
+                let edgeThreshold: CGFloat = 28
+
+                guard abs(horizontal) > abs(vertical), abs(horizontal) > 60 else { return }
+                guard value.startLocation.x > edgeThreshold, value.startLocation.x < width - edgeThreshold else { return }
+
+                if activeTab == .inbox {
+                    if horizontal < 0 {
+                        withAnimation(.easeInOut(duration: 0.22)) {
+                            activeTab = .settings
+                        }
+                    }
+                } else {
+                    if horizontal > 0 {
+                        withAnimation(.easeInOut(duration: 0.22)) {
+                            activeTab = .inbox
+                        }
+                    }
+                }
+            }
+    }
+
+    private func accountEdgeSwipeGesture(width: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 24)
+            .onEnded { value in
+                let horizontal = value.translation.width
+                let vertical = value.translation.height
+                let edgeThreshold: CGFloat = 28
+
+                guard abs(horizontal) > abs(vertical), abs(horizontal) > 60 else { return }
+
+                if horizontal > 0, value.startLocation.x <= edgeThreshold {
+                    onNavigatePreviousTab()
+                } else if horizontal < 0, value.startLocation.x >= width - edgeThreshold {
+                    onNavigateNextTab()
+                }
+            }
     }
 
     private var settingsView: some View {
@@ -541,5 +589,8 @@ private struct ChatThreadView: View {
 }
 
 #Preview {
-    AccountProfileCloneView(onLogout: {}) { _ in }
+    AccountProfileCloneView(onLogout: {}) { _ in
+    } onNavigatePreviousTab: {
+    } onNavigateNextTab: {
+    }
 }

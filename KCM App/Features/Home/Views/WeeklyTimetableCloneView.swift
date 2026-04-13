@@ -1,6 +1,17 @@
 import SwiftUI
 
 struct WeeklyTimetableCloneView: View {
+    private enum Semester: String, CaseIterable {
+        case first = "前期"
+        case second = "後期"
+
+        static var current: Self {
+            let month = Calendar.current.component(.month, from: Date())
+            return (4...9).contains(month) ? .first : .second
+        }
+    }
+
+    @State private var selectedSemester: Semester = .current
     let onToggle: () -> Void
 
     private let periods: [Period] = [
@@ -40,11 +51,6 @@ struct WeeklyTimetableCloneView: View {
         return weekday >= 2 && weekday <= 6 ? weekday - 2 : -1
     }
 
-    private var semesterText: String {
-        let month = Calendar.current.component(.month, from: Date())
-        return (4...9).contains(month) ? "前期" : "後期"
-    }
-
     private var yearText: String {
         let year = Calendar.current.component(.year, from: Date())
         return "\(year)年"
@@ -55,19 +61,32 @@ struct WeeklyTimetableCloneView: View {
             // ヘッダー
             HStack {
                 Spacer()
-                Text("\(yearText) \(semesterText)")
-                    .font(.system(size: 17, weight: .semibold))
+                Menu {
+                    ForEach(Semester.allCases, id: \.self) { semester in
+                        Button {
+                            selectedSemester = semester
+                        } label: {
+                            if selectedSemester == semester {
+                                Label("\(yearText) \(semester.rawValue)", systemImage: "checkmark")
+                            } else {
+                                Text("\(yearText) \(semester.rawValue)")
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Text("\(yearText) \(selectedSemester.rawValue)")
+                            .font(.system(size: 17, weight: .semibold))
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 12, weight: .semibold))
+                    }
                     .foregroundStyle(AppTheme.textPrimary)
-                Spacer()
-                Button("学期切替") { }
-                    .font(.system(size: 14))
-                    .foregroundStyle(AppTheme.textMuted)
                     .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        Capsule()
-                            .stroke(AppTheme.grayBorder, lineWidth: 1)
-                    )
+                    .padding(.vertical, 8)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                Spacer()
             }
             .padding(.horizontal, 16)
             .padding(.top, 16)
