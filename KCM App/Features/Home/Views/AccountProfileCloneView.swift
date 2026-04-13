@@ -259,8 +259,8 @@ struct AccountProfileCloneView: View {
                             .font(.system(size: 14))
                             .foregroundStyle(AppTheme.textMuted)
                     }
-                    .padding(.vertical, 4)
                     .listRowSeparator(.hidden)
+                    .listRowBackground(Color.white)
                 }
                 .onMove { source, destination in
                     tabOrder.move(fromOffsets: source, toOffset: destination)
@@ -269,7 +269,8 @@ struct AccountProfileCloneView: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .frame(height: CGFloat(tabOrder.count) * 50)
+            .scrollDisabled(true)
+            .frame(height: CGFloat(tabOrder.count) * 60)
             .background(Color.white)
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             .overlay(
