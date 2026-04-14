@@ -7,8 +7,13 @@ struct TodayTimelineView: View {
     @State private var dateOffset = 0
     @State private var showingCalendar = false
     @State private var calendarMonth = Date()
+    @State private var transitionDirection: TransitionDirection = .none
     @AppStorage(AppSettings.tapToSwitchDayEnabled) private var tapToSwitchDayEnabled = true
     let onToggle: () -> Void
+
+    enum TransitionDirection: Equatable {
+        case left, right, none
+    }
 
     private let calendar = Calendar(identifier: .gregorian)
     private let hourHeight: CGFloat = 74
@@ -53,7 +58,11 @@ struct TodayTimelineView: View {
             VStack(spacing: 0) {
                 header
                 weekStrip(for: selectedDate)
-                timelinePage(for: selectedDate)
+
+                ZStack {
+                    timelinePage(for: selectedDate)
+                }
+                .clipped()
             }
 
             // カレンダーポップオーバー（全体を覆う）
@@ -81,26 +90,6 @@ struct TodayTimelineView: View {
 
     private func timelinePage(for date: Date) -> some View {
         timeline(for: date)
-            .overlay {
-                GeometryReader { geo in
-                    let centerDeadZoneWidth: CGFloat = min(140, geo.size.width * 0.32)
-                    let sideZoneWidth = max((geo.size.width - centerDeadZoneWidth) / 2, 0)
-
-                    HStack(spacing: 0) {
-                        sideTapZone(width: sideZoneWidth) {
-                            shiftDate(by: -1)
-                        }
-
-                        Color.clear
-                            .frame(width: centerDeadZoneWidth)
-
-                        sideTapZone(width: sideZoneWidth) {
-                            shiftDate(by: 1)
-                        }
-                    }
-                }
-            }
-            .animation(.easeInOut(duration: 0.22), value: dateOffset)
     }
 
     @ViewBuilder
@@ -326,6 +315,8 @@ struct TodayTimelineView: View {
         return ScrollView(.vertical, showsIndicators: false) {
             GeometryReader { geo in
                 let cardMaxWidth = geo.size.width - (sidePadding * 2)
+                let centerDeadZoneWidth: CGFloat = min(140, geo.size.width * 0.32)
+                let sideZoneWidth = max((geo.size.width - centerDeadZoneWidth) / 2, 0)
 
                 ZStack(alignment: .topLeading) {
                     // 背景のグリッド線（全幅）
@@ -352,33 +343,36 @@ struct TodayTimelineView: View {
                             .offset(y: y - (timeLabelHeight / 2))
                     }
 
-                    // イベントカード
-                    ForEach(events) { event in
-                        let layout = event.layout(hourHeight: hourHeight, startHour: startHour)
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(event.title)
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundStyle(AppTheme.textPrimary)
-                            Text("\(event.startTime) - \(event.endTime)")
-                                .font(.system(size: 12))
-                                .foregroundStyle(AppTheme.textBlue)
-                            Text(event.location)
-                                .font(.system(size: 12))
-                                .foregroundStyle(AppTheme.textMuted)
-                        }
-                        .padding(10)
-                        .frame(width: cardMaxWidth, height: max(layout.height, 50), alignment: .topLeading)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(Color.white.opacity(0.7))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .stroke(AppTheme.blueCardBorder, lineWidth: 1)
-                        )
-                        .shadow(color: .black.opacity(0.04), radius: 3, y: 1)
-                        .offset(x: timeLabelWidth, y: layout.top + 16)
+                    // タップゾーン（日付切り替え）
+                    HStack(spacing: 0) {
+                        // 左ゾーン：前日へ
+                        Color.clear
+                            .frame(width: sideZoneWidth)
+                            .contentShape(Rectangle())
+                            .onTapGesture { shiftDate(by: -1) }
+
+                        // 中央ゾーン：長押しはカードに任せる
+                        Color.clear
+                            .frame(width: centerDeadZoneWidth)
+
+                        // 右ゾーン：翌日へ
+                        Color.clear
+                            .frame(width: sideZoneWidth)
+                            .contentShape(Rectangle())
+                            .onTapGesture { shiftDate(by: 1) }
                     }
+                    .zIndex(-1)
+
+                    // イベントカード（スライドアニメーション）
+                    EventCardsView(
+                        date: date,
+                        events: events,
+                        cardMaxWidth: cardMaxWidth,
+                        hourHeight: hourHeight,
+                        startHour: startHour,
+                        timeLabelWidth: timeLabelWidth,
+                        transitionDirection: transitionDirection
+                    )
 
                     // 現在時刻の線＋ラベル（今日のみ）
                     if calendar.isDate(date, inSameDayAs: currentTime), let indicatorTop = currentIndicatorTop {
@@ -440,15 +434,21 @@ struct TodayTimelineView: View {
 
     private func shiftDate(by days: Int) {
         guard let nextDate = calendar.date(byAdding: .day, value: days, to: selectedDate) else { return }
-        setDisplayedDate(nextDate)
+
+        withAnimation(.easeInOut(duration: 0.25)) {
+            transitionDirection = days > 0 ? .right : .left
+            selectedDate = nextDate
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.26) {
+            transitionDirection = .none
+        }
     }
 
     private func setDisplayedDate(_ date: Date) {
         let normalizedDate = calendar.startOfDay(for: date)
-        withAnimation(.easeInOut(duration: 0.22)) {
-            selectedDate = normalizedDate
-            syncDateOffset(with: normalizedDate)
-        }
+        selectedDate = normalizedDate
+        syncDateOffset(with: normalizedDate)
     }
 
     private func syncDateOffset(with date: Date, animated: Bool = false) {
@@ -462,6 +462,7 @@ struct TodayTimelineView: View {
             dateOffset = newOffset
         }
     }
+
 }
 
 private struct CalendarPickerView: View {
@@ -595,5 +596,88 @@ private struct CalendarPickerView: View {
             return .white
         }
         return AppTheme.textPrimary
+    }
+}
+
+// MARK: - イベントカード（スライドアニメーション対応）
+private struct EventCardsView: View {
+    let date: Date
+    let events: [DayEvent]
+    let cardMaxWidth: CGFloat
+    let hourHeight: CGFloat
+    let startHour: Int
+    let timeLabelWidth: CGFloat
+    let transitionDirection: TodayTimelineView.TransitionDirection
+
+    var body: some View {
+        ForEach(events) { event in
+            let layout = event.layout(hourHeight: hourHeight, startHour: startHour)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(event.title)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(AppTheme.textPrimary)
+                Text("\(event.startTime) - \(event.endTime)")
+                    .font(.system(size: 12))
+                    .foregroundStyle(AppTheme.textBlue)
+                Text(event.location)
+                    .font(.system(size: 12))
+                    .foregroundStyle(AppTheme.textMuted)
+            }
+            .padding(10)
+            .frame(width: cardMaxWidth, height: layout.height, alignment: .topLeading)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.white.opacity(0.7))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(AppTheme.blueCardBorder, lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.04), radius: 3, y: 1)
+            .offset(x: timeLabelWidth, y: layout.top + 16)
+            .contextMenu {
+                Button {
+                    // シラバス表示アクション
+                } label: {
+                    Label("シラバスを表示", systemImage: "book")
+                }
+                Button {
+                    // 詳細表示アクション
+                } label: {
+                    Label("詳細を表示", systemImage: "info.circle")
+                }
+                Button {
+                    // 編集アクション
+                } label: {
+                    Label("編集", systemImage: "pencil")
+                }
+            } preview: {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(event.title)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(AppTheme.textPrimary)
+                    Text("\(event.startTime) - \(event.endTime)")
+                        .font(.system(size: 12))
+                        .foregroundStyle(AppTheme.textBlue)
+                    Text(event.location)
+                        .font(.system(size: 12))
+                        .foregroundStyle(AppTheme.textMuted)
+                }
+                .padding(10)
+                .frame(width: cardMaxWidth, height: layout.height, alignment: .topLeading)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color.white.opacity(0.9))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(AppTheme.blueCardBorder, lineWidth: 1)
+                )
+                .shadow(color: .black.opacity(0.08), radius: 5, y: 2)
+            }
+        }
+        .id(date)
+        .transition(.move(edge: .trailing))
+        .animation(.easeInOut(duration: 0.25), value: date)
     }
 }
