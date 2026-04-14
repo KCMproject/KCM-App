@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct DayEvent: Identifiable {
-    let id = UUID()
+    let id: String
     let title: String
     let startTime: String
     let endTime: String
@@ -12,6 +12,7 @@ struct DayEvent: Identifiable {
     let endMinutes: Int
 
     init(title: String, startTime: String, endTime: String, location: String) {
+        self.id = "\(title)|\(startTime)|\(endTime)|\(location)"
         self.title = title
         self.startTime = startTime
         self.endTime = endTime

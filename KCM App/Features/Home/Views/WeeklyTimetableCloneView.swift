@@ -26,8 +26,8 @@ struct WeeklyTimetableCloneView: View {
     private let dayLabels = WeekdayLabels.weekdays
 
     private let schedule: [[ClassCell]] = [
-        [.filled("線形代数学", "A101"), .filled("物理学概論", "B203"), .empty, .filled("線形代数学", "A101"), .filled("経済学入門", "C301")],
-        [.filled("英語", "B205"), .filled("情報理論", "PC-201"), .filled("化学基礎", "D104"), .filled("英語", "B205"), .filled("哲学概論", "A203")],
+        [.filled("線形代数学", "A101"), .filled("物理学概論", "B203"), .empty, .filled("現代社会における情報通信技術の基礎と応用", "情報棟C401"), .filled("経済学入門", "C301")],
+        [.filled("国際教養英語コミュニケーション", "B205"), .filled("情報理論", "PC-201"), .filled("化学基礎実験を含む", "D104"), .filled("英語", "B205"), .filled("哲学概論", "A203")],
         [.filled("プログラミング", "PC-301"), .filled("微分積分学", "A102"), .filled("体育実技", "体育館"), .filled("プログラミング", "PC-301"), .empty],
         [.filled("物理学実験", "E-102"), .filled("文学概論", "C205"), .filled("統計学", "A301"), .filled("物理学実験", "E-102"), .filled("社会学", "B301")],
         [.filled("ゼミナール", "R-405"), .empty, .empty, .filled("ゼミナール", "R-405"), .empty],
@@ -114,74 +114,74 @@ struct WeeklyTimetableCloneView: View {
             .background(AppTheme.surface)
 
             // スクロール可能な時間割グリッド
-            List {
-                ForEach(Array(periods.enumerated()), id: \.offset) { rowIndex, period in
-                    HStack(spacing: 0) {
-                        // 時限ラベル
-                        VStack(spacing: 4) {
-                            Text("\(period.number)")
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundStyle(AppTheme.textSoft)
-                            VStack(spacing: 2) {
-                                Text(period.start)
-                                    .font(.system(size: 9))
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(Array(periods.enumerated()), id: \.offset) { rowIndex, period in
+                        HStack(spacing: 0) {
+                            // 時限ラベル
+                            VStack(spacing: 4) {
+                                Text("\(period.number)")
+                                    .font(.system(size: 16, weight: .medium))
                                     .foregroundStyle(AppTheme.textSoft)
-                                Text("|")
-                                    .font(.system(size: 9))
-                                    .foregroundStyle(AppTheme.textSoft)
-                                Text(period.end)
-                                    .font(.system(size: 9))
-                                    .foregroundStyle(AppTheme.textSoft)
+                                VStack(spacing: 2) {
+                                    Text(period.start)
+                                        .font(.system(size: 9))
+                                        .foregroundStyle(AppTheme.textSoft)
+                                    Text("|")
+                                        .font(.system(size: 9))
+                                        .foregroundStyle(AppTheme.textSoft)
+                                    Text(period.end)
+                                        .font(.system(size: 9))
+                                        .foregroundStyle(AppTheme.textSoft)
+                                }
+                            }
+                            .frame(width: 48)
+
+                            // 各曜日のセル
+                            ForEach(Array(schedule[rowIndex].enumerated()), id: \.offset) { columnIndex, item in
+                                let isToday = columnIndex == todayIndex
+                                TimetableCell(item: item, isToday: isToday)
                             }
                         }
-                        .frame(width: 48)
+                        .padding(.vertical, 4)
+                    }
 
-                        // 各曜日のセル
-                        ForEach(Array(schedule[rowIndex].enumerated()), id: \.offset) { columnIndex, item in
-                            let isToday = columnIndex == todayIndex
-                            TimetableCell(item: item, isToday: isToday)
+                    // レッスン等セクション
+                    VStack(spacing: 8) {
+                        HStack(spacing: 8) {
+                            Rectangle().fill(AppTheme.lightBlueBorder).frame(height: 1)
+                            Text("レッスン等")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(AppTheme.textBlue)
+                            Rectangle().fill(AppTheme.lightBlueBorder).frame(height: 1)
+                        }
+                        .padding(.top, 16)
+
+                        ForEach(lessons) { lesson in
+                            LessonRow(lesson: lesson)
                         }
                     }
-                    .listRowSeparator(.hidden)
-                    .listRowInsets(EdgeInsets())
-                    .padding(.vertical, 4)
-                }
+                    .padding(.horizontal, 16)
 
-                Section {
-                    ForEach(lessons) { lesson in
-                        LessonRow(lesson: lesson)
-                    }
-                } header: {
-                    HStack(spacing: 8) {
-                        Rectangle().fill(AppTheme.lightBlueBorder).frame(height: 1)
-                        Text("レッスン等")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(AppTheme.textBlue)
-                        Rectangle().fill(AppTheme.lightBlueBorder).frame(height: 1)
-                    }
-                }
-                .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
+                    // 集中講義セクション
+                    VStack(spacing: 8) {
+                        HStack(spacing: 8) {
+                            Rectangle().fill(AppTheme.lightBlueBorder).frame(height: 1)
+                            Text("集中講義")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(AppTheme.textBlue)
+                            Rectangle().fill(AppTheme.lightBlueBorder).frame(height: 1)
+                        }
+                        .padding(.top, 16)
 
-                Section {
-                    ForEach(intensiveCourses) { course in
-                        IntensiveCourseRow(course: course)
+                        ForEach(intensiveCourses) { course in
+                            IntensiveCourseRow(course: course)
+                        }
                     }
-                } header: {
-                    HStack(spacing: 8) {
-                        Rectangle().fill(AppTheme.lightBlueBorder).frame(height: 1)
-                        Text("集中講義")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(AppTheme.textBlue)
-                        Rectangle().fill(AppTheme.lightBlueBorder).frame(height: 1)
-                    }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 16)
                 }
-                .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
             }
-            .listStyle(.plain)
             .scrollContentBackground(.hidden)
             .background(Color.white)
         }
@@ -202,26 +202,72 @@ private struct TimetableCell: View {
         VStack(spacing: 4) {
             if let title = item.title {
                 Text(title)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(AppTheme.textPrimary)
                     .multilineTextAlignment(.center)
-                    .lineLimit(2)
+                    .lineLimit(3)
+                    .minimumScaleFactor(0.7)
                 if let room = item.room {
                     Text(room)
-                        .font(.system(size: 10))
+                        .font(.system(size: 9))
                         .foregroundStyle(AppTheme.textMuted)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                 }
             }
         }
         .frame(maxWidth: .infinity, minHeight: 72)
-        .padding(.horizontal, 6)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 4)
+        .padding(.vertical, 6)
         .background(cellBackground)
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .stroke(cellBorder, lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .contextMenu {
+            if item.title != nil {
+                Button {
+                    // シラバス表示アクション
+                } label: {
+                    Label("シラバスを表示", systemImage: "book")
+                }
+                Button {
+                    // 詳細表示アクション
+                } label: {
+                    Label("詳細を表示", systemImage: "info.circle")
+                }
+                Button {
+                    // 編集アクション
+                } label: {
+                    Label("編集", systemImage: "pencil")
+                }
+            }
+        } preview: {
+            VStack(spacing: 4) {
+                if let title = item.title {
+                    Text(title)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(3)
+                    if let room = item.room {
+                        Text(room)
+                            .font(.system(size: 9))
+                            .foregroundStyle(AppTheme.textMuted)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, minHeight: 72)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 6)
+            .background(cellBackground)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(cellBorder, lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
     }
 
     private var cellBackground: Color {
@@ -265,6 +311,44 @@ private struct IntensiveCourseRow: View {
                 .stroke(AppTheme.lightBlueBorder, lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .contextMenu {
+            Button {
+                // シラバス表示アクション
+            } label: {
+                Label("シラバスを表示", systemImage: "book")
+            }
+            Button {
+                // 詳細表示アクション
+            } label: {
+                Label("詳細を表示", systemImage: "info.circle")
+            }
+            Button {
+                // 編集アクション
+            } label: {
+                Label("編集", systemImage: "pencil")
+            }
+        } preview: {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(course.title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(AppTheme.textPrimary)
+                Text(course.period)
+                    .font(.system(size: 12))
+                    .foregroundStyle(AppTheme.textBlue)
+                Text("\(course.location) \(course.instructor)")
+                    .font(.system(size: 12))
+                    .foregroundStyle(AppTheme.textMuted)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(Color.white)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(AppTheme.lightBlueBorder, lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
     }
 }
 
@@ -294,5 +378,43 @@ private struct LessonRow: View {
                 .stroke(AppTheme.lightBlueBorder, lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .contextMenu {
+            Button {
+                // シラバス表示アクション
+            } label: {
+                Label("シラバスを表示", systemImage: "book")
+            }
+            Button {
+                // 詳細表示アクション
+            } label: {
+                Label("詳細を表示", systemImage: "info.circle")
+            }
+            Button {
+                // 編集アクション
+            } label: {
+                Label("編集", systemImage: "pencil")
+            }
+        } preview: {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(lesson.title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(AppTheme.textPrimary)
+                Text(lesson.schedule)
+                    .font(.system(size: 12))
+                    .foregroundStyle(AppTheme.textBlue)
+                Text("\(lesson.location) \(lesson.instructor)")
+                    .font(.system(size: 12))
+                    .foregroundStyle(AppTheme.textMuted)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(Color.white)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(AppTheme.lightBlueBorder, lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
     }
 }
