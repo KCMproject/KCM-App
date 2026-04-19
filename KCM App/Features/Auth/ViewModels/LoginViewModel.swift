@@ -11,7 +11,7 @@ final class LoginViewModel: ObservableObject {
 
     private let portalClient: PortalClientProtocol
 
-    init(portalClient: PortalClientProtocol = PortalClientFactory.makeLoginService()) {
+    init(portalClient: PortalClientProtocol) {
         self.portalClient = portalClient
     }
 

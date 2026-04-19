@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct AppRootView: View {
-    @StateObject private var loginViewModel = LoginViewModel()
+    @StateObject private var loginViewModel = LoginViewModel(portalClient: PortalClientFactory.makeLoginService())
 
     var body: some View {
         Group {

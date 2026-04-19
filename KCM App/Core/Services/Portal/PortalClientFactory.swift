@@ -6,9 +6,12 @@
 //
 
 
+import Foundation
+
 // MARK: - ファクトリ
 
 /// ログインサービスのファクトリ
+@MainActor
 enum PortalClientFactory {
     static func makeLoginService() -> PortalClientProtocol {
         return PortalClientImpl()

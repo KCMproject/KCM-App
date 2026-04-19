@@ -248,61 +248,201 @@ final class PortalClientImpl: PortalClientProtocol {
 // MARK: - 新規追加: リンクを辿ってお知らせを取得する処理
 
     func fetchOshirase(completion: @escaping (Bool) -> Void) {
-        print("🔍 掲示板への遷移を開始します...")
-        
-        // 1. メインページ (page=main) を取得
-        let mainURL = URL(string: "\(baseURL)\(portalURL)?page=main")!
-        var request = URLRequest(url: mainURL)
-        request.httpMethod = "GET"
-        request.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1", forHTTPHeaderField: "User-Agent")
-        let task = session.dataTask(with: request) { [weak self] data, response, error in
-            guard let self = self, let data = data, let html = String(data: data, encoding: .utf8) else {
-                completion(false); return
+        Task {
+            do {
+                _ = try await fetchAnnouncements()
+                completion(true)
+            } catch {
+                completion(false)
             }
-
-            // 2. 「掲示板」リンク (id="menu-link-mf-164854") を抽出
-            guard let bulletinPath = self.extractHref(from: html, withId: "menu-link-mf-164854") else {
-                print("❌ 「掲示板」リンクが見つかりません。")
-                completion(false); return
-            }
-            print("🔗 掲示板へのリンクを抽出しました")
-
-            // 3. 掲示板メニューページを取得
-            let bulletinURL = URL(string: "\(self.baseURL)/\(bulletinPath)")!
-            var bulletinReq = URLRequest(url: bulletinURL)
-            bulletinReq.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1", forHTTPHeaderField: "User-Agent")
-            bulletinReq.setValue("\(self.baseURL)\(self.portalURL)?page=main", forHTTPHeaderField: "Referer")
-
-            self.session.dataTask(with: bulletinReq) { data, response, error in
-                guard let data = data, let bulletinHtml = String(data: data, encoding: .utf8) else {
-                    completion(false); return
-                }
-
-                // 4. 「お知らせ掲示板」リンク (id="auto-a-29") を抽出 (flowExecutionKeyを含む)
-                guard let oshirasePath = self.extractHrefByText(from: bulletinHtml, text: "お知らせ掲示板") else {
-                    print("❌ お知らせ掲示板リンクが見つかりません。")
-                    self.saveHtmlToFile(html: bulletinHtml, fileName: "debug_bulletin.html")
-                    completion(false); return
-                }
-                print("🔗 お知らせ掲示板への動的リンクを抽出しました")
-                // 5. 最終的なお知らせ掲示板を取得
-                let oshiraseURL = URL(string: "\(self.baseURL)/\(oshirasePath)")!
-                var oshiraseReq = URLRequest(url: oshiraseURL)
-                oshiraseReq.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1", forHTTPHeaderField: "User-Agent")
-                oshiraseReq.setValue(bulletinURL.absoluteString, forHTTPHeaderField: "Referer")
-
-                self.session.dataTask(with: oshiraseReq) { data, response, error in
-                    guard let data = data, let finalHtml = String(data: data, encoding: .utf8) else {
-                        completion(false); return
-                    }
-
-                    // 🌟 6. 結果をファイルに保存
-                    self.saveHtmlToFile(html: finalHtml, fileName: "oshirase_board.html")
-                    completion(true)
-                }.resume()
-            }.resume()
         }
-        task.resume()
+    }
+
+    /// お知らせ一覧を取得する (async)
+    func fetchAnnouncements() async throws -> [NoticeCard] {
+        // 1. メインページから掲示板リンクを抽出
+        let mainHtml = try await fetchMainPageHtml()
+        
+        guard let bulletinPath = self.extractHref(from: mainHtml, withId: "menu-link-mf-164854") else {
+            throw NSError(domain: "PortalClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "掲示板リンクが見つかりません"])
+        }
+        
+        // 2. 掲示板ページへアクセス (直接フローを開始)
+        let url = URL(string: "\(baseURL)/\(bulletinPath)")!
+        var request = URLRequest(url: url)
+        request.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1", forHTTPHeaderField: "User-Agent")
+        request.setValue("\(baseURL)\(portalURL)?page=main", forHTTPHeaderField: "Referer")
+        
+        let (data, _) = try await session.data(for: request)
+        guard let html = String(data: data, encoding: .utf8) else {
+            throw NSError(domain: "PortalClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "掲示板ページの取得に失敗"])
+        }
+        
+        return parseAnnouncements(from: html)
+    }
+
+    /// お知らせ一覧を取得する (completion handler)
+    func fetchAnnouncements(completion: @escaping (Result<[NoticeCard], Error>) -> Void) {
+        Task {
+            do {
+                let notices = try await fetchAnnouncements()
+                completion(.success(notices))
+            } catch {
+                completion(.failure(error))
+            }
+        }
+    }
+
+    /// 時間割を取得する (async)
+    func fetchTimetable() async throws -> [Course] {
+        let html = try await fetchMainPageHtml()
+        return parseTimetable(from: html)
+    }
+
+    /// 時間割を取得する (completion handler)
+    func fetchTimetable(completion: @escaping (Result<[Course], Error>) -> Void) {
+        Task {
+            do {
+                let courses = try await fetchTimetable()
+                completion(.success(courses))
+            } catch {
+                completion(.failure(error))
+            }
+        }
+    }
+
+    /// メインページのHTMLから時間割をパースする
+    private func parseTimetable(from html: String) -> [Course] {
+        var results: [Course] = []
+        
+        // CampusSquareのメインページ時間割テーブルのセルを抽出
+        // <td class="timetable-course">...</td> のような構造を想定
+        let cellPattern = "<td[^>]*class=\"[^\"]*timetable-(?:course|cell)[^\"]*\"[^>]*>(.*?)</td>"
+        guard let cellRegex = try? NSRegularExpression(pattern: cellPattern, options: [.dotMatchesLineSeparators]) else { return [] }
+        
+        let matches = cellRegex.matches(in: html, options: [], range: NSRange(location: 0, length: html.utf16.count))
+        
+        for match in matches {
+            guard let cellRange = Range(match.range(at: 1), in: html) else { continue }
+            let cellHtml = String(html[cellRange])
+            
+            // 講義名、教室、教員名を抽出
+            let title = stripHtmlTags(from: extractTagContent(from: cellHtml, tag: "a") ?? "")
+            let room = stripHtmlTags(from: extractTagContent(from: cellHtml, tag: "span", className: "room") ?? "")
+            
+            if !title.isEmpty {
+                results.append(Course(
+                    id: UUID(),
+                    weekday: "", // HTML構造から曜日・時限を特定する必要があるが、ここでは簡易化
+                    period: "",
+                    title: title,
+                    room: room,
+                    status: "",
+                    instructor: "",
+                    nextClassInfo: "",
+                    materials: [],
+                    assignments: []
+                ))
+            }
+        }
+        
+        return results
+    }
+
+    /// メインページのHTMLを取得する
+    private func fetchMainPageHtml() async throws -> String {
+        let url = URL(string: "\(baseURL)\(portalURL)?page=main")!
+        var request = URLRequest(url: url)
+        request.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1", forHTTPHeaderField: "User-Agent")
+        
+        let (data, _) = try await session.data(for: request)
+        guard let html = String(data: data, encoding: .utf8) else {
+            throw NSError(domain: "PortalClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "メインページの取得に失敗"])
+        }
+        return html
+    }
+
+    /// お知らせ掲示板のHTMLからお知らせ一覧をパースする
+    private func parseAnnouncements(from html: String) -> [NoticeCard] {
+        var results: [NoticeCard] = []
+        
+        // CampusSquareのお知らせ一覧テーブルの行を抽出する正規表現
+        // <td>日付</td><td>カテゴリ</td><td><a...>タイトル</a></td> のような構造を想定
+        let rowPattern = "<tr[^>]*>(.*?)</tr>"
+        guard let rowRegex = try? NSRegularExpression(pattern: rowPattern, options: [.dotMatchesLineSeparators]) else { return [] }
+        
+        let matches = rowRegex.matches(in: html, options: [], range: NSRange(location: 0, length: html.utf16.count))
+        
+        for match in matches {
+            guard let rowRange = Range(match.range(at: 1), in: html) else { continue }
+            let rowHtml = String(html[rowRange])
+            
+            // 各セルの内容を抽出
+            let cellPattern = "<td[^>]*>(.*?)</td>"
+            guard let cellRegex = try? NSRegularExpression(pattern: cellPattern, options: [.dotMatchesLineSeparators]) else { continue }
+            let cellMatches = cellRegex.matches(in: rowHtml, options: [], range: NSRange(location: 0, length: rowHtml.utf16.count))
+            
+            // [掲載日時, 表題, 返信未読, ジャンル, 所属, 氏名, 掲示期間]
+            if cellMatches.count >= 4 {
+                let dateFull = stripHtmlTags(from: extractCellContent(from: rowHtml, match: cellMatches[0]))
+                // 日付のみ抽出 (例: 2026/04/14 17:06:53 -> 2026/04/14)
+                let date = String(dateFull.prefix(10))
+                
+                let titleWithLink = extractCellContent(from: rowHtml, match: cellMatches[1])
+                let title = stripHtmlTags(from: titleWithLink)
+                
+                let category = stripHtmlTags(from: extractCellContent(from: rowHtml, match: cellMatches[3]))
+                
+                // IDはリンク等から抽出（ここでは簡易的にタイトル+日付）
+                let id = "\(title)_\(date)".addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? UUID().uuidString
+                
+                if !title.isEmpty && !date.isEmpty && !title.contains("掲載日時") { // ヘッダー行を除外
+                    results.append(NoticeCard(
+                        id: id,
+                        title: title,
+                        date: date,
+                        category: category,
+                        isPinned: rowHtml.contains("icon_pin") || rowHtml.contains("重要"),
+                        content: ""
+                    ))
+                }
+            }
+        }
+        
+        return results
+    }
+
+    private func extractCellContent(from html: String, match: NSTextCheckingResult) -> String {
+        guard let range = Range(match.range(at: 1), in: html) else { return "" }
+        return String(html[range]).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func stripHtmlTags(from html: String) -> String {
+        let pattern = "<[^>]+>"
+        return html.replacingOccurrences(of: pattern, with: "", options: .regularExpression)
+            .replacingOccurrences(of: "&nbsp;", with: " ")
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func extractTagContent(from html: String, tag: String, className: String? = nil) -> String? {
+        let pattern: String
+        if let className = className {
+            pattern = "<\(tag)[^>]*class=\"[^\"]*\(className)[^\"]*\"[^>]*>(.*?)</\(tag)>"
+        } else {
+            pattern = "<\(tag)[^>]*>(.*?)</\(tag)>"
+        }
+        
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators]),
+              let match = regex.firstMatch(in: html, options: [], range: NSRange(location: 0, length: html.utf16.count)) else {
+            return nil
+        }
+        
+        let range = match.range(at: 1)
+        if let swiftRange = Range(range, in: html) {
+            return String(html[swiftRange])
+        }
+        return nil
     }
 
     /// HTMLから指定したIDを持つタグのhrefを抽出するヘルパー
