@@ -33,6 +33,13 @@ KCM App/
 - モデルを増やすときは複数画面で使うものを `Core/Models` に置く
 - モック実装から始めて、本実装へ差し替えるときもプロトコルは維持する
 
+## 実機ビルド設定
+
+- 共有設定は `Config/App.shared.xcconfig` にあります
+- 各自 `Config/Local.example.xcconfig` を `Config/Local.xcconfig` としてコピーして使ってください
+- `Local.xcconfig` は Git 管理外です
+- 実機ビルドしたい人は自分の `DEVELOPMENT_TEAM` と `PRODUCT_BUNDLE_IDENTIFIER` を `Local.xcconfig` に入れてください
+
 ## 現在の状態
 
 - ログイン画面の雛形あり

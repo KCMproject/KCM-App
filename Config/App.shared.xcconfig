@@ -1,0 +1,5 @@
+CODE_SIGN_STYLE = Automatic
+DEVELOPMENT_TEAM =
+PRODUCT_BUNDLE_IDENTIFIER = com.sikureha.KCMApp
+
+#include? "Local.xcconfig"
