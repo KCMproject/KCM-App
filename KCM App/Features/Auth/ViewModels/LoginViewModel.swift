@@ -37,13 +37,10 @@ final class LoginViewModel: ObservableObject {
                 case .success(let session):
                     print("Login success: \(session)")
                     self.isLoggedIn = true
-                    
-                    // 🌟 ログイン成功時にバックグラウンドでデータを一括取得
+
                     Task {
-                        await withTaskGroup(of: Void.self) { group in
-                            group.addTask { await TimetableViewModel.shared.initialFetch() }
-                            group.addTask { await NoticeBoardViewModel.shared.initialFetch() }
-                        }
+                        PortalDataCoordinator.shared.loadCachedData()
+                        await PortalDataCoordinator.shared.refreshAll(showUpdateBanner: true)
                     }
                 case .failure(let error):
                     self.errorMessage = error.errorDescription
@@ -58,12 +55,9 @@ final class LoginViewModel: ObservableObject {
             DispatchQueue.main.async {
                 self.isLoggedIn = isValid
                 if isValid {
-                    // セッションが有効ならデータを取得
                     Task {
-                        await withTaskGroup(of: Void.self) { group in
-                            group.addTask { await TimetableViewModel.shared.initialFetch() }
-                            group.addTask { await NoticeBoardViewModel.shared.initialFetch() }
-                        }
+                        PortalDataCoordinator.shared.loadCachedData()
+                        await PortalDataCoordinator.shared.refreshAll(showUpdateBanner: true)
                     }
                 }
             }

@@ -134,7 +134,7 @@ struct WeeklyTimetableCloneView: View {
                     }
                 }
                 .refreshable {
-                    await viewModel.initialFetch()
+                    await PortalDataCoordinator.shared.refreshAll(showUpdateBanner: true)
                 }
 
                 if viewModel.isLoading {
@@ -157,22 +157,32 @@ private struct TimetableCell: View {
     let isToday: Bool
 
     var body: some View {
-        VStack(spacing: 4) {
-            if let title = item.title {
-                Text(title)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(AppTheme.textPrimary)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(3)
-                    .minimumScaleFactor(0.7)
-                if let room = item.room {
-                    Text(room)
-                        .font(.system(size: 9))
-                        .foregroundStyle(AppTheme.textMuted)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+        VStack(spacing: 0) {
+            if item.title != nil {
+                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    .fill(accentBarColor)
+                    .frame(width: 28, height: 4)
+                    .padding(.top, 2)
+            }
+
+            VStack(spacing: 4) {
+                if let title = item.title {
+                    Text(title)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(3)
+                        .minimumScaleFactor(0.7)
+                    if let room = item.room {
+                        Text(room)
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundStyle(AppTheme.textMuted)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
                 }
             }
+            .frame(maxHeight: .infinity)
         }
         .frame(maxWidth: .infinity, minHeight: 72)
         .padding(.horizontal, 4)
@@ -230,16 +240,20 @@ private struct TimetableCell: View {
 
     private var cellBackground: Color {
         if isToday {
-            return item.title != nil ? AppTheme.accent.opacity(0.08) : AppTheme.accent.opacity(0.04)
+            return item.title != nil ? AppTheme.accent.opacity(0.16) : AppTheme.accent.opacity(0.04)
         }
-        return item.title != nil ? .white : Color.white.opacity(0.6)
+        return item.title != nil ? AppTheme.lightBlueBorder.opacity(0.22) : Color.white.opacity(0.55)
     }
 
     private var cellBorder: Color {
         if isToday {
-            return item.title != nil ? AppTheme.blueCardBorder : AppTheme.lightBlueBorder.opacity(0.5)
+            return item.title != nil ? AppTheme.blueCardBorder.opacity(0.95) : AppTheme.lightBlueBorder.opacity(0.5)
         }
-        return item.title != nil ? AppTheme.lightBlueBorder : AppTheme.lightBlueBorder.opacity(0.5)
+        return item.title != nil ? AppTheme.lightBlueBorder.opacity(0.85) : AppTheme.lightBlueBorder.opacity(0.45)
+    }
+
+    private var accentBarColor: Color {
+        isToday ? AppTheme.accent : AppTheme.textBlue.opacity(0.8)
     }
 }
 

@@ -10,26 +10,37 @@ final class NoticeBoardViewModel: ObservableObject {
     @Published var errorMessage: String?
 
     private let portalClient: PortalClientProtocol
+    private let cacheStore = PortalCacheStore.shared
 
     init(portalClient: PortalClientProtocol) {
         self.portalClient = portalClient
     }
 
+    func loadCachedData() {
+        let cachedNotices = cacheStore.loadNotices()
+        guard !cachedNotices.isEmpty else { return }
+        announcements = cachedNotices
+    }
+
     func initialFetch() async {
+        _ = await refreshFromServer()
+    }
+
+    func refreshFromServer() async -> Bool {
         isLoading = true
         errorMessage = nil
 
         do {
             let notices = try await portalClient.fetchAnnouncements()
-            await MainActor.run {
-                self.announcements = notices
-                self.isLoading = false
-            }
+            let didUpdate = notices != announcements
+            announcements = notices
+            cacheStore.saveNotices(notices)
+            isLoading = false
+            return didUpdate
         } catch {
-            await MainActor.run {
-                self.errorMessage = error.localizedDescription
-                self.isLoading = false
-            }
+            self.errorMessage = error.localizedDescription
+            self.isLoading = false
+            return false
         }
     }
     

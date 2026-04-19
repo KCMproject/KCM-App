@@ -6,6 +6,7 @@ struct TodayTimelineView: View {
     @State private var currentTime = Date()
     @State private var selectedDate = Date()
     @State private var dateOffset = 0
+    @State private var weekPageOffset = 0
     @State private var showingCalendar = false
     @State private var calendarMonth = Date()
     @State private var transitionDirection: TransitionDirection = .none
@@ -48,7 +49,7 @@ struct TodayTimelineView: View {
         ZStack {
             VStack(spacing: 0) {
                 header
-                weekStrip(for: selectedDate)
+                weekStripPager
 
                 ZStack {
                     timelinePage(for: selectedDate)
@@ -76,6 +77,9 @@ struct TodayTimelineView: View {
         .background(AppTheme.pageBackground)
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { date in
             currentTime = date
+        }
+        .onAppear {
+            syncWeekPage(with: selectedDate)
         }
     }
 
@@ -255,13 +259,32 @@ struct TodayTimelineView: View {
         }
     }
 
+    private var weekStripPager: some View {
+        TabView(selection: $weekPageOffset) {
+            ForEach(-52...52, id: \.self) { offset in
+                weekStrip(for: weekDate(offset: offset))
+                    .tag(offset)
+            }
+        }
+        .frame(height: 60)
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .onChange(of: weekPageOffset) { oldValue, newValue in
+            guard newValue != oldValue else { return }
+            shiftWeek(by: newValue - oldValue)
+        }
+        .background(Color.white)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(AppTheme.border).frame(height: 1)
+        }
+    }
+
     private func weekStrip(for targetDate: Date) -> some View {
         let today = Date()
         let weekStart = targetDate.startOfWeek(calendar: calendar)
         let dates = (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: weekStart) }
 
         return HStack(spacing: 0) {
-            ForEach(Array(dates.enumerated()), id: \.offset) { index, date in
+            ForEach(Array(dates.enumerated()), id: \.offset) { _, date in
                 let selected = calendar.isDate(date, inSameDayAs: selectedDate)
                 let isToday = calendar.isDate(date, inSameDayAs: today)
                 let dayIndex = calendar.component(.weekday, from: date) - 1
@@ -288,10 +311,6 @@ struct TodayTimelineView: View {
                 }
                 .buttonStyle(.plain)
             }
-        }
-        .background(Color.white)
-        .overlay(alignment: .bottom) {
-            Rectangle().fill(AppTheme.border).frame(height: 1)
         }
     }
 
@@ -390,6 +409,9 @@ struct TodayTimelineView: View {
             .padding(.horizontal, sidePadding)
         }
         .background(AppTheme.pageBackground)
+        .refreshable {
+            await PortalDataCoordinator.shared.refreshAll(showUpdateBanner: true)
+        }
     }
 
     private var currentIndicatorTop: CGFloat? {
@@ -440,6 +462,7 @@ struct TodayTimelineView: View {
         let normalizedDate = calendar.startOfDay(for: date)
         selectedDate = normalizedDate
         syncDateOffset(with: normalizedDate)
+        syncWeekPage(with: normalizedDate)
     }
 
     private func syncDateOffset(with date: Date, animated: Bool = false) {
@@ -451,6 +474,31 @@ struct TodayTimelineView: View {
             }
         } else {
             dateOffset = newOffset
+        }
+    }
+
+    private func weekDate(offset: Int) -> Date {
+        calendar.date(byAdding: .day, value: offset * 7, to: today) ?? today
+    }
+
+    private func shiftWeek(by delta: Int) {
+        guard delta != 0 else { return }
+        guard let shiftedDate = calendar.date(byAdding: .day, value: delta * 7, to: selectedDate) else { return }
+
+        withAnimation(.easeInOut(duration: 0.22)) {
+            selectedDate = calendar.startOfDay(for: shiftedDate)
+        }
+        syncDateOffset(with: shiftedDate)
+    }
+
+    private func syncWeekPage(with date: Date) {
+        let baseWeek = today.startOfWeek(calendar: calendar)
+        let targetWeek = date.startOfWeek(calendar: calendar)
+        let dayDelta = calendar.dateComponents([.day], from: baseWeek, to: targetWeek).day ?? 0
+        let weekDelta = dayDelta / 7
+
+        if weekPageOffset != weekDelta {
+            weekPageOffset = weekDelta
         }
     }
 

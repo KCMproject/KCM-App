@@ -6,6 +6,7 @@ struct NoticeBoardCloneView: View {
     @State private var sortBy: NoticeSort = .date
     @State private var selectedCategory = "すべて"
     @State private var favoriteIDs: Set<String> = []
+    private let cacheStore = PortalCacheStore.shared
 
     private static let jaDateFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -138,7 +139,7 @@ struct NoticeBoardCloneView: View {
             }
 
             ZStack {
-                List {
+                ScrollView(.vertical, showsIndicators: false) {
                     if filteredNotices.isEmpty && !viewModel.isLoading {
                         VStack(spacing: 8) {
                             Image(systemName: "star")
@@ -150,34 +151,31 @@ struct NoticeBoardCloneView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.top, 120)
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
                     } else {
-                        ForEach(Array(filteredNotices.enumerated()), id: \.element.id) { index, notice in
-                            VStack(spacing: 0) {
-                                NoticeRow(
-                                    notice: notice,
-                                    isFavorite: favoriteIDs.contains(notice.id)
-                                ) {
-                                    toggleFavorite(notice.id)
-                                }
-                                if index < filteredNotices.count - 1 {
-                                    Rectangle()
-                                        .fill(AppTheme.border)
-                                        .frame(height: 1)
-                                        .padding(.horizontal, 16)
+                        LazyVStack(spacing: 0) {
+                            ForEach(Array(filteredNotices.enumerated()), id: \.element.id) { index, notice in
+                                VStack(spacing: 0) {
+                                    NoticeRow(
+                                        notice: notice,
+                                        isFavorite: favoriteIDs.contains(notice.id)
+                                    ) {
+                                        toggleFavorite(notice.id)
+                                    }
+                                    if index < filteredNotices.count - 1 {
+                                        Rectangle()
+                                            .fill(AppTheme.border)
+                                            .frame(height: 1)
+                                            .padding(.horizontal, 16)
+                                    }
                                 }
                             }
                         }
-                        .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets())
+                        .background(Color.white)
                     }
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
                 .background(AppTheme.pageBackground)
                 .refreshable {
-                    await viewModel.initialFetch()
+                    await PortalDataCoordinator.shared.refreshAll(showUpdateBanner: true)
                 }
 
                 if viewModel.isLoading {
@@ -188,6 +186,9 @@ struct NoticeBoardCloneView: View {
                 }
             }
         }
+        .onAppear {
+            favoriteIDs = cacheStore.loadFavoriteNoticeIDs()
+        }
     }
 
     private func toggleFavorite(_ id: String) {
@@ -196,6 +197,7 @@ struct NoticeBoardCloneView: View {
         } else {
             favoriteIDs.insert(id)
         }
+        cacheStore.saveFavoriteNoticeIDs(favoriteIDs)
     }
 
     private func chipBackground(_ category: String) -> Color {
