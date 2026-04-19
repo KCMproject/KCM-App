@@ -6,6 +6,10 @@ final class PortalDataCoordinator {
 
     private init() {}
 
+    var hasCachedContent: Bool {
+        !TimetableViewModel.shared.courses.isEmpty || !NoticeBoardViewModel.shared.announcements.isEmpty
+    }
+
     func loadCachedData() {
         TimetableViewModel.shared.loadCachedData()
         NoticeBoardViewModel.shared.loadCachedData()
