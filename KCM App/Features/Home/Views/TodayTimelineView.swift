@@ -386,19 +386,19 @@ struct TodayTimelineView: View {
 
                     // 現在時刻の線＋ラベル（今日のみ）
                     if calendar.isDate(date, inSameDayAs: currentTime), let indicatorTop = currentIndicatorTop {
-                        let indicatorLabelHeight: CGFloat = 22
-                        ZStack(alignment: .leading) {
-                            Rectangle()
-                                .fill(Color.red.opacity(0.4))
-                                .frame(height: 1)
-                                .offset(x: timeLabelWidth)
-
+                        let indicatorLabelHeight: CGFloat = 24
+                        HStack(spacing: 8) {
                             Text(currentTimeLabel)
-                                .font(.system(size: 11, weight: .medium))
+                                .font(.system(size: 11, weight: .semibold))
                                 .foregroundStyle(.white)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Capsule().fill(Color.red.opacity(0.7)))
+                                .padding(.horizontal, 8)
+                                .frame(height: indicatorLabelHeight)
+                                .background(Capsule().fill(Color.red))
+
+                            Rectangle()
+                                .fill(Color.red.opacity(0.75))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 1.5)
                         }
                         .frame(height: indicatorLabelHeight, alignment: .leading)
                         .offset(y: indicatorTop + 16 - (indicatorLabelHeight / 2))
