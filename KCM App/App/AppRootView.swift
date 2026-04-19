@@ -11,6 +11,9 @@ struct AppRootView: View {
                 LoginView(viewModel: loginViewModel)
             }
         }
+        .onAppear {
+            loginViewModel.checkSession()
+        }
     }
 }
 
