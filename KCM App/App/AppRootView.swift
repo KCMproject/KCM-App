@@ -6,7 +6,7 @@ struct AppRootView: View {
 
     var body: some View {
         Group {
-            if loginViewModel.isLoggedIn {
+            if loginViewModel.isLoggedIn || loginViewModel.shouldShowCachedPortal {
                 PortalCloneView(onLogout: loginViewModel.logout)
             } else {
                 LoginView(viewModel: loginViewModel)

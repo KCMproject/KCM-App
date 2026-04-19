@@ -1,3 +1,4 @@
+import LocalAuthentication
 import SwiftUI
 
 struct AccountProfileCloneView: View {
@@ -10,13 +11,20 @@ struct AccountProfileCloneView: View {
     @AppStorage(AppSettings.pushNotificationsEnabled) private var pushEnabled = true
     @AppStorage(AppSettings.reminderEnabled) private var reminderEnabled = true
     @AppStorage(AppSettings.darkModeEnabled) private var darkEnabled = false
-    @State private var tabOrder: [TabOrderItem] = [
+    @AppStorage(AppSettings.passwordAutofillEnabled) private var passwordAutofillEnabled = false
+    @AppStorage(AppSettings.tabBarConfiguration) private var tabBarData: Data = Data()
+    @State private var tabOrder: [TabOrderItem] = []
+    @StateObject private var loginViewModel = LoginViewModel.shared
+    @State private var showingPasswordManager = false
+    @State private var authenticationErrorMessage: String?
+    let onLogout: () -> Void
+    let onTabOrderChanged: ([TabOrderItem]) -> Void
+
+    private let defaultTabOrder: [TabOrderItem] = [
         .init(id: "today", title: "今日", icon: "calendar"),
         .init(id: "timetable", title: "時間割", icon: "calendar.badge.clock"),
         .init(id: "board", title: "掲示板", icon: "tray.full")
     ]
-    let onLogout: () -> Void
-    let onTabOrderChanged: ([TabOrderItem]) -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -30,6 +38,23 @@ struct AccountProfileCloneView: View {
             }
         }
         .background(AppTheme.accountBackground)
+        .sheet(isPresented: $showingPasswordManager) {
+            PasswordManagementView(
+                initialCredentials: loginViewModel.loadSavedCredentials(),
+                isAutofillEnabled: passwordAutofillEnabled
+            ) { studentID, password in
+                loginViewModel.saveCredentials(studentID: studentID, password: password)
+            }
+        }
+        .alert("認証できませんでした", isPresented: authenticationAlertBinding) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(authenticationErrorMessage ?? "時間をおいて再度お試しください。")
+        }
+        .onAppear(perform: syncTabOrderFromStorage)
+        .onChange(of: tabBarData) { _, _ in
+            syncTabOrderFromStorage()
+        }
     }
 
     private var header: some View {
@@ -91,6 +116,12 @@ struct AccountProfileCloneView: View {
             settingsSection(
                 title: "アカウント",
                 rows: [
+                    .toggle("key.fill", AppTheme.accent, "パスワード自動入力", "起動時に保存済みログイン情報で更新します", bindingForPasswordAutofill),
+                    .link("lock.shield", Color.orange, "パスワード管理", "保存済みログイン情報を編集", {
+                        Task {
+                            await authenticateForPasswordManagement()
+                        }
+                    }),
                     .link("shield", Color.green, "プライバシー設定", "学内データのみ扱います", {}),
                     .link("info.circle", AppTheme.textSoft, "アプリについて", "v1.0.0", {}),
                     .link("rectangle.portrait.and.arrow.right", AppTheme.danger.opacity(0.8), "ログアウト", nil, onLogout)
@@ -100,6 +131,33 @@ struct AccountProfileCloneView: View {
         .padding(.horizontal, 16)
         .padding(.top, 16)
         .padding(.bottom, 32)
+    }
+
+    private var bindingForPasswordAutofill: Binding<Bool> {
+        Binding(
+            get: { passwordAutofillEnabled },
+            set: { newValue in
+                if newValue {
+                    Task {
+                        await authenticateAndEnablePasswordAutofill()
+                    }
+                } else {
+                    passwordAutofillEnabled = false
+                    loginViewModel.setPasswordAutofillEnabled(false)
+                }
+            }
+        )
+    }
+
+    private var authenticationAlertBinding: Binding<Bool> {
+        Binding(
+            get: { authenticationErrorMessage != nil },
+            set: { isPresented in
+                if !isPresented {
+                    authenticationErrorMessage = nil
+                }
+            }
+        )
     }
 
     private var tabOrderSettingsList: some View {
@@ -222,6 +280,134 @@ struct AccountProfileCloneView: View {
             }
         }
         .background(Color.clear)
+    }
+
+    private func syncTabOrderFromStorage() {
+        guard let decoded = try? JSONDecoder().decode([TabOrderItem].self, from: tabBarData),
+              !decoded.isEmpty else {
+            tabOrder = defaultTabOrder
+            return
+        }
+
+        let filtered = decoded.filter { $0.id != "account" }
+        tabOrder = filtered.isEmpty ? defaultTabOrder : filtered
+    }
+
+    private func authenticateAndEnablePasswordAutofill() async {
+        do {
+            try await DeviceAuthenticationManager.shared.authenticate(
+                reason: "パスワード自動入力を有効にします"
+            )
+            passwordAutofillEnabled = true
+            loginViewModel.setPasswordAutofillEnabled(true)
+        } catch {
+            passwordAutofillEnabled = false
+            authenticationErrorMessage = authenticationMessage(for: error)
+        }
+    }
+
+    private func authenticateForPasswordManagement() async {
+        do {
+            try await DeviceAuthenticationManager.shared.authenticate(
+                reason: "保存済みログイン情報を表示します"
+            )
+            showingPasswordManager = true
+        } catch {
+            authenticationErrorMessage = authenticationMessage(for: error)
+        }
+    }
+
+    private func authenticationMessage(for error: Error) -> String {
+        if let laError = error as? LAError {
+            switch laError.code {
+            case .userCancel, .appCancel, .systemCancel:
+                return "認証がキャンセルされました。"
+            case .biometryNotAvailable:
+                return "この端末では生体認証を利用できません。"
+            case .biometryNotEnrolled:
+                return "Face ID または Touch ID が設定されていません。"
+            case .passcodeNotSet:
+                return "端末のパスコードが設定されていません。"
+            default:
+                return "生体認証に失敗しました。"
+            }
+        }
+
+        return "生体認証に失敗しました。"
+    }
+}
+
+private struct PasswordManagementView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var studentID: String
+    @State private var password: String
+    let isAutofillEnabled: Bool
+    let onSave: (String, String) -> Void
+
+    init(initialCredentials: SavedCredentials?, isAutofillEnabled: Bool, onSave: @escaping (String, String) -> Void) {
+        _studentID = State(initialValue: initialCredentials?.studentID ?? "")
+        _password = State(initialValue: initialCredentials?.password ?? "")
+        self.isAutofillEnabled = isAutofillEnabled
+        self.onSave = onSave
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 20) {
+                Text("保存したログイン情報は端末内に保存されます。自動入力をオンにすると、アプリ起動時にこの情報でログインを試します。")
+                    .font(.system(size: 13))
+                    .foregroundStyle(AppTheme.textMuted)
+
+                VStack(spacing: 16) {
+                    TextField("学籍番号", text: $studentID)
+                        .textFieldStyle(.plain)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .padding()
+                        .background(AppTheme.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+
+                    SecureField("パスワード", text: $password)
+                        .textFieldStyle(.plain)
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .padding()
+                        .background(AppTheme.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                }
+
+                Text(isAutofillEnabled ? "現在は自動入力がオンです" : "現在は自動入力がオフです")
+                    .font(.system(size: 13))
+                    .foregroundStyle(isAutofillEnabled ? AppTheme.textBlue : AppTheme.textMuted)
+
+                Spacer()
+            }
+            .padding(24)
+            .background(AppTheme.background.ignoresSafeArea())
+            .navigationTitle("パスワード管理")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("閉じる") {
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("保存") {
+                        let trimmedID = studentID.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let trimmedPassword = password.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !trimmedID.isEmpty, !trimmedPassword.isEmpty else { return }
+                        onSave(trimmedID, trimmedPassword)
+                        dismiss()
+                    }
+                    .disabled(
+                        studentID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                        password.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    )
+                }
+            }
+        }
     }
 }
 
