@@ -91,7 +91,7 @@ enum WeekdayLabels {
     static let weekdays = ["月", "火", "水", "木", "金"]
 }
 
-struct NoticeCard: Identifiable {
+struct NoticeCard: Identifiable, Codable, Equatable {
     let id: String
     let title: String
     let date: String
