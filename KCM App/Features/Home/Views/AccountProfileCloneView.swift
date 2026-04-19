@@ -17,24 +17,19 @@ struct AccountProfileCloneView: View {
     ]
     let onLogout: () -> Void
     let onTabOrderChanged: ([TabOrderItem]) -> Void
-    let onNavigatePreviousTab: () -> Void
-    let onNavigateNextTab: () -> Void
 
     var body: some View {
-        GeometryReader { geo in
-            VStack(spacing: 0) {
-                header
-                ScrollView {
-                    settingsView
-                }
-                .background(AppTheme.accountBackground)
-                .refreshable {
-                    await PortalDataCoordinator.shared.refreshAll(showUpdateBanner: true)
-                }
-                .simultaneousGesture(accountEdgeSwipeGesture(width: geo.size.width))
+        VStack(spacing: 0) {
+            header
+            ScrollView {
+                settingsView
             }
             .background(AppTheme.accountBackground)
+            .refreshable {
+                await PortalDataCoordinator.shared.refreshAll(showUpdateBanner: true)
+            }
         }
+        .background(AppTheme.accountBackground)
     }
 
     private var header: some View {
@@ -68,23 +63,6 @@ struct AccountProfileCloneView: View {
         .overlay(alignment: .bottom) {
             Rectangle().fill(AppTheme.border).frame(height: 1)
         }
-    }
-
-    private func accountEdgeSwipeGesture(width: CGFloat) -> some Gesture {
-        DragGesture(minimumDistance: 24)
-            .onEnded { value in
-                let horizontal = value.translation.width
-                let vertical = value.translation.height
-                let edgeThreshold: CGFloat = 28
-
-                guard abs(horizontal) > abs(vertical), abs(horizontal) > 60 else { return }
-
-                if horizontal > 0, value.startLocation.x <= edgeThreshold {
-                    onNavigatePreviousTab()
-                } else if horizontal < 0, value.startLocation.x >= width - edgeThreshold {
-                    onNavigateNextTab()
-                }
-            }
     }
 
     private var settingsView: some View {
@@ -249,7 +227,5 @@ struct AccountProfileCloneView: View {
 
 #Preview {
     AccountProfileCloneView(onLogout: {}) { _ in
-    } onNavigatePreviousTab: {
-    } onNavigateNextTab: {
     }
 }

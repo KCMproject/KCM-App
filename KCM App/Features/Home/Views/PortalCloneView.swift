@@ -28,49 +28,49 @@ struct PortalCloneView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // メインコンテンツ
-            GeometryReader { geo in
-                ZStack {
-                    TodayTimelineView(
-                        onToggle: {
-                            selectedTab = 1
-                        }
-                    )
-                    .id(todayViewKey)
-                    .simultaneousGesture(tabSwipeGesture(allowPrevious: true, allowNext: true, width: geo.size.width))
-                    .opacity(selectedTab == 0 ? 1 : 0)
-                    .allowsHitTesting(selectedTab == 0)
+            TabView(selection: $selectedTab) {
+                ForEach(Array(tabConfig.enumerated()), id: \.element.id) { index, tab in
+                    contentView(for: tab)
+                        .tag(index)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
 
-                    if selectedTab == 1 {
-                        WeeklyTimetableCloneView {
-                            selectedTab = 0
+            customTabBar
+        }
+    }
+
+    @ViewBuilder
+    private func contentView(for tab: TabDef) -> some View {
+        switch tab.id {
+        case "today":
+            TodayTimelineView(
+                onToggle: {
+                    if let timetableIndex = tabConfig.firstIndex(where: { $0.id == "timetable" }) {
+                        withAnimation(.easeInOut(duration: 0.22)) {
+                            selectedTab = timetableIndex
                         }
-                        .simultaneousGesture(tabSwipeGesture(allowPrevious: true, allowNext: true, width: geo.size.width))
-                        .transition(.opacity)
                     }
-
-                    if selectedTab == 2 {
-                        NoticeBoardCloneView()
-                            .simultaneousGesture(tabSwipeGesture(allowPrevious: true, allowNext: true, width: geo.size.width))
-                        .transition(.opacity)
-                    }
-
-                    if selectedTab == 3 {
-                        AccountProfileCloneView(onLogout: onLogout) { newOrder in
-                            let encoded = try? JSONEncoder().encode(newOrder)
-                            tabBarData = encoded ?? Data()
-                        } onNavigatePreviousTab: {
-                            switchToAdjacentTab(offset: -1)
-                        } onNavigateNextTab: {
-                            switchToAdjacentTab(offset: 1)
-                        }
-                        .transition(.opacity)
+                }
+            )
+            .id(todayViewKey)
+        case "timetable":
+            WeeklyTimetableCloneView {
+                if let todayIndex = tabConfig.firstIndex(where: { $0.id == "today" }) {
+                    withAnimation(.easeInOut(duration: 0.22)) {
+                        selectedTab = todayIndex
                     }
                 }
             }
-
-            // カスタムタブバー
-            customTabBar
+        case "board":
+            NoticeBoardCloneView()
+        case "account":
+            AccountProfileCloneView(onLogout: onLogout) { newOrder in
+                let encoded = try? JSONEncoder().encode(newOrder)
+                tabBarData = encoded ?? Data()
+            }
+        default:
+            Color.clear
         }
     }
 
@@ -109,32 +109,6 @@ struct PortalCloneView: View {
             .padding(.vertical, 8)
         }
         .buttonStyle(.plain)
-    }
-
-    private func tabSwipeGesture(allowPrevious: Bool, allowNext: Bool, width: CGFloat) -> some Gesture {
-        DragGesture(minimumDistance: 24)
-            .onEnded { value in
-                let horizontal = value.translation.width
-                let vertical = value.translation.height
-                let edgeThreshold: CGFloat = 28
-
-                guard abs(horizontal) > abs(vertical), abs(horizontal) > 60 else { return }
-
-                if horizontal > 0, allowPrevious, value.startLocation.x <= edgeThreshold {
-                    switchToAdjacentTab(offset: -1)
-                } else if horizontal < 0, allowNext, value.startLocation.x >= width - edgeThreshold {
-                    switchToAdjacentTab(offset: 1)
-                }
-            }
-    }
-
-    private func switchToAdjacentTab(offset: Int) {
-        let nextIndex = min(max(selectedTab + offset, 0), tabConfig.count - 1)
-        guard nextIndex != selectedTab else { return }
-
-        withAnimation(.easeInOut(duration: 0.2)) {
-            selectedTab = nextIndex
-        }
     }
 
     private func normalizedTabConfig(_ items: [TabDef]) -> [TabDef] {

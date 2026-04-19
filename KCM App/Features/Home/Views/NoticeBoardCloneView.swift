@@ -222,12 +222,17 @@ private struct NoticeRow: View {
                     .font(.system(size: 16, weight: .bold))
                     .foregroundStyle(AppTheme.textPrimary)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                if isFavorite {
-                    Image(systemName: "star.fill")
-                        .font(.system(size: 14))
-                        .foregroundStyle(AppTheme.favorite)
-                        .padding(.top, 2)
+                Button(action: onToggleFavorite) {
+                    Image(systemName: isFavorite ? "star.fill" : "star")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(isFavorite ? AppTheme.favorite : AppTheme.textSoft)
+                        .frame(width: 32, height: 32)
+                        .background(
+                            Circle()
+                                .fill(isFavorite ? AppTheme.favorite.opacity(0.14) : AppTheme.grayPill)
+                        )
                 }
+                .buttonStyle(.plain)
             }
 
             HStack(spacing: 6) {
@@ -251,13 +256,5 @@ private struct NoticeRow: View {
         .padding(.vertical, 16)
         .frame(maxWidth: .infinity)
         .background(Color.white)
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            Button {
-                onToggleFavorite()
-            } label: {
-                Label(isFavorite ? "解除" : "お気に入り", systemImage: isFavorite ? "star.fill" : "star")
-            }
-            .tint(AppTheme.favorite)
-        }
     }
 }
