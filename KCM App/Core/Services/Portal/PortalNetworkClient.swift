@@ -8,6 +8,8 @@ final class PortalNetworkClient {
     init(baseURL: String) {
         self.baseURL = baseURL
         let config = URLSessionConfiguration.default
+        // クッキーを明示的に共有ストレージで管理するように設定
+        config.httpCookieStorage = .shared
         config.httpShouldSetCookies = true
         config.httpCookieAcceptPolicy = .always
         self.session = URLSession(configuration: config)

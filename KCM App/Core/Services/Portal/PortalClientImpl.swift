@@ -142,25 +142,39 @@ final class PortalClientImpl: PortalClientProtocol {
 
     /// 時間割を取得する (async)
     func fetchTimetable() async throws -> [Course] {
-        // 1. ホーム画面（メインページ）を取得
+        print("🌐 [Portal] fetchTimetable 開始: メインページ取得中...")
         let mainHtml = try await networkClient.fetchHTML(from: "\(networkClient.baseURL)\(portalURL)?page=main")
+        print("✅ [Portal] メインページ取得成功 (サイズ: \(mainHtml.count))")
+        
+        // セッションが切れていないか確認
+        if mainHtml.contains("ログイン") && (mainHtml.contains("password") || mainHtml.contains("userName")) {
+            print("❌ [Portal] セッション切れ。ログイン画面に戻っています。")
+            throw CampusSquareLoginError.sessionExpired
+        }
 
-        // 2. スケジュール管理 (PTW0001200-flow) へのリンクを抽出
-        // HOME.html 内の onclick="loadPortletMenu('main', '...') " からURLを抽出
+        // スケジュール管理 (PTW0001200) へのリンクを抽出
+        print("🔍 [Portal] スケジュール管理URLを抽出中...")
         let pattern = "campussquare\\.do\\?_flowId=PTW0001200-flow[^'\"]*"
         guard let regex = try? NSRegularExpression(pattern: pattern, options: []),
               let match = regex.firstMatch(in: mainHtml, options: [], range: NSRange(location: 0, length: mainHtml.utf16.count)),
               let range = Range(match.range, in: mainHtml) else {
+            print("❌ [Portal] スケジュール管理リンクが見つかりません。HTML冒頭:\n\(mainHtml.prefix(200))")
             throw NSError(domain: "PortalClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "スケジュール管理へのリンクが見つかりません"])
         }
-
+        
         let scheduleURL = String(mainHtml[range]).replacingOccurrences(of: "&amp;", with: "&")
-
-        // 3. スケジュール管理ページへアクセス
+        print("🔗 [Portal] 遷移先URL確定: \(scheduleURL)")
+        
         let html = try await networkClient.fetchHTML(from: "\(networkClient.baseURL)/\(scheduleURL)", referer: "\(networkClient.baseURL)\(portalURL)?page=main")
+        print("✅ [Portal] スケジュールページ取得成功 (サイズ: \(html.count))")
+        
+        if !html.contains("schedule-calender") {
+            print("⚠️ [Portal] 警告: スケジュールグリッドが見つかりません。パースに失敗する可能性があります。")
+        }
 
-        // 4. パース
-        return CampusSquareParser.parseSchedule(from: html)
+        let results = CampusSquareParser.parseSchedule(from: html)
+        print("🏁 [Portal] パース完了: \(results.count) 件のコースを返します")
+        return results
     }
 
     func fetchTimetable(completion: @escaping (Result<[Course], Error>) -> Void) {
@@ -172,6 +186,24 @@ final class PortalClientImpl: PortalClientProtocol {
                 completion(.failure(error))
             }
         }
+    }
+
+    /// 週間時間割（グリッド形式）を取得する
+    func fetchWeeklyTimetable() async throws -> [[ClassCell]] {
+        let mainHtml = try await networkClient.fetchHTML(from: "\(networkClient.baseURL)\(portalURL)?page=main")
+        
+        // 履修登録・登録状況照会 (RSW0001000) へのリンクを抽出
+        let pattern = "campussquare\\.do\\?_flowId=RSW0001000-flow[^'\"]*"
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []),
+              let match = regex.firstMatch(in: mainHtml, options: [], range: NSRange(location: 0, length: mainHtml.utf16.count)),
+              let range = Range(match.range, in: mainHtml) else {
+            throw NSError(domain: "PortalClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "履修登録リンクが見つかりません"])
+        }
+        
+        let rswURL = String(mainHtml[range]).replacingOccurrences(of: "&amp;", with: "&")
+        let html = try await networkClient.fetchHTML(from: "\(networkClient.baseURL)/\(rswURL)", referer: "\(networkClient.baseURL)\(portalURL)?page=main")
+        
+        return CampusSquareParser.parseWeeklyTimetable(from: html)
     }
 
     // MARK: - レガシーサポート

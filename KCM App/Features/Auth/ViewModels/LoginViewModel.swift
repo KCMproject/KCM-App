@@ -3,6 +3,8 @@ import Foundation
 
 @MainActor
 final class LoginViewModel: ObservableObject {
+    static let shared = LoginViewModel(portalClient: PortalClientFactory.makeLoginService())
+    
     @Published var studentID = ""
     @Published var password = ""
     @Published private(set) var isLoggedIn = false
@@ -35,6 +37,14 @@ final class LoginViewModel: ObservableObject {
                 case .success(let session):
                     print("Login success: \(session)")
                     self.isLoggedIn = true
+                    
+                    // 🌟 ログイン成功時にバックグラウンドでデータを一括取得
+                    Task {
+                        await withTaskGroup(of: Void.self) { group in
+                            group.addTask { await TimetableViewModel.shared.initialFetch() }
+                            group.addTask { await NoticeBoardViewModel.shared.initialFetch() }
+                        }
+                    }
                 case .failure(let error):
                     self.errorMessage = error.errorDescription
                 }
@@ -47,6 +57,15 @@ final class LoginViewModel: ObservableObject {
             guard let self = self else { return }
             DispatchQueue.main.async {
                 self.isLoggedIn = isValid
+                if isValid {
+                    // セッションが有効ならデータを取得
+                    Task {
+                        await withTaskGroup(of: Void.self) { group in
+                            group.addTask { await TimetableViewModel.shared.initialFetch() }
+                            group.addTask { await NoticeBoardViewModel.shared.initialFetch() }
+                        }
+                    }
+                }
             }
         }
     }

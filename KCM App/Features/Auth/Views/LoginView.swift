@@ -69,5 +69,5 @@ struct LoginView: View {
 }
 
 #Preview {
-    LoginView(viewModel: LoginViewModel(portalClient: PortalClientFactory.makeLoginService()))
+    LoginView(viewModel: LoginViewModel.shared)
 }

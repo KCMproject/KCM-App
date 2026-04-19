@@ -3,6 +3,8 @@ import Combine
 
 @MainActor
 final class NoticeBoardViewModel: ObservableObject {
+    static let shared = NoticeBoardViewModel(portalClient: PortalClientFactory.makeLoginService())
+    
     @Published var announcements: [NoticeCard] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
@@ -13,22 +15,26 @@ final class NoticeBoardViewModel: ObservableObject {
         self.portalClient = portalClient
     }
 
-    func fetchAnnouncements() {
+    func initialFetch() async {
         isLoading = true
         errorMessage = nil
 
-        portalClient.fetchAnnouncements { [weak self] result in
-            guard let self = self else { return }
-            
-            DispatchQueue.main.async {
+        do {
+            let notices = try await portalClient.fetchAnnouncements()
+            await MainActor.run {
+                self.announcements = notices
                 self.isLoading = false
-                switch result {
-                case .success(let announcements):
-                    self.announcements = announcements
-                case .failure(let error):
-                    self.errorMessage = error.localizedDescription
-                }
+            }
+        } catch {
+            await MainActor.run {
+                self.errorMessage = error.localizedDescription
+                self.isLoading = false
             }
         }
+    }
+    
+    // (Existing completion based method can stay for legacy or be removed)
+    func fetchAnnouncements() {
+        Task { await initialFetch() }
     }
 }

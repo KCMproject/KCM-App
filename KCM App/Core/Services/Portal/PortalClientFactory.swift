@@ -13,7 +13,9 @@ import Foundation
 /// ログインサービスのファクトリ
 @MainActor
 enum PortalClientFactory {
+    private static let sharedService: PortalClientProtocol = PortalClientImpl()
+    
     static func makeLoginService() -> PortalClientProtocol {
-        return PortalClientImpl()
+        return sharedService
     }
 }

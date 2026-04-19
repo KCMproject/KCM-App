@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct NoticeBoardCloneView: View {
-    @StateObject private var viewModel = NoticeBoardViewModel(portalClient: PortalClientFactory.makeLoginService())
+    @ObservedObject private var viewModel = NoticeBoardViewModel.shared
     @State private var searchTerm = ""
     @State private var sortBy: NoticeSort = .date
     @State private var selectedCategory = "すべて"
@@ -177,7 +177,7 @@ struct NoticeBoardCloneView: View {
                 .scrollContentBackground(.hidden)
                 .background(AppTheme.pageBackground)
                 .refreshable {
-                    viewModel.fetchAnnouncements()
+                    await viewModel.initialFetch()
                 }
 
                 if viewModel.isLoading {
@@ -186,11 +186,6 @@ struct NoticeBoardCloneView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(Color.white.opacity(0.5))
                 }
-            }
-        }
-        .onAppear {
-            if viewModel.announcements.isEmpty {
-                viewModel.fetchAnnouncements()
             }
         }
     }

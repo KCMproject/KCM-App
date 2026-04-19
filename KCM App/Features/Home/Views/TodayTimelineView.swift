@@ -2,6 +2,7 @@ import SwiftUI
 import Combine
 
 struct TodayTimelineView: View {
+    @ObservedObject private var viewModel = TimetableViewModel.shared
     @State private var currentTime = Date()
     @State private var selectedDate = Date()
     @State private var dateOffset = 0
@@ -20,38 +21,28 @@ struct TodayTimelineView: View {
     private let startHour = 9
     private let endHour = 22
 
-    private let eventsByDay: [Int: [DayEvent]] = [
-        2: [ // 月曜日
-            .init(title: "線形代数学", startTime: "09:00", endTime: "10:30", location: "第1講義棟 A101"),
-            .init(title: "英語コミュニケーション", startTime: "10:45", endTime: "12:15", location: "第2講義棟 B205"),
-            .init(title: "プログラミング基礎", startTime: "13:00", endTime: "14:30", location: "情報処理センター PC-301"),
-            .init(title: "物理学実験", startTime: "14:45", endTime: "16:15", location: "実験棟 E-102"),
-            .init(title: "ゼミナール", startTime: "16:30", endTime: "18:00", location: "研究棟 R-405")
-        ],
-        3: [ // 火曜日
-            .init(title: "物理学概論", startTime: "09:00", endTime: "10:30", location: "第2講義棟 B203"),
-            .init(title: "情報理論", startTime: "10:45", endTime: "12:15", location: "情報処理センター PC-201"),
-            .init(title: "微分積分学", startTime: "13:00", endTime: "14:30", location: "第1講義棟 A102"),
-            .init(title: "文概論", startTime: "14:45", endTime: "16:15", location: "第2講義棟 C205")
-        ],
-        4: [ // 水曜日
-            .init(title: "化学基礎", startTime: "10:45", endTime: "12:15", location: "実験棟 D104"),
-            .init(title: "体育実技", startTime: "13:00", endTime: "14:30", location: "体育館"),
-            .init(title: "統計学", startTime: "14:45", endTime: "16:15", location: "第1講義棟 A301")
-        ],
-        5: [ // 木曜日
-            .init(title: "線形代数学", startTime: "09:00", endTime: "10:30", location: "第1講義棟 A101"),
-            .init(title: "英語コミュニケーション", startTime: "10:45", endTime: "12:15", location: "第2講義棟 B205"),
-            .init(title: "プログラミング基礎", startTime: "13:00", endTime: "14:30", location: "情報処理センター PC-301"),
-            .init(title: "物理学実験", startTime: "14:45", endTime: "16:15", location: "実験棟 E-102"),
-            .init(title: "ゼミナール", startTime: "16:30", endTime: "18:00", location: "研究棟 R-405")
-        ],
-        6: [ // 金曜日
-            .init(title: "経済学入門", startTime: "09:00", endTime: "10:30", location: "第3講義棟 C301"),
-            .init(title: "哲学概論", startTime: "10:45", endTime: "12:15", location: "第2講義棟 A203"),
-            .init(title: "社会学", startTime: "14:45", endTime: "16:15", location: "第3講義棟 B301")
+    private func events(for date: Date) -> [DayEvent] {
+        let labels = ["日", "月", "火", "水", "木", "金", "土"]
+        let weekday = labels[Calendar.current.component(.weekday, from: date) - 1]
+        
+        let periods: [Period] = [
+            .init(number: 1, start: "09:00", end: "10:30"),
+            .init(number: 2, start: "10:40", end: "12:10"),
+            .init(number: 3, start: "13:00", end: "14:30"),
+            .init(number: 4, start: "14:40", end: "16:10"),
+            .init(number: 5, start: "16:20", end: "17:50"),
+            .init(number: 6, start: "18:00", end: "19:30")
         ]
-    ]
+        
+        return viewModel.courses
+            .filter { $0.weekday == weekday }
+            .map { course in
+                let p = Int(course.period) ?? 1
+                let start = periods[min(max(0, p-1), periods.count-1)].start
+                let end = periods[min(max(0, p-1), periods.count-1)].end
+                return DayEvent(title: course.title, startTime: start, endTime: end, location: course.room)
+            }
+    }
 
     var body: some View {
         ZStack {
@@ -305,7 +296,7 @@ struct TodayTimelineView: View {
     }
 
     private func timeline(for date: Date) -> some View {
-        let events = eventsByDay[calendar.component(.weekday, from: date)] ?? []
+        let events = events(for: date)
         let slots = Array(startHour...endHour)
         let timeLabelWidth: CGFloat = 64
         let timeLabelHeight: CGFloat = 28

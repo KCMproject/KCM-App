@@ -38,4 +38,7 @@ protocol PortalClientProtocol: AnyObject {
     /// 時間割を取得する
     func fetchTimetable(completion: @escaping (Result<[Course], Error>) -> Void)
     func fetchTimetable() async throws -> [Course]
+
+    /// 週間時間割（グリッド形式）を取得する
+    func fetchWeeklyTimetable() async throws -> [[ClassCell]]
 }
