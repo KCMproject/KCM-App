@@ -1,0 +1,431 @@
+meta:
+  project_name: "KCM App"
+  format_note: "GitHub Projects 用の初期 issue 素案。assignees は GitHub username に置き換えて利用する。"
+  recommended_status:
+    - Todo
+    - In Progress
+    - In Review
+    - Done
+
+issues:
+  - id: KCM-001
+    title: "MVP要件と対象画面を確定する"
+    type: task
+    assignees:
+      - hashiguchi
+      - tanaka
+      - ochan
+    labels:
+      - planning
+      - mvp
+    project_status: Todo
+    body:
+      overview: |
+        MVPで実装する範囲を確定する。
+        対象はログイン、掲示板一覧、掲示板詳細、時間割一覧、時間割詳細とする。
+      background: |
+        UIはFigmaで作成済みだが、実装対象と後回しにする項目を切り分けないと
+        スケジュールと issue の粒度がぶれるため、最初に範囲を固定する必要がある。
+      steps:
+        - "Figmaから画面一覧を確定する"
+        - "MVP対象外の機能を明記する"
+        - "各画面の必須表示項目を整理する"
+      done_criteria:
+        - "MVP対象画面が確定している"
+        - "各画面の必須項目が整理されている"
+        - "後続 issue の前提として参照できる"
+
+  - id: KCM-002
+    title: "ログインフローと取得対象ページを調査する"
+    type: task
+    assignees:
+      - tanaka
+    labels:
+      - research
+      - auth
+      - portal-access
+    project_status: Todo
+    body:
+      overview: |
+        ポータルのログイン手順と、掲示板・時間割取得に必要なページ遷移を調査する。
+      background: |
+        本アプリはバックエンドを持たず、アプリ内でセッション管理と情報取得を行うため、
+        先にログイン導線と取得元の構造を把握しておく必要がある。
+      steps:
+        - "ログインページの遷移を確認する"
+        - "必要な form / token / cookie の有無を調べる"
+        - "掲示板と時間割の取得元ページを整理する"
+      done_criteria:
+        - "ログイン手順が文章またはメモで整理されている"
+        - "取得対象URLまたはページが特定できている"
+        - "実装時の注意点がまとまっている"
+
+  - id: KCM-003
+    title: "画面遷移と共通UIの設計を整理する"
+    type: task
+    assignees:
+      - hashiguchi
+    labels:
+      - design
+      - ui
+    project_status: Todo
+    body:
+      overview: |
+        Figmaをもとに画面遷移と共通コンポーネントの設計を整理する。
+      background: |
+        先に共通レイアウトやUIパーツを定義しておくことで、
+        後続の画面実装の手戻りを減らすことができる。
+      steps:
+        - "画面遷移を整理する"
+        - "共通で使うボタン、カード、リストなどを洗い出す"
+        - "デザインシステムに落とし込む"
+      done_criteria:
+        - "主要画面の遷移が整理されている"
+        - "共通UIパーツの一覧がある"
+        - "実装方針がチームで共有できる"
+
+  - id: KCM-004
+    title: "データモデルと parser の方針を決める"
+    type: task
+    assignees:
+      - tanaka
+      - ochan
+    labels:
+      - parser
+      - data-model
+    project_status: Todo
+    body:
+      overview: |
+        掲示板と時間割の表示に必要なデータモデルと、HTML解析の責務を整理する。
+      background: |
+        取得処理と表示処理の責務を分けておかないと、
+        parser と ViewModel の境界が曖昧になり保守しづらくなる。
+      steps:
+        - "Announcement / Course などのモデルを整理する"
+        - "portal-access と parser の責務分離を決める"
+        - "HTMLから必要項目を抽出する方針を決める"
+      done_criteria:
+        - "表示用データモデルが整理されている"
+        - "parser の責務が明文化されている"
+        - "実装対象の項目一覧が揃っている"
+
+  - id: KCM-005
+    title: "ログイン画面を実装する"
+    type: task
+    assignees:
+      - hashiguchi
+    labels:
+      - feature
+      - ui
+      - auth
+    project_status: Todo
+    body:
+      overview: |
+        Figmaに基づいてログイン画面を実装する。
+      background: |
+        MVPの起点となる画面であり、後続のログイン処理結合に必要となる。
+      steps:
+        - "入力フォームを実装する"
+        - "ログイン実行導線を設置する"
+        - "ローディングやエラー表示のUIを整える"
+      done_criteria:
+        - "ログイン画面が表示できる"
+        - "必要な入力項目が揃っている"
+        - "ログイン処理と結合できる状態になっている"
+
+  - id: KCM-006
+    title: "ポータルのログイン処理とセッション管理を実装する"
+    type: task
+    assignees:
+      - tanaka
+    labels:
+      - feature
+      - auth
+      - portal-access
+    project_status: Todo
+    body:
+      overview: |
+        ポータルへのログイン処理とセッション維持処理を実装する。
+      background: |
+        掲示板や時間割の取得は認証済みセッションが前提となるため、
+        最優先で安定させる必要がある。
+      steps:
+        - "ログインリクエストを実装する"
+        - "成功判定と失敗判定を実装する"
+        - "セッション維持に必要な処理を実装する"
+      done_criteria:
+        - "ログイン成功時に後続ページへアクセスできる"
+        - "失敗時にエラーを返せる"
+        - "セッションを保持したまま取得処理へ進める"
+
+  - id: KCM-007
+    title: "掲示板一覧画面を実装する"
+    type: task
+    assignees:
+      - hashiguchi
+    labels:
+      - feature
+      - ui
+      - board
+    project_status: Todo
+    body:
+      overview: |
+        掲示板一覧画面を実装し、タイトル、日時、種別、既読状態、要約を表示する。
+      background: |
+        要件上の最優先画面であり、アプリ起動後すぐに価値を出す機能となる。
+      steps:
+        - "一覧レイアウトを実装する"
+        - "既読/未読表示を反映する"
+        - "詳細画面への遷移導線をつける"
+      done_criteria:
+        - "一覧が見やすく表示される"
+        - "既読/未読が見分けられる"
+        - "詳細画面へ遷移できる"
+
+  - id: KCM-008
+    title: "掲示板詳細画面を実装する"
+    type: task
+    assignees:
+      - hashiguchi
+    labels:
+      - feature
+      - ui
+      - board
+    project_status: Todo
+    body:
+      overview: |
+        掲示板本文を確認できる詳細画面を実装する。
+      background: |
+        一覧だけでは情報が不足するため、詳細確認導線が必要となる。
+      steps:
+        - "本文表示レイアウトを実装する"
+        - "日付や種別などの補足情報を表示する"
+        - "必要であればリンクや添付導線を考慮する"
+      done_criteria:
+        - "本文が読みやすく表示される"
+        - "必要なメタ情報が確認できる"
+        - "一覧から自然に遷移できる"
+
+  - id: KCM-009
+    title: "掲示板取得処理と parser を実装する"
+    type: task
+    assignees:
+      - tanaka
+    labels:
+      - feature
+      - board
+      - parser
+    project_status: Todo
+    body:
+      overview: |
+        掲示板一覧および詳細の取得処理と parser を実装する。
+      background: |
+        UIと結合するためには、HTMLやレスポンスから一覧表示に必要なデータを抽出する必要がある。
+      steps:
+        - "掲示板一覧の取得処理を実装する"
+        - "一覧表示用データへの整形を実装する"
+        - "詳細取得が必要なら詳細取得処理も実装する"
+      done_criteria:
+        - "掲示板データをアプリで扱える形に変換できる"
+        - "一覧UIへデータを渡せる"
+        - "解析失敗時の扱いが決まっている"
+
+  - id: KCM-010
+    title: "既読管理を実装する"
+    type: task
+    assignees:
+      - ochan
+    labels:
+      - feature
+      - board
+      - local-storage
+    project_status: Todo
+    body:
+      overview: |
+        掲示板の既読状態をローカルで管理できるようにする。
+      background: |
+        掲示板一覧の見やすさを上げる主要要件の1つであり、
+        サーバーを持たない前提ではアプリ側で状態を持つ必要がある。
+      steps:
+        - "既読状態の保存方式を決める"
+        - "既読更新処理を実装する"
+        - "一覧UIへ反映できるようにする"
+      done_criteria:
+        - "既読/未読を切り替えられる"
+        - "再起動後も状態が保持される"
+        - "一覧表示に反映される"
+
+  - id: KCM-011
+    title: "時間割一覧画面を実装する"
+    type: task
+    assignees:
+      - hashiguchi
+    labels:
+      - feature
+      - ui
+      - timetable
+    project_status: Todo
+    body:
+      overview: |
+        時間割一覧画面を実装し、曜日、時限、科目名、教室、状態を表示する。
+      background: |
+        MVPの主要機能の1つであり、掲示板と並ぶ価値提供画面となる。
+      steps:
+        - "週単位で見られる一覧UIを実装する"
+        - "授業カードやセルの表示を整える"
+        - "詳細画面への遷移導線をつける"
+      done_criteria:
+        - "時間割が一覧で確認できる"
+        - "授業情報が見やすく表示される"
+        - "詳細へ遷移できる"
+
+  - id: KCM-012
+    title: "時間割詳細画面を実装する"
+    type: task
+    assignees:
+      - hashiguchi
+      - ochan
+    labels:
+      - feature
+      - ui
+      - timetable
+    project_status: Todo
+    body:
+      overview: |
+        授業詳細画面を実装し、授業名、担当教員、資料、課題、関連リンクを確認できるようにする。
+      background: |
+        一覧から授業単位で必要情報へ到達できるようにするために必要となる。
+      steps:
+        - "詳細レイアウトを実装する"
+        - "資料、課題、リンク導線を実装する"
+        - "表示項目を整える"
+      done_criteria:
+        - "授業詳細が表示できる"
+        - "資料や課題への導線がある"
+        - "一覧から自然に遷移できる"
+
+  - id: KCM-013
+    title: "時間割取得処理と parser を実装する"
+    type: task
+    assignees:
+      - tanaka
+    labels:
+      - feature
+      - timetable
+      - parser
+    project_status: Todo
+    body:
+      overview: |
+        時間割情報の取得処理と parser を実装する。
+      background: |
+        UIへ接続するためには、ポータルの表示内容から時間割データを整形する必要がある。
+      steps:
+        - "時間割一覧の取得処理を実装する"
+        - "授業情報の抽出処理を実装する"
+        - "詳細画面向けのデータ整形を行う"
+      done_criteria:
+        - "時間割データをモデルへ変換できる"
+        - "一覧UIへ受け渡せる"
+        - "必要なら課題・資料導線用の項目も扱える"
+
+  - id: KCM-014
+    title: "キャッシュとローカル保存の整理を行う"
+    type: task
+    assignees:
+      - ochan
+    labels:
+      - enhancement
+      - local-storage
+    project_status: Todo
+    body:
+      overview: |
+        掲示板や時間割の表示を安定させるため、ローカル保存と簡易キャッシュの方針を実装する。
+      background: |
+        毎回の取得に依存するとUXが不安定になるため、
+        既読管理とあわせて最小限の保存戦略を設けておきたい。
+      steps:
+        - "保存対象を決める"
+        - "読み込みと更新のタイミングを整理する"
+        - "必要なストレージ処理を実装する"
+      done_criteria:
+        - "再表示時の体験が安定している"
+        - "保存と更新の流れが破綻していない"
+        - "既読管理と競合しない"
+
+  - id: KCM-015
+    title: "ログインから各画面までの結合作業を行う"
+    type: task
+    assignees:
+      - ochan
+      - hashiguchi
+      - tanaka
+    labels:
+      - integration
+      - mvp
+    project_status: Todo
+    body:
+      overview: |
+        ログイン、掲示板、時間割の各実装を結合し、通しで動作する状態にする。
+      background: |
+        個別実装だけでは完成にならないため、遷移、状態管理、取得処理の接続確認が必要となる。
+      steps:
+        - "ログイン後の遷移を確認する"
+        - "一覧と詳細のつながりを確認する"
+        - "データ取得とUI表示を通して確認する"
+      done_criteria:
+        - "主要フローが一通り動作する"
+        - "重大な結合不整合が解消されている"
+        - "MVPとして確認可能な状態になっている"
+
+  - id: KCM-016
+    title: "MVPの動作確認と不具合修正を行う"
+    type: task
+    assignees:
+      - ochan
+      - hashiguchi
+      - tanaka
+    labels:
+      - qa
+      - bugfix
+      - release
+    project_status: Todo
+    body:
+      overview: |
+        MVP全体の動作確認を行い、不具合とUI差分を修正する。
+      background: |
+        最終週では新規開発よりも通し確認と安定化を優先する必要がある。
+      steps:
+        - "主要フローのテストを行う"
+        - "表示崩れや解析失敗を洗い出す"
+        - "優先度の高い不具合から修正する"
+      done_criteria:
+        - "主要フローの確認が完了している"
+        - "重大な不具合が解消されている"
+        - "MVPとして見せられる状態になっている"
+
+  - id: KCM-017
+    title: "タブバーのカスタマイズ機能を実装する"
+    type: task
+    assignees:
+      - hashiguchi
+    labels:
+      - enhancement
+      - ui
+      - settings
+    project_status: Todo
+    body:
+      overview: |
+        ユーザーが下部タブバーの表示/非表示と順序をカスタマイズできる機能を実装する。
+      background: |
+        現在「今日」「時間割」「掲示板」「アカウント」の4タブがハードコードされている。
+        ユーザーによってよく使う機能が異なるため、タブの順序変更や非表示設定を可能にしUXを向上させる。
+      steps:
+        - "タブ定義モデル（TabItem 構造体）を追加する"
+        - "タブ設定画面のUI（トグル + Drag & Drop リスト）を実装する"
+        - "PortalCloneView のタブ表示を動的に切り替える"
+        - "@AppStorage で設定をバインドしてリアルタイム反映する"
+      done_criteria:
+        - "設定画面からタブの表示/非表示を切替できる"
+        - "タブの順序を変更できる"
+        - "変更が永続化され、アプリ再起動後も保持される"
+        - "最低1つのタブは必ず表示される"
