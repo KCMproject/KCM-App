@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct NoticeBoardCloneView: View {
+    @ObservedObject private var viewModel = NoticeBoardViewModel.shared
     @State private var searchTerm = ""
     @State private var sortBy: NoticeSort = .date
     @State private var selectedCategory = "すべて"
@@ -9,24 +10,14 @@ struct NoticeBoardCloneView: View {
     private static let jaDateFormatter: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "ja_JP")
-        f.dateFormat = "yyyy年M月d日"
+        f.dateFormat = "yyyy/MM/dd"
         return f
     }()
 
     private let categories = ["すべて", "お気に入り", "個人掲示板", "履修登録関連", "奨学金・授業料", "就職・キャリア", "施設関連", "イベント"]
-    private let notices: [NoticeCard] = [
-        .init(id: "notice-exam-schedule", title: "【重要】期末試験日程について", date: "2026年4月8日", category: "履修登録関連", isPinned: true, content: "期末試験は7月20日から8月3日まで実施されます。詳細は各学部の掲示板をご確認ください。"),
-        .init(id: "notice-library-hours", title: "図書館の開館時間変更のお知らせ", date: "2026年4月7日", category: "施設関連", isPinned: true, content: "4月10日より図書館の開館時間が変更となります。平日：9:00-20:00、土日：10:00-18:00"),
-        .init(id: "notice-golden-week", title: "ゴールデンウィーク期間の休講について", date: "2026年4月5日", category: "履修登録関連", isPinned: false, content: "5月3日から5月7日まで休講となります。補講日は別途お知らせします。"),
-        .init(id: "notice-id-card-renewal", title: "学生証更新手続きのご案内", date: "2026年4月3日", category: "個人掲示板", isPinned: false, content: "2026年度の学生証更新を受け付けています。学生課窓口にて手続きをお願いします。"),
-        .init(id: "notice-career-seminar", title: "キャリアセミナー開催のお知らせ", date: "2026年4月1日", category: "就職・キャリア", isPinned: false, content: "4月15日にキャリアセミナーを開催します。企業の人事担当者による講演があります。"),
-        .init(id: "notice-circle-recruitment", title: "サークル新歓イベントについて", date: "2026年3月30日", category: "イベント", isPinned: false, content: "4月12日、13日に新入生歓迎イベントを実施します。多数のサークルが参加予定です。"),
-        .init(id: "notice-health-checkup", title: "健康診断実施のお知らせ", date: "2026年3月28日", category: "個人掲示板", isPinned: false, content: "4月20日から4月28日まで定期健康診断を実施します。必ず受診してください。"),
-        .init(id: "notice-scholarship", title: "奨学金申請受付開始について", date: "2026年3月25日", category: "奨学金・授業料", isPinned: false, content: "2026年度奨学金の申請受付を開始しました。締切は4月30日です。")
-    ]
 
     private var filteredNotices: [NoticeCard] {
-        let filtered = notices.filter { notice in
+        let filtered = viewModel.announcements.filter { notice in
             let matchesSearch = searchTerm.isEmpty
                 || notice.title.localizedCaseInsensitiveContains(searchTerm)
                 || notice.content.localizedCaseInsensitiveContains(searchTerm)
@@ -45,8 +36,9 @@ struct NoticeBoardCloneView: View {
         switch sortBy {
         case .date:
             return filtered.sorted {
-                Self.jaDateFormatter.date(from: $0.date) ?? .distantPast
-                    > Self.jaDateFormatter.date(from: $1.date) ?? .distantPast
+                let d1 = Self.jaDateFormatter.date(from: $0.date) ?? .distantPast
+                let d2 = Self.jaDateFormatter.date(from: $1.date) ?? .distantPast
+                return d1 > d2
             }
         case .category:
             return filtered.sorted { $0.category < $1.category }
@@ -145,44 +137,56 @@ struct NoticeBoardCloneView: View {
                 Rectangle().fill(AppTheme.border).frame(height: 1)
             }
 
-            List {
-                if filteredNotices.isEmpty {
-                    VStack(spacing: 8) {
-                        Image(systemName: "star")
-                            .font(.system(size: 32))
-                            .foregroundStyle(AppTheme.textSoft)
-                        Text(selectedCategory == "お気に入り" ? "お気に入りはまだありません" : "お知らせがありません")
-                            .font(.system(size: 14))
-                            .foregroundStyle(AppTheme.textMuted)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 120)
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                } else {
-                    ForEach(Array(filteredNotices.enumerated()), id: \.element.id) { index, notice in
-                        VStack(spacing: 0) {
-                            NoticeRow(
-                                notice: notice,
-                                isFavorite: favoriteIDs.contains(notice.id)
-                            ) {
-                                toggleFavorite(notice.id)
-                            }
-                            if index < filteredNotices.count - 1 {
-                                Rectangle()
-                                    .fill(AppTheme.border)
-                                    .frame(height: 1)
-                                    .padding(.horizontal, 16)
+            ZStack {
+                List {
+                    if filteredNotices.isEmpty && !viewModel.isLoading {
+                        VStack(spacing: 8) {
+                            Image(systemName: "star")
+                                .font(.system(size: 32))
+                                .foregroundStyle(AppTheme.textSoft)
+                            Text(selectedCategory == "お気に入り" ? "お気に入りはまだありません" : "お知らせがありません")
+                                .font(.system(size: 14))
+                                .foregroundStyle(AppTheme.textMuted)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 120)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                    } else {
+                        ForEach(Array(filteredNotices.enumerated()), id: \.element.id) { index, notice in
+                            VStack(spacing: 0) {
+                                NoticeRow(
+                                    notice: notice,
+                                    isFavorite: favoriteIDs.contains(notice.id)
+                                ) {
+                                    toggleFavorite(notice.id)
+                                }
+                                if index < filteredNotices.count - 1 {
+                                    Rectangle()
+                                        .fill(AppTheme.border)
+                                        .frame(height: 1)
+                                        .padding(.horizontal, 16)
+                                }
                             }
                         }
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets())
                     }
-                    .listRowSeparator(.hidden)
-                    .listRowInsets(EdgeInsets())
+                }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .background(AppTheme.pageBackground)
+                .refreshable {
+                    await viewModel.initialFetch()
+                }
+
+                if viewModel.isLoading {
+                    ProgressView()
+                        .scaleEffect(1.5)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color.white.opacity(0.5))
                 }
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .background(AppTheme.pageBackground)
         }
     }
 

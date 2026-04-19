@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct AppRootView: View {
-    @StateObject private var loginViewModel = LoginViewModel()
+    @StateObject private var loginViewModel = LoginViewModel.shared
 
     var body: some View {
         Group {
@@ -10,6 +10,9 @@ struct AppRootView: View {
             } else {
                 LoginView(viewModel: loginViewModel)
             }
+        }
+        .onAppear {
+            loginViewModel.checkSession()
         }
     }
 }

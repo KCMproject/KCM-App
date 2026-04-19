@@ -30,10 +30,24 @@ struct LoginView: View {
                         .background(AppTheme.surface)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
 
-                    Button("ログイン") {
+                    Button {
                         viewModel.login()
+                    } label: {
+                        if viewModel.isLoading {
+                            ProgressView()
+                                .tint(.white)
+                        } else {
+                            Text("ログイン")
+                        }
                     }
                     .buttonStyle(PrimaryButtonStyle())
+                    .disabled(viewModel.isLoading)
+                }
+
+                if let errorMessage = viewModel.errorMessage {
+                    Text(errorMessage)
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.danger)
                 }
 
                 VStack(alignment: .leading, spacing: 10) {
@@ -55,5 +69,5 @@ struct LoginView: View {
 }
 
 #Preview {
-    LoginView(viewModel: LoginViewModel())
+    LoginView(viewModel: LoginViewModel.shared)
 }
