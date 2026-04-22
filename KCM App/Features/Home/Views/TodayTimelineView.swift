@@ -7,6 +7,7 @@ struct TodayTimelineView: View {
     @State private var selectedDate = Date()
     @State private var dateOffset = 0
     @State private var weekPageOffset = 0
+    @State private var isSyncingWeekPage = false
     @State private var showingCalendar = false
     @State private var calendarMonth = Date()
     @State private var transitionDirection: TransitionDirection = .none
@@ -209,8 +210,10 @@ struct TodayTimelineView: View {
             selection: Binding(
                 get: { selectedDate },
                 set: { newDate in
-                    selectedDate = newDate
-                    syncDateOffset(with: newDate, animated: true)
+                    let normalizedDate = calendar.startOfDay(for: newDate)
+                    selectedDate = normalizedDate
+                    syncDateOffset(with: normalizedDate, animated: true)
+                    syncWeekPage(with: normalizedDate)
                     withAnimation(.easeInOut(duration: 0.2)) {
                         showingCalendar = false
                     }
@@ -270,6 +273,10 @@ struct TodayTimelineView: View {
         .tabViewStyle(.page(indexDisplayMode: .never))
         .onChange(of: weekPageOffset) { oldValue, newValue in
             guard newValue != oldValue else { return }
+            if isSyncingWeekPage {
+                isSyncingWeekPage = false
+                return
+            }
             shiftWeek(by: newValue - oldValue)
         }
         .background(Color.white)
@@ -447,11 +454,15 @@ struct TodayTimelineView: View {
 
     private func shiftDate(by days: Int) {
         guard let nextDate = calendar.date(byAdding: .day, value: days, to: selectedDate) else { return }
+        let normalizedDate = calendar.startOfDay(for: nextDate)
 
         withAnimation(.easeInOut(duration: 0.25)) {
             transitionDirection = days > 0 ? .right : .left
-            selectedDate = nextDate
+            selectedDate = normalizedDate
+            syncWeekPage(with: normalizedDate)
         }
+
+        syncDateOffset(with: normalizedDate)
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.26) {
             transitionDirection = .none
@@ -498,6 +509,7 @@ struct TodayTimelineView: View {
         let weekDelta = dayDelta / 7
 
         if weekPageOffset != weekDelta {
+            isSyncingWeekPage = true
             weekPageOffset = weekDelta
         }
     }
