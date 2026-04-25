@@ -7,6 +7,7 @@ struct TodayTimelineView: View {
     @State private var selectedDate = Date()
     @State private var dateOffset = 0
     @State private var weekPageOffset = 0
+    @State private var isSyncingWeekPage = false
     @State private var showingCalendar = false
     @State private var calendarMonth = Date()
     @State private var transitionDirection: TransitionDirection = .none
@@ -24,7 +25,9 @@ struct TodayTimelineView: View {
 
     private func events(for date: Date) -> [DayEvent] {
         let labels = ["日", "月", "火", "水", "木", "金", "土"]
-        let weekday = labels[Calendar.current.component(.weekday, from: date) - 1]
+        let calendarWeekday = Calendar.current.component(.weekday, from: date)
+        let weekday = labels[calendarWeekday - 1]
+        let weekdayIndex = (2...6).contains(calendarWeekday) ? calendarWeekday - 2 : -1
         
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
@@ -50,16 +53,32 @@ struct TodayTimelineView: View {
                 }
             }
             .map { course in
+                let p = course.period.split(separator: ",").compactMap { Int($0) }.first ?? Int(course.period) ?? 1
+                let classroomKey = weekdayIndex >= 0 ? "\(weekdayIndex)_\(p)_\(course.title)" : nil
+
                 // 個別の時間が取得できている場合はそれを優先する
                 if let start = course.startTime, let end = course.endTime {
-                    return DayEvent(title: course.title, startTime: start, endTime: end, location: course.room, status: course.status)
+                    return DayEvent(
+                        title: course.title,
+                        startTime: start,
+                        endTime: end,
+                        location: course.room,
+                        status: course.status,
+                        classroomKey: classroomKey
+                    )
                 }
-                
+
                 // 取得できていない場合は時限から推測
-                let p = Int(course.period) ?? 1
                 let start = periods[min(max(0, p-1), periods.count-1)].start
                 let end = periods[min(max(0, p-1), periods.count-1)].end
-                return DayEvent(title: course.title, startTime: start, endTime: end, location: course.room, status: course.status)
+                return DayEvent(
+                    title: course.title,
+                    startTime: start,
+                    endTime: end,
+                    location: course.room,
+                    status: course.status,
+                    classroomKey: classroomKey
+                )
             }
     }
 
@@ -227,8 +246,10 @@ struct TodayTimelineView: View {
             selection: Binding(
                 get: { selectedDate },
                 set: { newDate in
-                    selectedDate = newDate
-                    syncDateOffset(with: newDate, animated: true)
+                    let normalizedDate = calendar.startOfDay(for: newDate)
+                    selectedDate = normalizedDate
+                    syncDateOffset(with: normalizedDate, animated: true)
+                    syncWeekPage(with: normalizedDate)
                     withAnimation(.easeInOut(duration: 0.2)) {
                         showingCalendar = false
                     }
@@ -288,6 +309,10 @@ struct TodayTimelineView: View {
         .tabViewStyle(.page(indexDisplayMode: .never))
         .onChange(of: weekPageOffset) { oldValue, newValue in
             guard newValue != oldValue else { return }
+            if isSyncingWeekPage {
+                isSyncingWeekPage = false
+                return
+            }
             shiftWeek(by: newValue - oldValue)
         }
         .background(Color.white)
@@ -465,11 +490,15 @@ struct TodayTimelineView: View {
 
     private func shiftDate(by days: Int) {
         guard let nextDate = calendar.date(byAdding: .day, value: days, to: selectedDate) else { return }
+        let normalizedDate = calendar.startOfDay(for: nextDate)
 
         withAnimation(.easeInOut(duration: 0.25)) {
             transitionDirection = days > 0 ? .right : .left
-            selectedDate = nextDate
+            selectedDate = normalizedDate
+            syncWeekPage(with: normalizedDate)
         }
+
+        syncDateOffset(with: normalizedDate)
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.26) {
             transitionDirection = .none
@@ -516,6 +545,7 @@ struct TodayTimelineView: View {
         let weekDelta = dayDelta / 7
 
         if weekPageOffset != weekDelta {
+            isSyncingWeekPage = true
             weekPageOffset = weekDelta
         }
     }
@@ -666,12 +696,48 @@ private struct EventCardsView: View {
     let timeLabelWidth: CGFloat
     let transitionDirection: TodayTimelineView.TransitionDirection
 
+    @State private var classroomURLs: [String: String] = [:]
+    @State private var showingURLAlert = false
+    @State private var tempURL = ""
+    @State private var selectedEventID: String?
+
+    private func loadClassroomURLs() {
+        classroomURLs = PortalCacheStore.shared.loadClassroomURLs()
+    }
+
+    private func saveClassroomURLs() {
+        PortalCacheStore.shared.saveClassroomURLs(classroomURLs)
+    }
+
+    private func classroomURL(for event: DayEvent) -> String? {
+        if let classroomKey = event.classroomKey, let url = classroomURLs[classroomKey] {
+            return url
+        }
+        return classroomURLs[event.id]
+    }
+
+    private func setClassroomURL(for event: DayEvent, url: String?) {
+        let key = event.classroomKey ?? event.id
+        if let url = url, !url.isEmpty {
+            classroomURLs[key] = url
+        } else {
+            classroomURLs.removeValue(forKey: key)
+            classroomURLs.removeValue(forKey: event.id)
+        }
+        saveClassroomURLs()
+    }
+
+    private func openURL(_ urlString: String) {
+        if let url = URL(string: urlString) {
+            UIApplication.shared.open(url)
+        }
+    }
+
     var body: some View {
         ForEach(events) { event in
             let layout = event.layout(hourHeight: hourHeight, startHour: startHour)
             let isCancelled = event.status == "休講"
             let isSupplementary = event.status == "補講"
-            
             let statusColor = isCancelled ? Color.red : (isSupplementary ? Color.blue : AppTheme.accent)
             let cardBg = isCancelled ? Color.red.opacity(0.1) : (isSupplementary ? Color.blue.opacity(0.1) : Color.white.opacity(0.7))
             let cardBorder = isCancelled ? Color.red.opacity(0.5) : (isSupplementary ? Color.blue.opacity(0.5) : AppTheme.blueCardBorder)
@@ -681,9 +747,9 @@ private struct EventCardsView: View {
                     Text(event.title)
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(isCancelled ? .red : AppTheme.textPrimary)
-                    
+
                     Spacer()
-                    
+
                     if !event.status.isEmpty {
                         Text(event.status)
                             .font(.system(size: 10, weight: .bold))
@@ -694,11 +760,11 @@ private struct EventCardsView: View {
                             .cornerRadius(4)
                     }
                 }
-                
+
                 Text("\(event.startTime) - \(event.endTime)")
                     .font(.system(size: 12))
                     .foregroundStyle(isSupplementary ? .blue : (isCancelled ? .red.opacity(0.8) : AppTheme.textBlue))
-                
+
                 if !event.location.isEmpty {
                     Text(event.location)
                         .font(.system(size: 12))
@@ -718,6 +784,23 @@ private struct EventCardsView: View {
             .shadow(color: .black.opacity(0.04), radius: 3, y: 1)
             .offset(x: timeLabelWidth, y: layout.top + 16)
             .contextMenu {
+                if classroomURL(for: event) != nil {
+                    Button {
+                        if let url = classroomURL(for: event) {
+                            openURL(url)
+                        }
+                    } label: {
+                        Label("クラスルームを表示", systemImage: "video")
+                    }
+                }
+                Button {
+                    selectedEventID = event.id
+                    tempURL = classroomURL(for: event) ?? ""
+                    showingURLAlert = true
+                } label: {
+                    Label("クラスルームを設定", systemImage: "link.badge.plus")
+                }
+                Divider()
                 Button {
                     // シラバス表示アクション
                 } label: {
@@ -751,9 +834,30 @@ private struct EventCardsView: View {
                         .stroke(cardBorder, lineWidth: 1.5)
                 )
             }
+            .alert("クラスルームURLを設定", isPresented: $showingURLAlert) {
+                TextField("URLを入力", text: $tempURL)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                Button("キャンセル", role: .cancel) {}
+                Button("保存") {
+                    if let eventID = selectedEventID, let event = events.first(where: { $0.id == eventID }) {
+                        setClassroomURL(for: event, url: tempURL)
+                    }
+                }
+                Button("クリア", role: .destructive) {
+                    if let eventID = selectedEventID, let event = events.first(where: { $0.id == eventID }) {
+                        setClassroomURL(for: event, url: nil)
+                    }
+                }
+            } message: {
+                Text("Google Classroom・Zoom等のURLを入力してください. ClassroomのURLはアプリではなくブラウザから取得できます。")
+            }
         }
         .id(date)
         .transition(.move(edge: .trailing))
         .animation(.easeInOut(duration: 0.25), value: date)
+        .onAppear {
+            loadClassroomURLs()
+        }
     }
 }
