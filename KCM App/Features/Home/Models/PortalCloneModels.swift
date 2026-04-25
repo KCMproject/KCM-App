@@ -6,17 +6,19 @@ struct DayEvent: Identifiable {
     let startTime: String
     let endTime: String
     let location: String
+    let status: String
 
     // 計算済み分数（パフォーマンス最適化）
     let startMinutes: Int
     let endMinutes: Int
 
-    init(title: String, startTime: String, endTime: String, location: String) {
-        self.id = "\(title)|\(startTime)|\(endTime)|\(location)"
+    init(title: String, startTime: String, endTime: String, location: String, status: String = "") {
+        self.id = "\(title)|\(startTime)|\(endTime)|\(location)|\(status)"
         self.title = title
         self.startTime = startTime
         self.endTime = endTime
         self.location = location
+        self.status = status
         self.startMinutes = Self.parseMinutes(startTime)
         self.endMinutes = Self.parseMinutes(endTime)
     }
@@ -47,7 +49,7 @@ struct WeekdayColumn {
     let label: String
 }
 
-struct ClassCell {
+struct ClassCell: Equatable {
     let title: String?
     let room: String?
 
@@ -88,7 +90,7 @@ enum NoticeSort {
 // MARK: - 曜日ラベル（一元管理）
 enum WeekdayLabels {
     static let full = ["日", "月", "火", "水", "木", "金", "土"]
-    static let weekdays = ["月", "火", "水", "木", "金"]
+    static let weekdays = ["月", "火", "水", "木", "金", "土"]
 }
 
 struct NoticeCard: Identifiable, Codable, Equatable {

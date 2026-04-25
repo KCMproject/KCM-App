@@ -27,6 +27,10 @@ struct TodayTimelineView: View {
         let labels = ["日", "月", "火", "水", "木", "金", "土"]
         let weekday = labels[Calendar.current.component(.weekday, from: date) - 1]
         
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let dateString = formatter.string(from: date)
+        
         let periods: [Period] = [
             .init(number: 1, start: "09:00", end: "10:30"),
             .init(number: 2, start: "10:40", end: "12:10"),
@@ -37,12 +41,26 @@ struct TodayTimelineView: View {
         ]
         
         return viewModel.courses
-            .filter { $0.weekday == weekday }
+            .filter { course in
+                if let courseDate = course.dateString {
+                    // 具体的な日付がある場合は日付で完全一致させる
+                    return courseDate == dateString
+                } else {
+                    // 日付がない（週間時間割テンプレートなど）場合は曜日で判定
+                    return course.weekday == weekday
+                }
+            }
             .map { course in
+                // 個別の時間が取得できている場合はそれを優先する
+                if let start = course.startTime, let end = course.endTime {
+                    return DayEvent(title: course.title, startTime: start, endTime: end, location: course.room, status: course.status)
+                }
+                
+                // 取得できていない場合は時限から推測
                 let p = Int(course.period) ?? 1
                 let start = periods[min(max(0, p-1), periods.count-1)].start
                 let end = periods[min(max(0, p-1), periods.count-1)].end
-                return DayEvent(title: course.title, startTime: start, endTime: end, location: course.room)
+                return DayEvent(title: course.title, startTime: start, endTime: end, location: course.room, status: course.status)
             }
     }
 
@@ -663,26 +681,51 @@ private struct EventCardsView: View {
     var body: some View {
         ForEach(events) { event in
             let layout = event.layout(hourHeight: hourHeight, startHour: startHour)
+            let isCancelled = event.status == "休講"
+            let isSupplementary = event.status == "補講"
+            
+            let statusColor = isCancelled ? Color.red : (isSupplementary ? Color.blue : AppTheme.accent)
+            let cardBg = isCancelled ? Color.red.opacity(0.1) : (isSupplementary ? Color.blue.opacity(0.1) : Color.white.opacity(0.7))
+            let cardBorder = isCancelled ? Color.red.opacity(0.5) : (isSupplementary ? Color.blue.opacity(0.5) : AppTheme.blueCardBorder)
+
             VStack(alignment: .leading, spacing: 4) {
-                Text(event.title)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(AppTheme.textPrimary)
+                HStack(alignment: .top) {
+                    Text(event.title)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(isCancelled ? .red : AppTheme.textPrimary)
+                    
+                    Spacer()
+                    
+                    if !event.status.isEmpty {
+                        Text(event.status)
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(statusColor)
+                            .cornerRadius(4)
+                    }
+                }
+                
                 Text("\(event.startTime) - \(event.endTime)")
                     .font(.system(size: 12))
-                    .foregroundStyle(AppTheme.textBlue)
-                Text(event.location)
-                    .font(.system(size: 12))
-                    .foregroundStyle(AppTheme.textMuted)
+                    .foregroundStyle(isSupplementary ? .blue : (isCancelled ? .red.opacity(0.8) : AppTheme.textBlue))
+                
+                if !event.location.isEmpty {
+                    Text(event.location)
+                        .font(.system(size: 12))
+                        .foregroundStyle(AppTheme.textMuted)
+                }
             }
             .padding(10)
             .frame(width: cardMaxWidth, height: layout.height, alignment: .topLeading)
             .background(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color.white.opacity(0.7))
+                    .fill(cardBg)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(AppTheme.blueCardBorder, lineWidth: 1)
+                    .stroke(cardBorder, lineWidth: 1.5)
             )
             .shadow(color: .black.opacity(0.04), radius: 3, y: 1)
             .offset(x: timeLabelWidth, y: layout.top + 16)
@@ -697,19 +740,14 @@ private struct EventCardsView: View {
                 } label: {
                     Label("詳細を表示", systemImage: "info.circle")
                 }
-                Button {
-                    // 編集アクション
-                } label: {
-                    Label("編集", systemImage: "pencil")
-                }
             } preview: {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(event.title)
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(AppTheme.textPrimary)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(isCancelled ? .red : AppTheme.textPrimary)
                     Text("\(event.startTime) - \(event.endTime)")
                         .font(.system(size: 12))
-                        .foregroundStyle(AppTheme.textBlue)
+                        .foregroundStyle(isSupplementary ? .blue : (isCancelled ? .red.opacity(0.8) : AppTheme.textBlue))
                     Text(event.location)
                         .font(.system(size: 12))
                         .foregroundStyle(AppTheme.textMuted)
@@ -718,13 +756,12 @@ private struct EventCardsView: View {
                 .frame(width: cardMaxWidth, height: layout.height, alignment: .topLeading)
                 .background(
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color.white.opacity(0.9))
+                        .fill(cardBg.opacity(1.2))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(AppTheme.blueCardBorder, lineWidth: 1)
+                        .stroke(cardBorder, lineWidth: 1.5)
                 )
-                .shadow(color: .black.opacity(0.08), radius: 5, y: 2)
             }
         }
         .id(date)
