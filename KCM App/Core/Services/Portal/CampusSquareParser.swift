@@ -64,7 +64,7 @@ enum CampusSquareParser {
             
             // 5. 【時限名】: 最初の直下 td
             let jigenName = stripHtmlTags(from: tds[0])
-            if jigenName.isEmpty || jigenName.contains("曜") { continue } // ヘッダー行や空行のスキップ
+            if jigenName.isEmpty || jigenName.contains("曜") { continue }
             
             // 6. 【コマデータ】: 2つ目以降の td をループ
             for tdIndex in 1..<tds.count {
@@ -84,8 +84,8 @@ enum CampusSquareParser {
                 
                 // 9. 【テキストの分割】: <br> を \n に置換し、split
                 let formatted = innerTd
-                    .replacingOccurrences(of: "(?i)<br\\s*/?>", with: "\n", options: .regularExpression)
-                    .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+                    .replacingOccurrences(of: "(?i)<br\\s*/?>", with: "\n", options: [.regularExpression])
+                    .replacingOccurrences(of: "<[^>]+>", with: "", options: [.regularExpression])
                     .replacingOccurrences(of: "&nbsp;", with: " ")
                     .replacingOccurrences(of: "&amp;", with: "&")
                 
@@ -98,9 +98,32 @@ enum CampusSquareParser {
                     let code = lines[0]
                     let title = lines[1]
                     let instructor = lines.count > 2 ? lines[2] : ""
-                    let room = lines.last ?? ""
+                    var room = lines.count > 4 ? lines[4] : (lines.count > 3 ? lines[3] : "")
                     
-                    print("📖 [Parser] RSW確定: \(weekday)曜\(jigenName) -> \(title) (@\(room))")
+                    var startTime: String? = nil
+                    var endTime: String? = nil
+                    
+                    for line in lines {
+                        let timePattern = "(\\d{1,2}:\\d{2})[～〜-](\\d{1,2}:\\d{2})"
+                        if let range = line.range(of: timePattern, options: .regularExpression) {
+                            let parts = line[range].components(separatedBy: CharacterSet(charactersIn: "～〜-"))
+                            if parts.count == 2 {
+                                startTime = parts[0].trimmingCharacters(in: .whitespaces)
+                                endTime = parts[1].trimmingCharacters(in: .whitespaces)
+                                break
+                            }
+                        }
+                    }
+                    
+                    if room.contains(":") || room.contains("～") {
+                        if let r = lines.first(where: { $0.range(of: "[A-Z0-9]+-[A-Z0-9]+", options: .regularExpression) != nil }) {
+                            room = r
+                        } else {
+                            room = ""
+                        }
+                    }
+                    
+                    print("📖 [Parser] RSW確定: \(weekday)曜\(jigenName) (Row:\(rowIndex-1), Col:\(dayIdx)) -> \(title) (@\(room))")
                     results.append(Course(
                         id: UUID(),
                         weekday: weekday,
@@ -111,7 +134,10 @@ enum CampusSquareParser {
                         instructor: instructor,
                         nextClassInfo: "",
                         materials: [],
-                        assignments: []
+                        assignments: [],
+                        startTime: startTime,
+                        endTime: endTime,
+                        dateString: nil
                     ))
                 }
             }
@@ -119,45 +145,77 @@ enum CampusSquareParser {
         return results
     }
 
-    /// スケジュール管理（カレンダー形式）のパース (Turn 17 / Turn 23 ベースの正常動作版)
+    /// スケジュール管理（カレンダー形式）のパース
     static func parseSchedule(from html: String) -> [Course] {
-        print("🕵️ [Parser] parseSchedule 開始 (HTMLサイズ: \(html.count))")
+        print("🕵️ [Parser] parseSchedule 開始")
         var results: [Course] = []
-        let cellPattern = "<td[^>]*class=\"(?:today|day|sat|sun|kyujitsu|tokubetsukikan)[^\"]*\"[^>]*>(.*?)</td>"
-        guard let cellRegex = try? NSRegularExpression(pattern: cellPattern, options: [.dotMatchesLineSeparators]) else { return [] }
+        let cellPattern = "<td[^>]*class\\s*=\\s*['\"][^'\"]*(?:today|day|sat|sun|kyujitsu|tokubetsukikan)[^'\"]*['\"][^>]*>(.*?)</td>"
+        guard let cellRegex = try? NSRegularExpression(pattern: cellPattern, options: [.dotMatchesLineSeparators, .caseInsensitive]) else { return [] }
         let matches = cellRegex.matches(in: html, options: [], range: NSRange(location: 0, length: html.utf16.count))
         let weekdays = ["日", "月", "火", "水", "木", "金", "土"]
-        print("🕵️ [Parser] \(matches.count) 個の日付セルを検出")
         
-        for (index, match) in matches.enumerated() {
+        for match in matches {
             guard let cellRange = Range(match.range(at: 1), in: html) else { continue }
             let cellHtml = String(html[cellRange])
-            let weekday = weekdays[index % 7]
             
-            // スケジュール項目（span class="kaiko/kyuko/hoko"）を抽出
-            let itemPattern = "<span[^>]*class=\"(kaiko|kyuko|hoko)[^\"]*\"[^>]*>(.*?)</span>"
-            guard let itemRegex = try? NSRegularExpression(pattern: itemPattern, options: [.dotMatchesLineSeparators]) else { continue }
+            let datePattern = "addSchedule\\((\\d{4})(\\d{2})(\\d{2})\\)"
+            guard let dateRegex = try? NSRegularExpression(pattern: datePattern, options: []),
+                  let dateMatch = dateRegex.firstMatch(in: cellHtml, options: [], range: NSRange(location: 0, length: cellHtml.utf16.count)),
+                  let yRange = Range(dateMatch.range(at: 1), in: cellHtml),
+                  let mRange = Range(dateMatch.range(at: 2), in: cellHtml),
+                  let dRange = Range(dateMatch.range(at: 3), in: cellHtml) else {
+                continue
+            }
+            
+            let year = Int(cellHtml[yRange]) ?? 0
+            let month = Int(cellHtml[mRange]) ?? 0
+            let day = Int(cellHtml[dRange]) ?? 0
+            let dateString = String(format: "%04d-%02d-%02d", year, month, day)
+            
+            var components = DateComponents()
+            components.year = year; components.month = month; components.day = day
+            let calendar = Calendar(identifier: .gregorian)
+            guard let date = calendar.date(from: components) else { continue }
+            let weekday = weekdays[calendar.component(.weekday, from: date) - 1]
+            
+            let itemPattern = "<span[^>]*class\\s*=\\s*['\"]([^'\"]*(?:kaiko|kyuko|hoko)[^'\"]*)['\"][^>]*>(.*?)</span>"
+            guard let itemRegex = try? NSRegularExpression(pattern: itemPattern, options: [.dotMatchesLineSeparators, .caseInsensitive]) else { continue }
             let itemMatches = itemRegex.matches(in: cellHtml, options: [], range: NSRange(location: 0, length: cellHtml.utf16.count))
             
             for itemMatch in itemMatches {
-                guard let itemContentRange = Range(itemMatch.range(at: 2), in: cellHtml) else { continue }
+                guard let classRange = Range(itemMatch.range(at: 1), in: cellHtml),
+                      let itemContentRange = Range(itemMatch.range(at: 2), in: cellHtml) else { continue }
+                
+                let statusClass = String(cellHtml[classRange]).lowercased()
                 let itemContentHtml = String(cellHtml[itemContentRange])
-                let statusType = String(cellHtml[Range(itemMatch.range(at: 1), in: cellHtml)!])
                 let fullText = stripHtmlTags(from: itemContentHtml)
                 if fullText.isEmpty || fullText.contains("休日設定") || fullText.contains("特別期間") { continue }
                 
-                let parsePattern = "(?:.*?(\\d)限:)?([^@]+)(?:@(.+))?"
+                let parsePattern = "(?:.*?(\\d)限)?(?:\\((\\d{1,2}:\\d{2})[～〜-](\\d{1,2}:\\d{2})\\))?:?([^@]+)(?:@(.+))?"
                 var title = fullText, period = "", room = ""
+                var startTime: String? = nil, endTime: String? = nil
+                
                 if let pRegex = try? NSRegularExpression(pattern: parsePattern, options: []),
                    let pMatch = pRegex.firstMatch(in: fullText, options: [], range: NSRange(location: 0, length: fullText.utf16.count)) {
                     if let r1 = Range(pMatch.range(at: 1), in: fullText) { period = String(fullText[r1]) }
-                    if let r2 = Range(pMatch.range(at: 2), in: fullText) { title = String(fullText[r2]).trimmingCharacters(in: .whitespacesAndNewlines) }
-                    if let r3 = Range(pMatch.range(at: 3), in: fullText) { room = String(fullText[r3]).trimmingCharacters(in: .whitespacesAndNewlines) }
+                    if let r2 = Range(pMatch.range(at: 2), in: fullText) { startTime = String(fullText[r2]) }
+                    if let r3 = Range(pMatch.range(at: 3), in: fullText) { endTime = String(fullText[r3]) }
+                    if let r4 = Range(pMatch.range(at: 4), in: fullText) {
+                        title = String(fullText[r4]).trimmingCharacters(in: .whitespacesAndNewlines)
+                        if title.hasPrefix(":") { title = String(title.dropFirst()).trimmingCharacters(in: .whitespacesAndNewlines) }
+                    }
+                    if let r5 = Range(pMatch.range(at: 5), in: fullText) { room = String(fullText[r5]).trimmingCharacters(in: .whitespacesAndNewlines) }
                 }
+                
                 if title.contains("】") { title = title.components(separatedBy: "】").last?.trimmingCharacters(in: .whitespacesAndNewlines) ?? title }
-                let status = statusType == "kyuko" ? "休講" : (statusType == "hoko" ? "補講" : "")
+                let status = statusClass.contains("kyuko") ? "休講" : (statusClass.contains("hoko") ? "補講" : "")
+                
                 if !title.isEmpty {
-                    results.append(Course(id: UUID(), weekday: weekday, period: period, title: title, room: room, status: status, instructor: "", nextClassInfo: "", materials: [], assignments: []))
+                    results.append(Course(
+                        id: UUID(), weekday: weekday, period: period, title: title, room: room,
+                        status: status, instructor: "", nextClassInfo: "", materials: [], assignments: [],
+                        startTime: startTime, endTime: endTime, dateString: dateString
+                    ))
                 }
             }
         }
@@ -167,8 +225,12 @@ enum CampusSquareParser {
     // MARK: - ヘルパー関数 (DOMシミュレーション)
 
     private static func findTagWithClass(_ tag: String, className: String, in html: String) -> String? {
-        let pattern = "<\(tag)[^>]*class\\s*=\\s*['\"][^'\"]*\(className)[^'\"]*['\"]"
-        guard let range = html.range(of: pattern, options: [.regularExpression, .caseInsensitive]) else { return nil }
+        let pattern = "<\(tag)[^>]*class\\s*=\\s*['\"][^'\"]*\(className)[^'\"]*['\"][^>]*>"
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+              let match = regex.firstMatch(in: html, options: [], range: NSRange(location: 0, length: html.utf16.count)),
+              let range = Range(match.range, in: html) else {
+            return nil
+        }
         return extractFullTagBalanced(tag: tag, startingAt: range.lowerBound, in: html)
     }
 
@@ -176,7 +238,6 @@ enum CampusSquareParser {
         let pattern = "<table[^>]*class\\s*=\\s*['\"][^'\"]*\(className)[^'\"]*['\"]"
         guard let range = html.range(of: pattern, options: [.regularExpression, .caseInsensitive]) else { return nil }
         guard let tableFull = extractFullTagBalanced(tag: "table", startingAt: range.lowerBound, in: html) else { return nil }
-        // そのテーブルの中の最初の td
         let tds = extractDirectChildTags(tag: "td", in: tableFull)
         return tds.first.map { stripOuterTag(tag: "td", from: $0) }
     }
@@ -221,12 +282,12 @@ enum CampusSquareParser {
         var results: [String] = []
         var scanRange = html.startIndex..<html.endIndex
         let openM = "<\(tag)"
-        
         while let openR = html.range(of: openM, options: .caseInsensitive, range: scanRange) {
             if let full = extractFullTagBalanced(tag: tag, startingAt: openR.lowerBound, in: html) {
                 results.append(full)
-                // 次の検索は、現在のタグの終了後から開始
-                scanRange = html.index(html.startIndex, offsetBy: html.distance(from: html.startIndex, to: openR.lowerBound) + full.count)..<html.endIndex
+                if let nextStart = html.index(openR.lowerBound, offsetBy: full.count, limitedBy: html.endIndex) {
+                    scanRange = nextStart..<html.endIndex
+                } else { break }
             } else {
                 scanRange = openR.upperBound..<html.endIndex
             }
@@ -234,29 +295,11 @@ enum CampusSquareParser {
         return results
     }
 
-    private static func extractRoomName(from html: String) -> String {
-        let pattern = "</a><br[^>]*>(.*?)$"
-        if let regex = try? NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators]),
-           let match = regex.firstMatch(in: html, options: [], range: NSRange(location: 0, length: html.utf16.count)),
-           let range = Range(match.range(at: 1), in: html) {
-            return stripHtmlTags(from: String(html[range]))
-        }
-        return ""
-    }
-    
     private static func extractCellContent(from html: String, match: NSTextCheckingResult) -> String {
         guard let range = Range(match.range(at: 1), in: html) else { return "" }
         return String(html[range]).trimmingCharacters(in: .whitespacesAndNewlines)
     }
     
-    private static func extractTagContent(from html: String, tag: String, className: String? = nil) -> String? {
-        let pattern = className != nil ? "<\(tag)[^>]*class=\"[^\"]*\(className!)[^\"]*\"[^>]*>(.*?)</\(tag)>" : "<\(tag)[^>]*>(.*?)</\(tag)>"
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators]),
-              let match = regex.firstMatch(in: html, options: [], range: NSRange(location: 0, length: html.utf16.count)),
-              let range = Range(match.range(at: 1), in: html) else { return nil }
-        return String(html[range])
-    }
-
     static func stripHtmlTags(from html: String) -> String {
         return html.replacingOccurrences(of: "<[^>]+>", with: "", options: [.regularExpression])
             .replacingOccurrences(of: "&nbsp;", with: " ")
