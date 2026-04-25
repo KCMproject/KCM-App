@@ -8,11 +8,12 @@ final class PortalCacheStore {
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
 
-    private enum Key {
-        static let courses = "portalCache.courses"
-        static let notices = "portalCache.notices"
-        static let favoriteNoticeIDs = "portalCache.favoriteNoticeIDs"
-    }
+private enum Key {
+    static let courses = "portalCache.courses"
+    static let notices = "portalCache.notices"
+    static let favoriteNoticeIDs = "portalCache.favoriteNoticeIDs"
+    static let classroomURLs = "portalCache.classroomURLs"
+  }
 
     private init() {}
 
@@ -50,9 +51,22 @@ final class PortalCacheStore {
         return Set(ids)
     }
 
-    func saveFavoriteNoticeIDs(_ ids: Set<String>) {
-        let sortedIDs = Array(ids).sorted()
-        guard let data = try? encoder.encode(sortedIDs) else { return }
-        defaults.set(data, forKey: Key.favoriteNoticeIDs)
+func saveFavoriteNoticeIDs(_ ids: Set<String>) {
+    let sortedIDs = Array(ids).sorted()
+    guard let data = try? encoder.encode(sortedIDs) else { return }
+    defaults.set(data, forKey: Key.favoriteNoticeIDs)
+  }
+
+  func loadClassroomURLs() -> [String: String] {
+    guard let data = defaults.data(forKey: Key.classroomURLs),
+      let urls = try? decoder.decode([String: String].self, from: data) else {
+      return [:]
     }
+    return urls
+  }
+
+  func saveClassroomURLs(_ urls: [String: String]) {
+    guard let data = try? encoder.encode(urls) else { return }
+    defaults.set(data, forKey: Key.classroomURLs)
+  }
 }
