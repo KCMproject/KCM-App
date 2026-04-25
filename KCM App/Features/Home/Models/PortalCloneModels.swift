@@ -6,17 +6,19 @@ struct DayEvent: Identifiable {
     let startTime: String
     let endTime: String
     let location: String
+    let status: String
 
     // 計算済み分数（パフォーマンス最適化）
     let startMinutes: Int
     let endMinutes: Int
 
-    init(title: String, startTime: String, endTime: String, location: String) {
-        self.id = "\(title)|\(startTime)|\(endTime)|\(location)"
+    init(title: String, startTime: String, endTime: String, location: String, status: String = "") {
+        self.id = "\(title)|\(startTime)|\(endTime)|\(location)|\(status)"
         self.title = title
         self.startTime = startTime
         self.endTime = endTime
         self.location = location
+        self.status = status
         self.startMinutes = Self.parseMinutes(startTime)
         self.endMinutes = Self.parseMinutes(endTime)
     }

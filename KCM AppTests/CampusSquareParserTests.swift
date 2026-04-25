@@ -59,7 +59,8 @@ final class CampusSquareParserTests: XCTestCase {
                                     ♪作曲Ⅲ<br>
                                     清水　祥平<br>
                                     2.0単位<br>
-                                    N-301
+                                    N-301<br>
+                                    14:00～14:23
                                 </td>
                             </tr>
                         </table>
@@ -83,6 +84,8 @@ final class CampusSquareParserTests: XCTestCase {
         XCTAssertEqual(doutoku?.weekday, "月曜日")
         XCTAssertEqual(doutoku?.period, "1限")
         XCTAssertEqual(doutoku?.room, "5-121")
+        XCTAssertNil(doutoku?.startTime)
+        XCTAssertNil(doutoku?.dateString)
 
         // 3限 水曜: ♪作曲Ⅲ
         let sakkyoku = results.first { $0.title == "♪作曲Ⅲ" }
@@ -90,6 +93,9 @@ final class CampusSquareParserTests: XCTestCase {
         XCTAssertEqual(sakkyoku?.weekday, "水曜日")
         XCTAssertEqual(sakkyoku?.period, "3限")
         XCTAssertEqual(sakkyoku?.room, "N-301")
+        XCTAssertEqual(sakkyoku?.startTime, "14:00")
+        XCTAssertEqual(sakkyoku?.endTime, "14:23")
+        XCTAssertNil(sakkyoku?.dateString)
     }
 
     func testParseWeeklyTimetableWithSaturday() throws {
@@ -135,6 +141,7 @@ final class CampusSquareParserTests: XCTestCase {
         let html = """
         <td class="day">
             <span class="kaiko">1限:道徳指導論@5-121</span>
+            <script>addSchedule(20260413);</script>
         </td>
         """
         
@@ -144,5 +151,27 @@ final class CampusSquareParserTests: XCTestCase {
         XCTAssertEqual(results[0].title, "道徳指導論")
         XCTAssertEqual(results[0].period, "1")
         XCTAssertEqual(results[0].room, "5-121")
+        XCTAssertNil(results[0].startTime)
+        XCTAssertEqual(results[0].dateString, "2026-04-13")
+    }
+
+    func testParseScheduleWithTime() throws {
+        // 時間が含まれるスケジュール
+        let html = """
+        <td class="day">
+            <span class="kaiko">3限(14:00〜14:23):♪作曲Ⅲ@N-301</span>
+            <script>addSchedule(20260415);</script>
+        </td>
+        """
+        
+        let results = CampusSquareParser.parseSchedule(from: html)
+        
+        XCTAssertEqual(results.count, 1)
+        XCTAssertEqual(results[0].title, "♪作曲Ⅲ")
+        XCTAssertEqual(results[0].period, "3")
+        XCTAssertEqual(results[0].startTime, "14:00")
+        XCTAssertEqual(results[0].endTime, "14:23")
+        XCTAssertEqual(results[0].room, "N-301")
+        XCTAssertEqual(results[0].dateString, "2026-04-15")
     }
 }

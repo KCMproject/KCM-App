@@ -22,7 +22,10 @@ final class TimetableViewModelTests: XCTestCase {
             instructor: "",
             nextClassInfo: "",
             materials: [],
-            assignments: []
+            assignments: [],
+            startTime: "10:40",
+            endTime: "12:10",
+            dateString: "2026-04-18"
         )
         
         mockClient.weeklyCourses = [saturdayCourse]
@@ -51,7 +54,10 @@ final class TimetableViewModelTests: XCTestCase {
             instructor: "",
             nextClassInfo: "",
             materials: [],
-            assignments: []
+            assignments: [],
+            startTime: "09:00",
+            endTime: "10:30",
+            dateString: "2026-04-13"
         )
         
         mockClient.weeklyCourses = [mondayCourse]
