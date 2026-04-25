@@ -47,7 +47,7 @@ struct WeekdayColumn {
     let label: String
 }
 
-struct ClassCell {
+struct ClassCell: Equatable {
     let title: String?
     let room: String?
 
@@ -88,7 +88,7 @@ enum NoticeSort {
 // MARK: - 曜日ラベル（一元管理）
 enum WeekdayLabels {
     static let full = ["日", "月", "火", "水", "木", "金", "土"]
-    static let weekdays = ["月", "火", "水", "木", "金"]
+    static let weekdays = ["月", "火", "水", "木", "金", "土"]
 }
 
 struct NoticeCard: Identifiable, Codable, Equatable {

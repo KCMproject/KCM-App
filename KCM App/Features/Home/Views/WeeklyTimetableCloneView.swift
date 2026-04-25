@@ -30,7 +30,7 @@ struct WeeklyTimetableCloneView: View {
     private var todayIndex: Int {
         let weekday = Calendar.current.component(.weekday, from: Date())
         // Sunday=1, Monday=2, ..., Friday=6, Saturday=7
-        return weekday >= 2 && weekday <= 6 ? weekday - 2 : -1
+        return (2...7).contains(weekday) ? weekday - 2 : -1
     }
 
     private var yearText: String {
@@ -121,7 +121,7 @@ struct WeeklyTimetableCloneView: View {
                                 .frame(width: 48)
 
                                 // 各曜日のセル
-                                ForEach(0..<5, id: \.self) { columnIndex in
+                                ForEach(0..<6, id: \.self) { columnIndex in
                                     let isToday = columnIndex == todayIndex
                                     let item = viewModel.weeklySchedule[rowIndex][columnIndex]
                                     TimetableCell(item: item, isToday: isToday)

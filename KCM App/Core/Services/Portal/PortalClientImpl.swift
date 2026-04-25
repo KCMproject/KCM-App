@@ -189,21 +189,23 @@ final class PortalClientImpl: PortalClientProtocol {
     }
 
     /// 週間時間割（グリッド形式）を取得する
-    func fetchWeeklyTimetable() async throws -> [[ClassCell]] {
+    func fetchWeeklyTimetable() async throws -> [Course] {
+        print("🌐 [Portal] fetchWeeklyTimetable 開始: メインページ取得中...")
         let mainHtml = try await networkClient.fetchHTML(from: "\(networkClient.baseURL)\(portalURL)?page=main")
         
-        // 履修登録・登録状況照会 (RSW0001000) へのリンクを抽出
-        let pattern = "campussquare\\.do\\?_flowId=RSW0001000-flow[^'\"]*"
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: []),
-              let match = regex.firstMatch(in: mainHtml, options: [], range: NSRange(location: 0, length: mainHtml.utf16.count)),
-              let range = Range(match.range, in: mainHtml) else {
+        // ユーザー指定のID 'menu-link-mf-164915' から確実にリンクを抽出
+        guard let rswPath = CampusSquareParser.extractHref(from: mainHtml, withId: "menu-link-mf-164915") else {
+            print("❌ [Portal] 履修登録リンク(menu-link-mf-164915)が見つかりません。")
             throw NSError(domain: "PortalClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "履修登録リンクが見つかりません"])
         }
         
-        let rswURL = String(mainHtml[range]).replacingOccurrences(of: "&amp;", with: "&")
-        let html = try await networkClient.fetchHTML(from: "\(networkClient.baseURL)/\(rswURL)", referer: "\(networkClient.baseURL)\(portalURL)?page=main")
+        let rswURL = "\(networkClient.baseURL)/\(rswPath)"
+        print("🔗 [Portal] 履修登録ページへ遷移中: \(rswURL)")
         
-        return CampusSquareParser.parseWeeklyTimetable(from: html)
+        let html = try await networkClient.fetchHTML(from: rswURL, referer: "\(networkClient.baseURL)\(portalURL)?page=main")
+        print("✅ [Portal] 履修登録ページ取得成功 (サイズ: \(html.count))")
+        
+        return CampusSquareParser.parseWeeklyTimetableFromRSW(from: html)
     }
 
     // MARK: - レガシーサポート
