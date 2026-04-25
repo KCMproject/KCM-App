@@ -9,6 +9,13 @@ final class TimetableViewModel: ObservableObject {
     @Published var weeklySchedule: [[ClassCell]] = Array(repeating: Array(repeating: .empty, count: 6), count: 6)
     @Published var isLoading = false
     @Published var errorMessage: String?
+    
+    /// 土曜日に授業があるかどうか
+    var hasSaturdayClass: Bool {
+        weeklySchedule.contains { row in
+            row.indices.contains(5) && row[5].title != nil
+        }
+    }
 
     private let portalClient: PortalClientProtocol
     private let cacheStore = PortalCacheStore.shared

@@ -25,7 +25,9 @@ struct WeeklyTimetableCloneView: View {
         .init(number: 6, start: "18:00", end: "19:30")
     ]
 
-    private let dayLabels = WeekdayLabels.weekdays
+    private var dayLabels: [String] {
+        viewModel.hasSaturdayClass ? WeekdayLabels.weekdays : Array(WeekdayLabels.weekdays.prefix(5))
+    }
 
     private var todayIndex: Int {
         let weekday = Calendar.current.component(.weekday, from: Date())
@@ -121,7 +123,7 @@ struct WeeklyTimetableCloneView: View {
                                 .frame(width: 48)
 
                                 // 各曜日のセル
-                                ForEach(0..<6, id: \.self) { columnIndex in
+                                ForEach(0..<dayLabels.count, id: \.self) { columnIndex in
                                     let isToday = columnIndex == todayIndex
                                     let item = viewModel.weeklySchedule[rowIndex][columnIndex]
                                     TimetableCell(item: item, isToday: isToday)
