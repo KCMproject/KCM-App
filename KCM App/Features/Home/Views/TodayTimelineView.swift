@@ -25,7 +25,9 @@ struct TodayTimelineView: View {
 
     private func events(for date: Date) -> [DayEvent] {
         let labels = ["日", "月", "火", "水", "木", "金", "土"]
-        let weekday = labels[Calendar.current.component(.weekday, from: date) - 1]
+        let calendarWeekday = Calendar.current.component(.weekday, from: date)
+        let weekday = labels[calendarWeekday - 1]
+        let weekdayIndex = (2...6).contains(calendarWeekday) ? calendarWeekday - 2 : -1
         
         let periods: [Period] = [
             .init(number: 1, start: "09:00", end: "10:30"),
@@ -39,10 +41,17 @@ struct TodayTimelineView: View {
         return viewModel.courses
             .filter { $0.weekday == weekday }
             .map { course in
-                let p = Int(course.period) ?? 1
+                let p = course.period.split(separator: ",").compactMap { Int($0) }.first ?? Int(course.period) ?? 1
                 let start = periods[min(max(0, p-1), periods.count-1)].start
                 let end = periods[min(max(0, p-1), periods.count-1)].end
-                return DayEvent(title: course.title, startTime: start, endTime: end, location: course.room)
+                let classroomKey = weekdayIndex >= 0 ? "\(weekdayIndex)_\(p)_\(course.title)" : nil
+                return DayEvent(
+                    title: course.title,
+                    startTime: start,
+                    endTime: end,
+                    location: course.room,
+                    classroomKey: classroomKey
+                )
             }
     }
 
@@ -674,13 +683,18 @@ private struct EventCardsView: View {
   }
 
   private func classroomURL(for event: DayEvent) -> String? {
-    classroomURLs[event.id]
+    if let classroomKey = event.classroomKey, let url = classroomURLs[classroomKey] {
+      return url
+    }
+    return classroomURLs[event.id]
   }
 
   private func setClassroomURL(for event: DayEvent, url: String?) {
+    let key = event.classroomKey ?? event.id
     if let url = url, !url.isEmpty {
-      classroomURLs[event.id] = url
+      classroomURLs[key] = url
     } else {
+      classroomURLs.removeValue(forKey: key)
       classroomURLs.removeValue(forKey: event.id)
     }
     saveClassroomURLs()
