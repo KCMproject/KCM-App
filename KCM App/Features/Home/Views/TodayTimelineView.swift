@@ -29,6 +29,10 @@ struct TodayTimelineView: View {
         let weekday = labels[calendarWeekday - 1]
         let weekdayIndex = (2...6).contains(calendarWeekday) ? calendarWeekday - 2 : -1
         
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let dateString = formatter.string(from: date)
+        
         let periods: [Period] = [
             .init(number: 1, start: "09:00", end: "10:30"),
             .init(number: 2, start: "10:40", end: "12:10"),
@@ -39,17 +43,40 @@ struct TodayTimelineView: View {
         ]
         
         return viewModel.courses
-            .filter { $0.weekday == weekday }
+            .filter { course in
+                if let courseDate = course.dateString {
+                    // 具体的な日付がある場合は日付で完全一致させる
+                    return courseDate == dateString
+                } else {
+                    // 日付がない（週間時間割テンプレートなど）場合は曜日で判定
+                    return course.weekday == weekday
+                }
+            }
             .map { course in
                 let p = course.period.split(separator: ",").compactMap { Int($0) }.first ?? Int(course.period) ?? 1
+                let classroomKey = weekdayIndex >= 0 ? "\(weekdayIndex)_\(p)_\(course.title)" : nil
+
+                // 個別の時間が取得できている場合はそれを優先する
+                if let start = course.startTime, let end = course.endTime {
+                    return DayEvent(
+                        title: course.title,
+                        startTime: start,
+                        endTime: end,
+                        location: course.room,
+                        status: course.status,
+                        classroomKey: classroomKey
+                    )
+                }
+
+                // 取得できていない場合は時限から推測
                 let start = periods[min(max(0, p-1), periods.count-1)].start
                 let end = periods[min(max(0, p-1), periods.count-1)].end
-                let classroomKey = weekdayIndex >= 0 ? "\(weekdayIndex)_\(p)_\(course.title)" : nil
                 return DayEvent(
                     title: course.title,
                     startTime: start,
                     endTime: end,
                     location: course.room,
+                    status: course.status,
                     classroomKey: classroomKey
                 )
             }
@@ -661,158 +688,176 @@ private struct CalendarPickerView: View {
 
 // MARK: - イベントカード（スライドアニメーション対応）
 private struct EventCardsView: View {
-  let date: Date
-  let events: [DayEvent]
-  let cardMaxWidth: CGFloat
-  let hourHeight: CGFloat
-  let startHour: Int
-  let timeLabelWidth: CGFloat
-  let transitionDirection: TodayTimelineView.TransitionDirection
+    let date: Date
+    let events: [DayEvent]
+    let cardMaxWidth: CGFloat
+    let hourHeight: CGFloat
+    let startHour: Int
+    let timeLabelWidth: CGFloat
+    let transitionDirection: TodayTimelineView.TransitionDirection
 
-  @State private var classroomURLs: [String: String] = [:]
-  @State private var showingURLAlert = false
-  @State private var tempURL = ""
-  @State private var selectedEventID: String?
+    @State private var classroomURLs: [String: String] = [:]
+    @State private var showingURLAlert = false
+    @State private var tempURL = ""
+    @State private var selectedEventID: String?
 
-  private func loadClassroomURLs() {
-    classroomURLs = PortalCacheStore.shared.loadClassroomURLs()
-  }
-
-  private func saveClassroomURLs() {
-    PortalCacheStore.shared.saveClassroomURLs(classroomURLs)
-  }
-
-  private func classroomURL(for event: DayEvent) -> String? {
-    if let classroomKey = event.classroomKey, let url = classroomURLs[classroomKey] {
-      return url
+    private func loadClassroomURLs() {
+        classroomURLs = PortalCacheStore.shared.loadClassroomURLs()
     }
-    return classroomURLs[event.id]
-  }
 
-  private func setClassroomURL(for event: DayEvent, url: String?) {
-    let key = event.classroomKey ?? event.id
-    if let url = url, !url.isEmpty {
-      classroomURLs[key] = url
-    } else {
-      classroomURLs.removeValue(forKey: key)
-      classroomURLs.removeValue(forKey: event.id)
+    private func saveClassroomURLs() {
+        PortalCacheStore.shared.saveClassroomURLs(classroomURLs)
     }
-    saveClassroomURLs()
-  }
 
-  private func openURL(_ urlString: String) {
-    if let url = URL(string: urlString) {
-      UIApplication.shared.open(url)
+    private func classroomURL(for event: DayEvent) -> String? {
+        if let classroomKey = event.classroomKey, let url = classroomURLs[classroomKey] {
+            return url
+        }
+        return classroomURLs[event.id]
     }
-  }
 
-  var body: some View {
-    ForEach(events) { event in
-      let layout = event.layout(hourHeight: hourHeight, startHour: startHour)
-      VStack(alignment: .leading, spacing: 4) {
-        Text(event.title)
-          .font(.system(size: 14, weight: .medium))
-          .foregroundStyle(AppTheme.textPrimary)
-        Text("\(event.startTime) - \(event.endTime)")
-          .font(.system(size: 12))
-          .foregroundStyle(AppTheme.textBlue)
-        Text(event.location)
-          .font(.system(size: 12))
-          .foregroundStyle(AppTheme.textMuted)
-      }
-      .padding(10)
-      .frame(width: cardMaxWidth, height: layout.height, alignment: .topLeading)
-      .background(
-        RoundedRectangle(cornerRadius: 12, style: .continuous)
-          .fill(Color.white.opacity(0.7))
-      )
-      .overlay(
-        RoundedRectangle(cornerRadius: 12, style: .continuous)
-          .stroke(AppTheme.blueCardBorder, lineWidth: 1)
-      )
-      .shadow(color: .black.opacity(0.04), radius: 3, y: 1)
-      .offset(x: timeLabelWidth, y: layout.top + 16)
-      .contextMenu {
-        if classroomURL(for: event) != nil {
-          Button {
-            if let url = classroomURL(for: event) {
-              openURL(url)
+    private func setClassroomURL(for event: DayEvent, url: String?) {
+        let key = event.classroomKey ?? event.id
+        if let url = url, !url.isEmpty {
+            classroomURLs[key] = url
+        } else {
+            classroomURLs.removeValue(forKey: key)
+            classroomURLs.removeValue(forKey: event.id)
+        }
+        saveClassroomURLs()
+    }
+
+    private func openURL(_ urlString: String) {
+        if let url = URL(string: urlString) {
+            UIApplication.shared.open(url)
+        }
+    }
+
+    var body: some View {
+        ForEach(events) { event in
+            let layout = event.layout(hourHeight: hourHeight, startHour: startHour)
+            let isCancelled = event.status == "休講"
+            let isSupplementary = event.status == "補講"
+            let statusColor = isCancelled ? Color.red : (isSupplementary ? Color.blue : AppTheme.accent)
+            let cardBg = isCancelled ? Color.red.opacity(0.1) : (isSupplementary ? Color.blue.opacity(0.1) : Color.white.opacity(0.7))
+            let cardBorder = isCancelled ? Color.red.opacity(0.5) : (isSupplementary ? Color.blue.opacity(0.5) : AppTheme.blueCardBorder)
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .top) {
+                    Text(event.title)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(isCancelled ? .red : AppTheme.textPrimary)
+
+                    Spacer()
+
+                    if !event.status.isEmpty {
+                        Text(event.status)
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(statusColor)
+                            .cornerRadius(4)
+                    }
+                }
+
+                Text("\(event.startTime) - \(event.endTime)")
+                    .font(.system(size: 12))
+                    .foregroundStyle(isSupplementary ? .blue : (isCancelled ? .red.opacity(0.8) : AppTheme.textBlue))
+
+                if !event.location.isEmpty {
+                    Text(event.location)
+                        .font(.system(size: 12))
+                        .foregroundStyle(AppTheme.textMuted)
+                }
             }
-          } label: {
-            Label("クラスルームを表示", systemImage: "video")
-          }
+            .padding(10)
+            .frame(width: cardMaxWidth, height: layout.height, alignment: .topLeading)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(cardBg)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(cardBorder, lineWidth: 1.5)
+            )
+            .shadow(color: .black.opacity(0.04), radius: 3, y: 1)
+            .offset(x: timeLabelWidth, y: layout.top + 16)
+            .contextMenu {
+                if classroomURL(for: event) != nil {
+                    Button {
+                        if let url = classroomURL(for: event) {
+                            openURL(url)
+                        }
+                    } label: {
+                        Label("クラスルームを表示", systemImage: "video")
+                    }
+                }
+                Button {
+                    selectedEventID = event.id
+                    tempURL = classroomURL(for: event) ?? ""
+                    showingURLAlert = true
+                } label: {
+                    Label("クラスルームを設定", systemImage: "link.badge.plus")
+                }
+                Divider()
+                Button {
+                    // シラバス表示アクション
+                } label: {
+                    Label("シラバスを表示", systemImage: "book")
+                }
+                Button {
+                    // 詳細表示アクション
+                } label: {
+                    Label("詳細を表示", systemImage: "info.circle")
+                }
+            } preview: {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(event.title)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(isCancelled ? .red : AppTheme.textPrimary)
+                    Text("\(event.startTime) - \(event.endTime)")
+                        .font(.system(size: 12))
+                        .foregroundStyle(isSupplementary ? .blue : (isCancelled ? .red.opacity(0.8) : AppTheme.textBlue))
+                    Text(event.location)
+                        .font(.system(size: 12))
+                        .foregroundStyle(AppTheme.textMuted)
+                }
+                .padding(10)
+                .frame(width: cardMaxWidth, height: layout.height, alignment: .topLeading)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(cardBg.opacity(1.2))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(cardBorder, lineWidth: 1.5)
+                )
+            }
+            .alert("クラスルームURLを設定", isPresented: $showingURLAlert) {
+                TextField("URLを入力", text: $tempURL)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                Button("キャンセル", role: .cancel) {}
+                Button("保存") {
+                    if let eventID = selectedEventID, let event = events.first(where: { $0.id == eventID }) {
+                        setClassroomURL(for: event, url: tempURL)
+                    }
+                }
+                Button("クリア", role: .destructive) {
+                    if let eventID = selectedEventID, let event = events.first(where: { $0.id == eventID }) {
+                        setClassroomURL(for: event, url: nil)
+                    }
+                }
+            } message: {
+                Text("Google Classroom・Zoom等のURLを入力してください. ClassroomのURLはアプリではなくブラウザから取得できます。")
+            }
         }
-        Button {
-          selectedEventID = event.id
-          tempURL = classroomURL(for: event) ?? ""
-          showingURLAlert = true
-        } label: {
-          Label("クラスルームを設定", systemImage: "link.badge.plus")
+        .id(date)
+        .transition(.move(edge: .trailing))
+        .animation(.easeInOut(duration: 0.25), value: date)
+        .onAppear {
+            loadClassroomURLs()
         }
-        Divider()
-        Button {
-          // シラバス表示アクション
-        } label: {
-          Label("シラバスを表示", systemImage: "book")
-        }
-        Button {
-          // 詳細表示アクション
-        } label: {
-          Label("詳細を表示", systemImage: "info.circle")
-        }
-        Button {
-          // 編集アクション
-        } label: {
-          Label("編集", systemImage: "pencil")
-        }
-      } preview: {
-        VStack(alignment: .leading, spacing: 4) {
-          Text(event.title)
-            .font(.system(size: 14, weight: .medium))
-            .foregroundStyle(AppTheme.textPrimary)
-          Text("\(event.startTime) - \(event.endTime)")
-            .font(.system(size: 12))
-            .foregroundStyle(AppTheme.textBlue)
-          Text(event.location)
-            .font(.system(size: 12))
-            .foregroundStyle(AppTheme.textMuted)
-        }
-        .padding(10)
-        .frame(width: cardMaxWidth, height: layout.height, alignment: .topLeading)
-        .background(
-          RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .fill(Color.white.opacity(0.9))
-        )
-        .overlay(
-          RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .stroke(AppTheme.blueCardBorder, lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.08), radius: 5, y: 2)
-      }
-      .alert("クラスルームURLを設定", isPresented: $showingURLAlert) {
-        TextField("URLを入力", text: $tempURL)
-          .textInputAutocapitalization(.never)
-          .autocorrectionDisabled()
-        Button("キャンセル", role: .cancel) {}
-        Button("保存") {
-          if let eventID = selectedEventID, let event = events.first(where: { $0.id == eventID }) {
-            setClassroomURL(for: event, url: tempURL)
-          }
-        }
-        Button("クリア", role: .destructive) {
-          if let eventID = selectedEventID, let event = events.first(where: { $0.id == eventID }) {
-            setClassroomURL(for: event, url: nil)
-          }
-        }
-      } message: {
-        Text("Google Classroom・Zoom等のURLを入力してください. ClassroomのURLはアプリではなくブラウザから取得できます。")
-      }
     }
-    .id(date)
-    .transition(.move(edge: .trailing))
-    .animation(.easeInOut(duration: 0.25), value: date)
-    .onAppear {
-      loadClassroomURLs()
-    }
-  }
 }
