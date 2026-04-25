@@ -24,11 +24,11 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		9A7B1C102F90000100ABCDEF /* App.shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/App.shared.xcconfig; sourceTree = SOURCE_ROOT; };
-		9A7B1C112F90000100ABCDEF /* Local.example.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/Local.example.xcconfig; sourceTree = SOURCE_ROOT; };
 		62DC58692F82B5BB00DACA33 /* KCM App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "KCM App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		62DC58762F82B5BC00DACA33 /* KCM AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "KCM AppTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		62DC58802F82B5BC00DACA33 /* KCM AppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "KCM AppUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		9A7B1C102F90000100ABCDEF /* Config/App.shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/App.shared.xcconfig; sourceTree = SOURCE_ROOT; };
+		9A7B1C112F90000100ABCDEF /* Config/Local.example.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/Local.example.xcconfig; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -98,8 +98,8 @@
 		9A7B1C122F90000100ABCDEF /* Config */ = {
 			isa = PBXGroup;
 			children = (
-				9A7B1C102F90000100ABCDEF /* App.shared.xcconfig */,
-				9A7B1C112F90000100ABCDEF /* Local.example.xcconfig */,
+				9A7B1C102F90000100ABCDEF /* Config/App.shared.xcconfig */,
+				9A7B1C112F90000100ABCDEF /* Config/Local.example.xcconfig */,
 			);
 			path = Config;
 			sourceTree = "<group>";
@@ -402,7 +402,7 @@
 		};
 		62DC588B2F82B5BC00DACA33 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 9A7B1C102F90000100ABCDEF /* App.shared.xcconfig */;
+			baseConfigurationReference = 9A7B1C102F90000100ABCDEF /* Config/App.shared.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -435,7 +435,7 @@
 		};
 		62DC588C2F82B5BC00DACA33 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 9A7B1C102F90000100ABCDEF /* App.shared.xcconfig */;
+			baseConfigurationReference = 9A7B1C102F90000100ABCDEF /* Config/App.shared.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
