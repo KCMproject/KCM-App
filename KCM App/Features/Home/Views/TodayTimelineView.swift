@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import UIKit
 
 struct TodayTimelineView: View {
     @ObservedObject private var viewModel = TimetableViewModel.shared
@@ -143,6 +144,15 @@ struct TodayTimelineView: View {
         calendar.startOfDay(for: Date())
     }
 
+    private var weekOffsetRange: ClosedRange<Int> {
+        let baseWeek = today.startOfWeek(calendar: calendar)
+        let earliestDate = viewModel.earliestCachedDate() ?? calendar.date(byAdding: .day, value: -365, to: today) ?? today
+        let earliestWeek = earliestDate.startOfWeek(calendar: calendar)
+        let minDayDelta = calendar.dateComponents([.day], from: baseWeek, to: earliestWeek).day ?? -365
+        let minWeekOffset = min(-52, minDayDelta / 7)
+        return minWeekOffset...52
+    }
+
     private var header: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
@@ -241,8 +251,9 @@ struct TodayTimelineView: View {
 
     @MainActor
     private var datePickerContentInner: some View {
+        let lowerBound = viewModel.earliestCachedDate() ?? Calendar.current.date(byAdding: .day, value: -365, to: today)!
         // UIDatePickerのinlineスタイル（サイズ変動なし）
-        FixedHeightDatePicker(
+        return FixedHeightDatePicker(
             selection: Binding(
                 get: { selectedDate },
                 set: { newDate in
@@ -255,7 +266,7 @@ struct TodayTimelineView: View {
                     }
                 }
             ),
-            range: Calendar.current.date(byAdding: .day, value: -365, to: today)!...Calendar.current.date(byAdding: .day, value: 365, to: today)!
+            range: lowerBound...Calendar.current.date(byAdding: .day, value: 365, to: today)!
         )
     }
 
@@ -300,7 +311,7 @@ struct TodayTimelineView: View {
 
     private var weekStripPager: some View {
         TabView(selection: $weekPageOffset) {
-            ForEach(-52...52, id: \.self) { offset in
+            ForEach(Array(weekOffsetRange), id: \.self) { offset in
                 weekStrip(for: weekDate(offset: offset))
                     .tag(offset)
             }
@@ -453,7 +464,7 @@ struct TodayTimelineView: View {
         }
         .background(AppTheme.pageBackground)
         .refreshable {
-            await PortalDataCoordinator.shared.refreshAll(showUpdateBanner: true)
+            await PortalDataCoordinator.shared.refreshSchedule(showUpdateBanner: true)
         }
     }
 
@@ -700,6 +711,7 @@ private struct EventCardsView: View {
     @State private var showingURLAlert = false
     @State private var tempURL = ""
     @State private var selectedEventID: String?
+    @State private var webDestination: CampusWebDestination?
 
     private func loadClassroomURLs() {
         classroomURLs = PortalCacheStore.shared.loadClassroomURLs()
@@ -731,6 +743,12 @@ private struct EventCardsView: View {
         if let url = URL(string: urlString) {
             UIApplication.shared.open(url)
         }
+    }
+
+    private func openSyllabusSearch(for event: DayEvent) {
+        UIPasteboard.general.string = event.title
+        guard let url = URL(string: "https://cs.kunitachi.ac.jp/campusweb/campussquare.do?_flowId=SBW3701300-flow&link=menu-link-mf-164899") else { return }
+        webDestination = CampusWebDestination(url: url, title: "シラバス参照", autoSearchText: event.title)
     }
 
     var body: some View {
@@ -802,7 +820,7 @@ private struct EventCardsView: View {
                 }
                 Divider()
                 Button {
-                    // シラバス表示アクション
+                    openSyllabusSearch(for: event)
                 } label: {
                     Label("シラバスを表示", systemImage: "book")
                 }
@@ -858,6 +876,9 @@ private struct EventCardsView: View {
         .animation(.easeInOut(duration: 0.25), value: date)
         .onAppear {
             loadClassroomURLs()
+        }
+        .sheet(item: $webDestination) { destination in
+            CampusWebSheet(destination: destination, presentedDestination: $webDestination)
         }
     }
 }

@@ -124,7 +124,7 @@ final class PortalClientImpl: PortalClientProtocol {
             throw NSError(domain: "PortalClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "掲示板リンクが見つかりません"])
         }
         
-        let bulletinURL = "\(networkClient.baseURL)/\(bulletinPath)"
+        let bulletinURL = absolutePortalURLString(from: bulletinPath)
         let html = try await networkClient.fetchHTML(from: bulletinURL, referer: urlString)
         return CampusSquareParser.parseAnnouncements(from: html)
     }
@@ -142,8 +142,13 @@ final class PortalClientImpl: PortalClientProtocol {
 
     /// 時間割を取得する (async)
     func fetchTimetable() async throws -> [Course] {
+        try await fetchTimetable(monthOffsets: [0])
+    }
+
+    func fetchTimetable(monthOffsets: [Int]) async throws -> [Course] {
         print("🌐 [Portal] fetchTimetable 開始: メインページ取得中...")
-        let mainHtml = try await networkClient.fetchHTML(from: "\(networkClient.baseURL)\(portalURL)?page=main")
+        let mainURL = "\(networkClient.baseURL)\(portalURL)?page=main"
+        let mainHtml = try await networkClient.fetchHTML(from: mainURL)
         print("✅ [Portal] メインページ取得成功 (サイズ: \(mainHtml.count))")
         
         // セッションが切れていないか確認
@@ -152,27 +157,15 @@ final class PortalClientImpl: PortalClientProtocol {
             throw CampusSquareLoginError.sessionExpired
         }
 
-        // スケジュール管理 (PTW0001200) へのリンクを抽出
-        print("🔍 [Portal] スケジュール管理URLを抽出中...")
-        let pattern = "campussquare\\.do\\?_flowId=PTW0001200-flow[^'\"]*"
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: []),
-              let match = regex.firstMatch(in: mainHtml, options: [], range: NSRange(location: 0, length: mainHtml.utf16.count)),
-              let range = Range(match.range, in: mainHtml) else {
-            print("❌ [Portal] スケジュール管理リンクが見つかりません。HTML冒頭:\n\(mainHtml.prefix(200))")
-            throw NSError(domain: "PortalClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "スケジュール管理へのリンクが見つかりません"])
+        let uniqueOffsets = Array(Set(monthOffsets)).sorted()
+        var results: [Course] = []
+        for offset in uniqueOffsets {
+            let html = try await fetchScheduleHTML(monthOffset: offset, referer: mainURL)
+            if !html.contains("schedule-calender") {
+                print("⚠️ [Portal] 警告: スケジュールグリッドが見つかりません。offset=\(offset)")
+            }
+            results.append(contentsOf: CampusSquareParser.parseSchedule(from: html))
         }
-        
-        let scheduleURL = String(mainHtml[range]).replacingOccurrences(of: "&amp;", with: "&")
-        print("🔗 [Portal] 遷移先URL確定: \(scheduleURL)")
-        
-        let html = try await networkClient.fetchHTML(from: "\(networkClient.baseURL)/\(scheduleURL)", referer: "\(networkClient.baseURL)\(portalURL)?page=main")
-        print("✅ [Portal] スケジュールページ取得成功 (サイズ: \(html.count))")
-        
-        if !html.contains("schedule-calender") {
-            print("⚠️ [Portal] 警告: スケジュールグリッドが見つかりません。パースに失敗する可能性があります。")
-        }
-
-        let results = CampusSquareParser.parseSchedule(from: html)
         print("🏁 [Portal] パース完了: \(results.count) 件のコースを返します")
         return results
     }
@@ -190,21 +183,35 @@ final class PortalClientImpl: PortalClientProtocol {
 
     /// 週間時間割（グリッド形式）を取得する
     func fetchWeeklyTimetable() async throws -> [Course] {
-        print("🌐 [Portal] fetchWeeklyTimetable 開始: メインページ取得中...")
-        let mainHtml = try await networkClient.fetchHTML(from: "\(networkClient.baseURL)\(portalURL)?page=main")
-        
-        // ユーザー指定のID 'menu-link-mf-164915' から確実にリンクを抽出
+        try await fetchWeeklyTimetable(semester: .current)
+    }
+
+    func fetchWeeklyTimetable(semester: TimetableSemester) async throws -> [Course] {
+        print("🌐 [Portal] fetchWeeklyTimetable(\(semester.displayName)) 開始")
+        let mainURL = "\(networkClient.baseURL)\(portalURL)?page=main"
+        let mainHtml = try await networkClient.fetchHTML(from: mainURL)
+
         guard let rswPath = CampusSquareParser.extractHref(from: mainHtml, withId: "menu-link-mf-164915") else {
             print("❌ [Portal] 履修登録リンク(menu-link-mf-164915)が見つかりません。")
             throw NSError(domain: "PortalClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "履修登録リンクが見つかりません"])
         }
-        
-        let rswURL = "\(networkClient.baseURL)/\(rswPath)"
-        print("🔗 [Portal] 履修登録ページへ遷移中: \(rswURL)")
-        
-        let html = try await networkClient.fetchHTML(from: rswURL, referer: "\(networkClient.baseURL)\(portalURL)?page=main")
-        print("✅ [Portal] 履修登録ページ取得成功 (サイズ: \(html.count))")
-        
+
+        let rswURL = absolutePortalURLString(from: rswPath)
+        let initialHtml = try await networkClient.fetchHTML(from: rswURL, referer: mainURL)
+        let selectedSemester = CampusSquareParser.parseSelectedTimetableSemester(from: initialHtml)
+
+        let html: String
+        if selectedSemester == semester {
+            html = initialHtml
+        } else if let semesterPath = CampusSquareParser.extractTimetableSemesterHref(from: initialHtml, semester: semester) {
+            let semesterURL = absolutePortalURLString(from: semesterPath)
+            print("🔁 [Portal] \(semester.displayName) に切替: \(semesterURL)")
+            html = try await networkClient.fetchHTML(from: semesterURL, referer: rswURL)
+        } else {
+            print("⚠️ [Portal] \(semester.displayName) 切替リンクが見つからないため初期HTMLを利用します")
+            html = initialHtml
+        }
+
         return CampusSquareParser.parseWeeklyTimetableFromRSW(from: html)
     }
 
@@ -219,6 +226,38 @@ final class PortalClientImpl: PortalClientProtocol {
                 completion(false)
             }
         }
+    }
+}
+
+private extension PortalClientImpl {
+    func fetchScheduleHTML(monthOffset: Int, referer: String) async throws -> String {
+        let calendar = Calendar(identifier: .gregorian)
+        let baseDate = calendar.startOfDay(for: Date())
+        guard let targetDate = calendar.date(byAdding: .month, value: monthOffset, to: baseDate) else {
+            throw NSError(domain: "PortalClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "スケジュール月の計算に失敗しました"])
+        }
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd"
+        let initDate = formatter.string(from: targetDate)
+        let path = "campussquare.do?_flowId=PTW0001200-flow&initDate=\(initDate)"
+        let url = absolutePortalURLString(from: path)
+        print("🔗 [Portal] スケジュール月取得 offset=\(monthOffset): \(url)")
+        return try await networkClient.fetchHTML(from: url, referer: referer)
+    }
+
+    func absolutePortalURLString(from path: String) -> String {
+        if path.hasPrefix("http://") || path.hasPrefix("https://") {
+            return path
+        }
+        if path.hasPrefix("/") {
+            guard let base = URL(string: networkClient.baseURL),
+                  let url = URL(string: path, relativeTo: base) else {
+                return path
+            }
+            return url.absoluteString
+        }
+        return "\(networkClient.baseURL)/\(path)"
     }
 }
 

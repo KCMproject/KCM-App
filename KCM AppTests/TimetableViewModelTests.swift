@@ -84,8 +84,12 @@ class MockPortalClient: PortalClientProtocol {
     func fetchAnnouncements() async throws -> [NoticeCard] { return [] }
     func fetchAnnouncements(completion: @escaping (Result<[NoticeCard], Error>) -> Void) {}
     func fetchTimetable() async throws -> [Course] { return [] }
+    func fetchTimetable(monthOffsets: [Int]) async throws -> [Course] { return [] }
     func fetchTimetable(completion: @escaping (Result<[Course], Error>) -> Void) {}
     func fetchWeeklyTimetable() async throws -> [Course] {
+        return weeklyCourses
+    }
+    func fetchWeeklyTimetable(semester: TimetableSemester) async throws -> [Course] {
         return weeklyCourses
     }
 }

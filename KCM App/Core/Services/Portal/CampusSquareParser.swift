@@ -319,6 +319,31 @@ enum CampusSquareParser {
         }
         return nil
     }
+
+    static func parseSelectedTimetableSemester(from html: String) -> TimetableSemester? {
+        let pattern = "title\\s*=\\s*['\"]([^'\"]*表示しています)['\"][^>]*>\\s*(?:<[^>]+>\\s*)*([^<]+)"
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive, .dotMatchesLineSeparators]),
+              let match = regex.firstMatch(in: html, options: [], range: NSRange(location: 0, length: html.utf16.count)),
+              let titleRange = Range(match.range(at: 1), in: html),
+              let textRange = Range(match.range(at: 2), in: html) else {
+            return nil
+        }
+        let text = "\(html[titleRange]) \(html[textRange])"
+        if text.contains("前期") { return .first }
+        if text.contains("後期") { return .second }
+        return nil
+    }
+
+    static func extractTimetableSemesterHref(from html: String, semester: TimetableSemester) -> String? {
+        let escapedCode = NSRegularExpression.escapedPattern(for: semester.portalCode)
+        let pattern = "href\\s*=\\s*['\"]([^'\"]*gakkiKbnCode=\(escapedCode)[^'\"]*)['\"][^>]*>\\s*\(semester.displayName)"
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive, .dotMatchesLineSeparators]),
+              let match = regex.firstMatch(in: html, options: [], range: NSRange(location: 0, length: html.utf16.count)),
+              let range = Range(match.range(at: 1), in: html) else {
+            return nil
+        }
+        return String(html[range]).replacingOccurrences(of: "&amp;", with: "&")
+    }
 }
 
 extension Array {

@@ -1,4 +1,5 @@
 import SwiftUI
+import WebKit
 
 struct DayEvent: Identifiable {
     let id: String
@@ -87,6 +88,124 @@ struct IrregularScheduleSection: Identifiable {
 enum NoticeSort {
     case date
     case category
+}
+
+struct CampusWebDestination: Identifiable {
+    let id = UUID()
+    let url: URL
+    let title: String
+    let autoSearchText: String?
+
+    init(url: URL, title: String, autoSearchText: String? = nil) {
+        self.url = url
+        self.title = title
+        self.autoSearchText = autoSearchText
+    }
+}
+
+struct CampusWebView: UIViewRepresentable {
+    let url: URL
+    let autoSearchText: String?
+
+    init(url: URL, autoSearchText: String? = nil) {
+        self.url = url
+        self.autoSearchText = autoSearchText
+    }
+
+    func makeUIView(context: Context) -> WKWebView {
+        let configuration = WKWebViewConfiguration()
+        configuration.websiteDataStore = .default()
+        let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.allowsBackForwardNavigationGestures = true
+        webView.navigationDelegate = context.coordinator
+        return webView
+    }
+
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        context.coordinator.autoSearchText = autoSearchText
+        syncCookies {
+            guard webView.url != url else { return }
+            webView.load(URLRequest(url: url))
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(autoSearchText: autoSearchText)
+    }
+
+    private func syncCookies(completion: @escaping () -> Void) {
+        let cookies = HTTPCookieStorage.shared.cookies ?? []
+        guard !cookies.isEmpty else {
+            completion()
+            return
+        }
+
+        let cookieStore = WKWebsiteDataStore.default().httpCookieStore
+        let group = DispatchGroup()
+        for cookie in cookies {
+            group.enter()
+            cookieStore.setCookie(cookie) {
+                group.leave()
+            }
+        }
+        group.notify(queue: .main, execute: completion)
+    }
+
+    final class Coordinator: NSObject, WKNavigationDelegate {
+        var autoSearchText: String?
+        private var didAutoSearch = false
+
+        init(autoSearchText: String?) {
+            self.autoSearchText = autoSearchText
+        }
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            guard let autoSearchText, !autoSearchText.isEmpty, !didAutoSearch else { return }
+            didAutoSearch = true
+
+            let escapedText = autoSearchText
+                .replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "'", with: "\\'")
+                .replacingOccurrences(of: "\n", with: " ")
+
+            let script = """
+            (function() {
+                var value = '\(escapedText)';
+                var input = document.querySelector('#kaikoKamokunm, input[name="kaikoKamokunm"]');
+                if (!input) { return false; }
+                input.value = value;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+                var button = document.querySelector('input[type="button"][value*="検索"]');
+                if (button) {
+                    setTimeout(function() { button.click(); }, 250);
+                }
+                return true;
+            })();
+            """
+            webView.evaluateJavaScript(script)
+        }
+    }
+}
+
+struct CampusWebSheet: View {
+    let destination: CampusWebDestination
+    @Binding var presentedDestination: CampusWebDestination?
+
+    var body: some View {
+        NavigationView {
+            CampusWebView(url: destination.url, autoSearchText: destination.autoSearchText)
+                .navigationTitle(destination.title)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("閉じる") {
+                            presentedDestination = nil
+                        }
+                    }
+                }
+        }
+    }
 }
 
 // MARK: - 曜日ラベル（一元管理）

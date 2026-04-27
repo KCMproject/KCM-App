@@ -175,7 +175,7 @@ struct NoticeBoardCloneView: View {
                 }
                 .background(AppTheme.pageBackground)
                 .refreshable {
-                    await PortalDataCoordinator.shared.refreshAll(showUpdateBanner: true)
+                    await PortalDataCoordinator.shared.refreshNotices(showUpdateBanner: true)
                 }
 
                 if viewModel.isLoading {
