@@ -202,7 +202,18 @@ struct NoticeBoardCloneView: View {
 
     private func openNotice(_ notice: NoticeCard) {
         guard let urlString = notice.url else { return }
-        let fullUrlString = urlString.hasPrefix("http") ? urlString : "https://cs.kunitachi.ac.jp\(urlString)"
+        
+        let fullUrlString: String
+        if urlString.hasPrefix("http") {
+            fullUrlString = urlString
+        } else if urlString.hasPrefix("/") {
+            // "/campusweb/..." などの場合
+            fullUrlString = "https://cs.kunitachi.ac.jp\(urlString)"
+        } else {
+            // "campussquare.do?..." などの場合
+            fullUrlString = "https://cs.kunitachi.ac.jp/campusweb/\(urlString)"
+        }
+        
         guard let url = URL(string: fullUrlString) else { return }
         webDestination = CampusWebDestination(url: url, title: "掲示板詳細")
     }
