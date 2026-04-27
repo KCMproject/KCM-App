@@ -26,4 +26,25 @@ final class PortalDataCoordinator {
             AppBannerCenter.shared.show("最新データに更新しました")
         }
     }
+
+    func refreshSchedule(showUpdateBanner: Bool) async {
+        let didUpdate = await TimetableViewModel.shared.refreshScheduleFromServer()
+        if showUpdateBanner, didUpdate {
+            AppBannerCenter.shared.show("予定を更新しました")
+        }
+    }
+
+    func refreshWeeklyTimetable(showUpdateBanner: Bool) async {
+        let didUpdate = await TimetableViewModel.shared.refreshWeeklyFromServer()
+        if showUpdateBanner, didUpdate {
+            AppBannerCenter.shared.show("時間割を更新しました")
+        }
+    }
+
+    func refreshNotices(showUpdateBanner: Bool) async {
+        let didUpdate = await NoticeBoardViewModel.shared.refreshFromServer()
+        if showUpdateBanner, didUpdate {
+            AppBannerCenter.shared.show("掲示板を更新しました")
+        }
+    }
 }

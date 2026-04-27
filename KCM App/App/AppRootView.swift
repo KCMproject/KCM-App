@@ -30,6 +30,9 @@ struct AppRootView: View {
         .onAppear {
             PortalDataCoordinator.shared.loadCachedData()
             loginViewModel.checkSession()
+            Task {
+                await PortalDataCoordinator.shared.refreshAll(showUpdateBanner: false)
+            }
         }
         .animation(.easeInOut(duration: 0.2), value: bannerCenter.message)
     }

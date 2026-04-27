@@ -9,6 +9,7 @@ final class TimetableViewModel: ObservableObject {
     @Published var weeklySchedule: [[ClassCell]] = Array(repeating: Array(repeating: .empty, count: 6), count: 6)
     @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published var selectedSemester: TimetableSemester = .current
     
     /// 土曜日に授業があるかどうか
     var hasSaturdayClass: Bool {
@@ -26,8 +27,32 @@ final class TimetableViewModel: ObservableObject {
 
     func loadCachedData() {
         let cachedCourses = cacheStore.loadCourses()
-        guard !cachedCourses.isEmpty else { return }
-        applyCourses(cachedCourses)
+        let cachedWeeklyCourses = cacheStore.loadWeeklyCourses(for: selectedSemester)
+        if !cachedCourses.isEmpty {
+            applyCourses(cachedCourses)
+        }
+        if !cachedWeeklyCourses.isEmpty {
+            weeklySchedule = buildGrid(from: cachedWeeklyCourses)
+        }
+    }
+
+    func earliestCachedDate() -> Date? {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return courses
+            .compactMap { $0.dateString }
+            .compactMap { formatter.date(from: $0) }
+            .min()
+    }
+
+    func selectSemester(_ semester: TimetableSemester) {
+        guard selectedSemester != semester else { return }
+        selectedSemester = semester
+        let cachedWeeklyCourses = cacheStore.loadWeeklyCourses(for: semester)
+        weeklySchedule = buildGrid(from: cachedWeeklyCourses)
+        Task {
+            _ = await refreshFromServer()
+        }
     }
 
     func initialFetch() async {
@@ -35,34 +60,57 @@ final class TimetableViewModel: ObservableObject {
     }
 
     func refreshFromServer() async -> Bool {
+        await refreshFromServer(scope: .all)
+    }
+
+    func refreshScheduleFromServer() async -> Bool {
+        await refreshFromServer(scope: .schedule)
+    }
+
+    func refreshWeeklyFromServer() async -> Bool {
+        await refreshFromServer(scope: .weekly)
+    }
+
+    private func refreshFromServer(scope: RefreshScope) async -> Bool {
         isLoading = true
         errorMessage = nil
 
         do {
-            // 1. カレンダー用データの取得 (スケジュール管理) - 今日のタイムライン用
-            async let fetchedCoursesTask = portalClient.fetchTimetable()
-            // 2. 週間時間割グリッド用データの取得 (履修登録) - 週間時間割用
-            async let fetchedWeeklyTask = portalClient.fetchWeeklyTimetable()
-            
-            let (fetchedCourses, fetchedWeeklyCourses) = try await (fetchedCoursesTask, fetchedWeeklyTask)
-            
-            print("📊 [TimetableViewModel] データ取得完了: 今日の予定 \(fetchedCourses.count)件, 週間 \(fetchedWeeklyCourses.count)件")
-            
-            // 1. まずは履修登録(RSW)のデータを優先してグリッドを構築
-            var newWeeklySchedule = buildGrid(from: fetchedWeeklyCourses)
-            
-            // 2. 履修登録データが空の場合は、スケジュール管理(PTW)のデータからフォールバック構築
-            if newWeeklySchedule.allSatisfy({ row in row.allSatisfy({ $0.title == nil }) }) {
-                print("⚠️ [TimetableViewModel] 履修登録データが空のため、スケジュール管理データからグリッドを構築します")
-                newWeeklySchedule = buildGrid(from: fetchedCourses)
-            }
-            
-            let didUpdate = fetchedCourses != courses || newWeeklySchedule != weeklySchedule
+            var didUpdate = false
+            var fetchedScheduleCourses: [Course] = []
 
-            self.courses = fetchedCourses
-            self.weeklySchedule = newWeeklySchedule
-            
-            cacheStore.saveCourses(fetchedCourses)
+            if scope.includesSchedule {
+                let scheduleMonthOffsets = scheduleMonthOffsetsToFetch()
+                let scheduleMonthKeys = Set(scheduleMonthOffsets.map { scheduleMonthKey(monthOffset: $0) })
+                let fetchedCourses = try await portalClient.fetchTimetable(monthOffsets: scheduleMonthOffsets)
+                fetchedScheduleCourses = fetchedCourses
+                print("📊 [TimetableViewModel] 今日の予定取得完了: \(fetchedCourses.count)件")
+
+                let mergedCourses = cacheStore.mergeAndSaveCourses(fetchedCourses, replacingMonthKeys: scheduleMonthKeys)
+                didUpdate = didUpdate || mergedCourses != courses
+                courses = mergedCourses
+
+                var loadedMonthKeys = cacheStore.loadScheduleMonthKeys()
+                loadedMonthKeys.formUnion(scheduleMonthKeys)
+                cacheStore.saveScheduleMonthKeys(loadedMonthKeys)
+            }
+
+            if scope.includesWeekly {
+                let fetchedWeeklyCourses = try await portalClient.fetchWeeklyTimetable(semester: selectedSemester)
+                print("📊 [TimetableViewModel] 週間時間割取得完了: \(fetchedWeeklyCourses.count)件")
+
+                var newWeeklySchedule = buildGrid(from: fetchedWeeklyCourses)
+                if newWeeklySchedule.allSatisfy({ row in row.allSatisfy({ $0.title == nil }) }) {
+                    let fallbackCourses = fetchedScheduleCourses.isEmpty ? courses : fetchedScheduleCourses
+                    print("⚠️ [TimetableViewModel] 履修登録データが空のため、スケジュール管理データからグリッドを構築します")
+                    newWeeklySchedule = buildGrid(from: fallbackCourses)
+                }
+
+                didUpdate = didUpdate || newWeeklySchedule != weeklySchedule
+                weeklySchedule = newWeeklySchedule
+                cacheStore.saveWeeklyCourses(fetchedWeeklyCourses, for: selectedSemester)
+            }
+
             isLoading = false
             return didUpdate
         } catch {
@@ -70,6 +118,36 @@ final class TimetableViewModel: ObservableObject {
             self.errorMessage = error.localizedDescription
             self.isLoading = false
             return false
+        }
+    }
+
+    private func scheduleMonthOffsetsToFetch() -> [Int] {
+        let loadedMonthKeys = cacheStore.loadScheduleMonthKeys()
+        return (0...2).filter { offset in
+            offset <= 1 || !loadedMonthKeys.contains(scheduleMonthKey(monthOffset: offset))
+        }
+    }
+
+    private func scheduleMonthKey(monthOffset: Int) -> String {
+        let calendar = Calendar(identifier: .gregorian)
+        let baseDate = calendar.startOfDay(for: Date())
+        let targetDate = calendar.date(byAdding: .month, value: monthOffset, to: baseDate) ?? baseDate
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM"
+        return formatter.string(from: targetDate)
+    }
+
+    private enum RefreshScope {
+        case schedule
+        case weekly
+        case all
+
+        var includesSchedule: Bool {
+            self == .schedule || self == .all
+        }
+
+        var includesWeekly: Bool {
+            self == .weekly || self == .all
         }
     }
 

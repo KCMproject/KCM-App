@@ -6,6 +6,7 @@ struct NoticeBoardCloneView: View {
     @State private var sortBy: NoticeSort = .date
     @State private var selectedCategory = "すべて"
     @State private var favoriteIDs: Set<String> = []
+    @State private var webDestination: CampusWebDestination?
     private let cacheStore = PortalCacheStore.shared
 
     private static let jaDateFormatter: DateFormatter = {
@@ -161,6 +162,11 @@ struct NoticeBoardCloneView: View {
                                     ) {
                                         toggleFavorite(notice.id)
                                     }
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        openNotice(notice)
+                                    }
+                                    
                                     if index < filteredNotices.count - 1 {
                                         Rectangle()
                                             .fill(AppTheme.border)
@@ -175,7 +181,7 @@ struct NoticeBoardCloneView: View {
                 }
                 .background(AppTheme.pageBackground)
                 .refreshable {
-                    await PortalDataCoordinator.shared.refreshAll(showUpdateBanner: true)
+                    await PortalDataCoordinator.shared.refreshNotices(showUpdateBanner: true)
                 }
 
                 if viewModel.isLoading {
@@ -189,6 +195,16 @@ struct NoticeBoardCloneView: View {
         .onAppear {
             favoriteIDs = cacheStore.loadFavoriteNoticeIDs()
         }
+        .sheet(item: $webDestination) { destination in
+            CampusWebSheet(destination: destination, presentedDestination: $webDestination)
+        }
+    }
+
+    private func openNotice(_ notice: NoticeCard) {
+        guard let urlString = notice.url else { return }
+        let fullUrlString = urlString.hasPrefix("http") ? urlString : "https://cs.kunitachi.ac.jp\(urlString)"
+        guard let url = URL(string: fullUrlString) else { return }
+        webDestination = CampusWebDestination(url: url, title: "掲示板詳細")
     }
 
     private func toggleFavorite(_ id: String) {

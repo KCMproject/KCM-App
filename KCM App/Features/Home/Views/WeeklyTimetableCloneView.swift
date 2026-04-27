@@ -1,22 +1,13 @@
 import SwiftUI
+import UIKit
 
 struct WeeklyTimetableCloneView: View {
     @ObservedObject private var viewModel = TimetableViewModel.shared
     @State private var classroomURLs: [String: String] = [:]
     @State private var editingClassroomKey: String?
     @State private var tempClassroomURL = ""
+    @State private var webDestination: CampusWebDestination?
     
-    private enum Semester: String, CaseIterable {
-        case first = "前期"
-        case second = "後期"
-
-        static var current: Self {
-            let month = Calendar.current.component(.month, from: Date())
-            return (4...9).contains(month) ? .first : .second
-        }
-    }
-
-    @State private var selectedSemester: Semester = .current
     let onToggle: () -> Void
 
     private let periods: [Period] = [
@@ -84,6 +75,16 @@ struct WeeklyTimetableCloneView: View {
         UIApplication.shared.open(url)
     }
 
+    private func openSyllabusSearch(for title: String) {
+        UIPasteboard.general.string = title
+        guard let url = URL(string: "https://cs.kunitachi.ac.jp/campusweb/campussquare.do?_flowId=SBW3701300-flow&link=menu-link-mf-164899") else { return }
+        webDestination = CampusWebDestination(url: url, title: "シラバス参照", autoSearchText: title)
+    }
+
+    private var hasVisibleSchedule: Bool {
+        weeklyScheduleHasContent(viewModel.weeklySchedule)
+    }
+
     private var isShowingClassroomAlert: Binding<Bool> {
         Binding(
             get: { editingClassroomKey != nil },
@@ -102,20 +103,20 @@ struct WeeklyTimetableCloneView: View {
             HStack {
                 Spacer()
                 Menu {
-                    ForEach(Semester.allCases, id: \.self) { semester in
+                    ForEach(TimetableSemester.allCases, id: \.self) { semester in
                         Button {
-                            selectedSemester = semester
+                            viewModel.selectSemester(semester)
                         } label: {
-                            if selectedSemester == semester {
-                                Label("\(yearText) \(semester.rawValue)", systemImage: "checkmark")
+                            if viewModel.selectedSemester == semester {
+                                Label("\(yearText) \(semester.displayName)", systemImage: "checkmark")
                             } else {
-                                Text("\(yearText) \(semester.rawValue)")
+                                Text("\(yearText) \(semester.displayName)")
                             }
                         }
                     }
                 } label: {
                     HStack(spacing: 6) {
-                        Text("\(yearText) \(selectedSemester.rawValue)")
+                        Text("\(yearText) \(viewModel.selectedSemester.displayName)")
                             .font(.system(size: 17, weight: .semibold))
                         Image(systemName: "chevron.down")
                             .font(.system(size: 12, weight: .semibold))
@@ -190,6 +191,7 @@ struct WeeklyTimetableCloneView: View {
                                         weekdayIndex: columnIndex,
                                         classroomURL: classroomURLs[cellKey],
                                         onOpenClassroomURL: openURL,
+                                        onOpenSyllabusSearch: openSyllabusSearch,
                                         onEditClassroomURL: {
                                             requestClassroomURLEdit(for: cellKey)
                                         }
@@ -203,10 +205,10 @@ struct WeeklyTimetableCloneView: View {
                     }
                 }
                 .refreshable {
-                    await PortalDataCoordinator.shared.refreshAll(showUpdateBanner: true)
+                    await PortalDataCoordinator.shared.refreshWeeklyTimetable(showUpdateBanner: true)
                 }
 
-                if viewModel.isLoading {
+                if viewModel.isLoading && !hasVisibleSchedule {
                     ProgressView()
                         .scaleEffect(1.5)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -230,9 +232,19 @@ struct WeeklyTimetableCloneView: View {
         } message: {
             Text("Google Classroom・Zoom等のURLを入力してください. ClassroomのURLはアプリではなくブラウザから取得できます。")
         }
+        .sheet(item: $webDestination) { destination in
+            CampusWebSheet(destination: destination, presentedDestination: $webDestination)
+        }
         .onAppear {
+            viewModel.loadCachedData()
             loadClassroomURLs()
         }
+    }
+}
+
+private func weeklyScheduleHasContent(_ schedule: [[ClassCell]]) -> Bool {
+    schedule.contains { row in
+        row.contains { $0.title != nil }
     }
 }
 
@@ -245,6 +257,7 @@ private struct TimetableCell: View {
   let weekdayIndex: Int
   let classroomURL: String?
   let onOpenClassroomURL: (String) -> Void
+  let onOpenSyllabusSearch: (String) -> Void
   let onEditClassroomURL: () -> Void
 
   var body: some View {
@@ -300,7 +313,9 @@ private struct TimetableCell: View {
         }
         Divider()
         Button {
-          // シラバス表示アクション
+          if let title = item.title {
+            onOpenSyllabusSearch(title)
+          }
         } label: {
           Label("シラバスを表示", systemImage: "book")
         }

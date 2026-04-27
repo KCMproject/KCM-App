@@ -1,5 +1,29 @@
 import Foundation
 
+enum TimetableSemester: String, CaseIterable, Codable {
+    case first
+    case second
+
+    var displayName: String {
+        switch self {
+        case .first: return "前期"
+        case .second: return "後期"
+        }
+    }
+
+    var portalCode: String {
+        switch self {
+        case .first: return "1"
+        case .second: return "2"
+        }
+    }
+
+    static var current: Self {
+        let month = Calendar.current.component(.month, from: Date())
+        return (4...9).contains(month) ? .first : .second
+    }
+}
+
 struct Course: Identifiable, Hashable, Codable {
     let id: UUID
     let weekday: String

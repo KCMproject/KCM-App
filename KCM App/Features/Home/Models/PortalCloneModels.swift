@@ -1,4 +1,5 @@
 import SwiftUI
+import WebKit
 
 struct DayEvent: Identifiable {
     let id: String
@@ -89,6 +90,175 @@ enum NoticeSort {
     case category
 }
 
+struct CampusWebDestination: Identifiable {
+    let id = UUID()
+    let url: URL
+    let title: String
+    let autoSearchText: String?
+
+    init(url: URL, title: String, autoSearchText: String? = nil) {
+        self.url = url
+        self.title = title
+        self.autoSearchText = autoSearchText
+    }
+}
+
+struct CampusWebView: UIViewRepresentable {
+    let url: URL
+    let autoSearchText: String?
+
+    init(url: URL, autoSearchText: String? = nil) {
+        self.url = url
+        self.autoSearchText = autoSearchText
+    }
+
+    func makeUIView(context: Context) -> WKWebView {
+        let configuration = WKWebViewConfiguration()
+        configuration.websiteDataStore = .default()
+        let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.allowsBackForwardNavigationGestures = true
+        webView.navigationDelegate = context.coordinator
+        webView.uiDelegate = context.coordinator
+        return webView
+    }
+
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        context.coordinator.autoSearchText = autoSearchText
+        syncCookies {
+            guard webView.url != url else { return }
+            webView.load(URLRequest(url: url))
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(autoSearchText: autoSearchText)
+    }
+
+    private func syncCookies(completion: @escaping () -> Void) {
+        let cookies = HTTPCookieStorage.shared.cookies ?? []
+        guard !cookies.isEmpty else {
+            completion()
+            return
+        }
+
+        let cookieStore = WKWebsiteDataStore.default().httpCookieStore
+        let group = DispatchGroup()
+        for cookie in cookies {
+            group.enter()
+            cookieStore.setCookie(cookie) {
+                group.leave()
+            }
+        }
+        group.notify(queue: .main, execute: completion)
+    }
+
+    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKDownloadDelegate, UIDocumentInteractionControllerDelegate {
+        var autoSearchText: String?
+        private var didAutoSearch = false
+        private var downloadURL: URL?
+        private var documentInteractionController: UIDocumentInteractionController?
+
+        init(autoSearchText: String?) {
+            self.autoSearchText = autoSearchText
+        }
+
+        func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+            if navigationAction.targetFrame == nil {
+                webView.load(navigationAction.request)
+            }
+            return nil
+        }
+
+        func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse, decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
+            if let response = navigationResponse.response as? HTTPURLResponse,
+               let contentDisposition = response.value(forHTTPHeaderField: "Content-Disposition"),
+               contentDisposition.contains("attachment") {
+                decisionHandler(.download)
+            } else {
+                decisionHandler(.allow)
+            }
+        }
+
+        func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
+            download.delegate = self
+        }
+
+        func download(_ download: WKDownload, decideDestinationUsing response: URLResponse, suggestedFilename: String, completionHandler: @escaping (URL?) -> Void) {
+            let temporaryDirectory = URL(fileURLWithPath: NSTemporaryDirectory())
+            let destinationURL = temporaryDirectory.appendingPathComponent(suggestedFilename)
+            try? FileManager.default.removeItem(at: destinationURL)
+            self.downloadURL = destinationURL
+            completionHandler(destinationURL)
+        }
+
+        func downloadDidFinish(_ download: WKDownload) {
+            guard let url = downloadURL else { return }
+            documentInteractionController = UIDocumentInteractionController(url: url)
+            documentInteractionController?.delegate = self
+            documentInteractionController?.presentPreview(animated: true)
+        }
+
+        func documentInteractionControllerViewControllerForPreview(_ controller: UIDocumentInteractionController) -> UIViewController {
+            if let windowScene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
+               let rootVC = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController {
+                var topVC = rootVC
+                while let presented = topVC.presentedViewController {
+                    topVC = presented
+                }
+                return topVC
+            }
+            return UIViewController()
+        }
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            guard let autoSearchText, !autoSearchText.isEmpty, !didAutoSearch else { return }
+            didAutoSearch = true
+
+            let escapedText = autoSearchText
+                .replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "'", with: "\\'")
+                .replacingOccurrences(of: "\n", with: " ")
+
+            let script = """
+            (function() {
+                var value = '\(escapedText)';
+                var input = document.querySelector('#kaikoKamokunm, input[name="kaikoKamokunm"]');
+                if (!input) { return false; }
+                input.value = value;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+                var button = document.querySelector('input[type="button"][value*="検索"]');
+                if (button) {
+                    setTimeout(function() { button.click(); }, 250);
+                }
+                return true;
+            })();
+            """
+            webView.evaluateJavaScript(script)
+        }
+    }
+}
+
+struct CampusWebSheet: View {
+    let destination: CampusWebDestination
+    @Binding var presentedDestination: CampusWebDestination?
+
+    var body: some View {
+        NavigationView {
+            CampusWebView(url: destination.url, autoSearchText: destination.autoSearchText)
+                .navigationTitle(destination.title)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("閉じる") {
+                            presentedDestination = nil
+                        }
+                    }
+                }
+        }
+    }
+}
+
 // MARK: - 曜日ラベル（一元管理）
 enum WeekdayLabels {
     static let full = ["日", "月", "火", "水", "木", "金", "土"]
@@ -100,6 +270,7 @@ struct NoticeCard: Identifiable, Codable, Equatable {
     let title: String
     let date: String
     let category: String
+    let url: String?
     let isPinned: Bool
     let content: String
 }

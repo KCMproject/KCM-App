@@ -18,11 +18,23 @@ enum CampusSquareParser {
             if cellMatches.count >= 4 {
                 let dateFull = stripHtmlTags(from: extractCellContent(from: rowHtml, match: cellMatches[0]))
                 let date = String(dateFull.prefix(10))
-                let title = stripHtmlTags(from: extractCellContent(from: rowHtml, match: cellMatches[1]))
+                
+                let titleCellHtml = extractCellContent(from: rowHtml, match: cellMatches[1])
+                let title = stripHtmlTags(from: titleCellHtml)
+                
+                var url: String?
+                let hrefPattern = "href\\s*=\\s*['\"]([^'\"]+)['\"]"
+                if let hrefRegex = try? NSRegularExpression(pattern: hrefPattern, options: []),
+                   let match = hrefRegex.firstMatch(in: titleCellHtml, options: [], range: NSRange(location: 0, length: titleCellHtml.utf16.count)),
+                   let range = Range(match.range(at: 1), in: titleCellHtml) {
+                    let extractedUrl = String(titleCellHtml[range])
+                    url = extractedUrl.replacingOccurrences(of: "&amp;", with: "&")
+                }
+                
                 let category = stripHtmlTags(from: extractCellContent(from: rowHtml, match: cellMatches[3]))
                 let id = "\(title)_\(date)".addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? UUID().uuidString
                 if !title.isEmpty && !date.isEmpty && !title.contains("掲載日時") {
-                    results.append(NoticeCard(id: id, title: title, date: date, category: category, isPinned: rowHtml.contains("icon_pin") || rowHtml.contains("重要"), content: ""))
+                    results.append(NoticeCard(id: id, title: title, date: date, category: category, url: url, isPinned: rowHtml.contains("icon_pin") || rowHtml.contains("重要"), content: ""))
                 }
             }
         }
@@ -318,6 +330,31 @@ enum CampusSquareParser {
             }
         }
         return nil
+    }
+
+    static func parseSelectedTimetableSemester(from html: String) -> TimetableSemester? {
+        let pattern = "title\\s*=\\s*['\"]([^'\"]*表示しています)['\"][^>]*>\\s*(?:<[^>]+>\\s*)*([^<]+)"
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive, .dotMatchesLineSeparators]),
+              let match = regex.firstMatch(in: html, options: [], range: NSRange(location: 0, length: html.utf16.count)),
+              let titleRange = Range(match.range(at: 1), in: html),
+              let textRange = Range(match.range(at: 2), in: html) else {
+            return nil
+        }
+        let text = "\(html[titleRange]) \(html[textRange])"
+        if text.contains("前期") { return .first }
+        if text.contains("後期") { return .second }
+        return nil
+    }
+
+    static func extractTimetableSemesterHref(from html: String, semester: TimetableSemester) -> String? {
+        let escapedCode = NSRegularExpression.escapedPattern(for: semester.portalCode)
+        let pattern = "href\\s*=\\s*['\"]([^'\"]*gakkiKbnCode=\(escapedCode)[^'\"]*)['\"][^>]*>\\s*\(semester.displayName)"
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive, .dotMatchesLineSeparators]),
+              let match = regex.firstMatch(in: html, options: [], range: NSRange(location: 0, length: html.utf16.count)),
+              let range = Range(match.range(at: 1), in: html) else {
+            return nil
+        }
+        return String(html[range]).replacingOccurrences(of: "&amp;", with: "&")
     }
 }
 
