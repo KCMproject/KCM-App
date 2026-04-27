@@ -125,8 +125,13 @@ struct CampusWebView: UIViewRepresentable {
     func updateUIView(_ webView: WKWebView, context: Context) {
         context.coordinator.autoSearchText = autoSearchText
         syncCookies {
+            let currentUrl = webView.url?.absoluteString ?? "nil"
+            print("🌐 [CampusWebView] check load: current=\(currentUrl), target=\(url.absoluteString)")
             guard webView.url != url else { return }
-            webView.load(URLRequest(url: url))
+            print("🌐 [CampusWebView] Loading URL: \(url.absoluteString)")
+            var request = URLRequest(url: url)
+            request.setValue("https://cs.kunitachi.ac.jp/campusweb/campussquare.do?page=main", forHTTPHeaderField: "Referer")
+            webView.load(request)
         }
     }
 
@@ -208,6 +213,14 @@ struct CampusWebView: UIViewRepresentable {
                 return topVC
             }
             return UIViewController()
+        }
+
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            print("❌ [CampusWebView] didFail: \(error.localizedDescription)")
+        }
+
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            print("❌ [CampusWebView] didFailProvisionalNavigation: \(error.localizedDescription)")
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
