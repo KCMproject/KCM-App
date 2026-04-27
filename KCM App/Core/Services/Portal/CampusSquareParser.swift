@@ -18,11 +18,23 @@ enum CampusSquareParser {
             if cellMatches.count >= 4 {
                 let dateFull = stripHtmlTags(from: extractCellContent(from: rowHtml, match: cellMatches[0]))
                 let date = String(dateFull.prefix(10))
-                let title = stripHtmlTags(from: extractCellContent(from: rowHtml, match: cellMatches[1]))
+                
+                let titleCellHtml = extractCellContent(from: rowHtml, match: cellMatches[1])
+                let title = stripHtmlTags(from: titleCellHtml)
+                
+                var url: String?
+                let hrefPattern = "href\\s*=\\s*['\"]([^'\"]+)['\"]"
+                if let hrefRegex = try? NSRegularExpression(pattern: hrefPattern, options: []),
+                   let match = hrefRegex.firstMatch(in: titleCellHtml, options: [], range: NSRange(location: 0, length: titleCellHtml.utf16.count)),
+                   let range = Range(match.range(at: 1), in: titleCellHtml) {
+                    let extractedUrl = String(titleCellHtml[range])
+                    url = extractedUrl.replacingOccurrences(of: "&amp;", with: "&")
+                }
+                
                 let category = stripHtmlTags(from: extractCellContent(from: rowHtml, match: cellMatches[3]))
                 let id = "\(title)_\(date)".addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? UUID().uuidString
                 if !title.isEmpty && !date.isEmpty && !title.contains("掲載日時") {
-                    results.append(NoticeCard(id: id, title: title, date: date, category: category, isPinned: rowHtml.contains("icon_pin") || rowHtml.contains("重要"), content: ""))
+                    results.append(NoticeCard(id: id, title: title, date: date, category: category, url: url, isPinned: rowHtml.contains("icon_pin") || rowHtml.contains("重要"), content: ""))
                 }
             }
         }
