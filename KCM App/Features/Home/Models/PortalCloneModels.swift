@@ -278,14 +278,38 @@ enum WeekdayLabels {
     static let weekdays = ["月", "火", "水", "木", "金", "土"]
 }
 
+struct NoticeAttachment: Identifiable, Codable, Equatable {
+    let id: String
+    let title: String
+    let url: String
+}
+
 struct NoticeCard: Identifiable, Codable, Equatable {
     let id: String
     let title: String
     let date: String
     let category: String
     let url: String?
+    let attachments: [NoticeAttachment]?
     let isPinned: Bool
     let content: String
+
+    var hasAttachments: Bool {
+        !(attachments ?? []).isEmpty
+    }
+
+    func withAttachments(_ attachments: [NoticeAttachment]?) -> NoticeCard {
+        NoticeCard(
+            id: id,
+            title: title,
+            date: date,
+            category: category,
+            url: url,
+            attachments: attachments,
+            isPinned: isPinned,
+            content: content
+        )
+    }
 }
 
 struct MessageThread: Identifiable, Equatable {

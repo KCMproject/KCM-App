@@ -34,6 +34,7 @@ protocol PortalClientProtocol: AnyObject {
     /// お知らせ一覧を取得する
     func fetchAnnouncements(completion: @escaping (Result<[NoticeCard], Error>) -> Void)
     func fetchAnnouncements() async throws -> [NoticeCard]
+    func fetchNoticeAttachments(for notice: NoticeCard) async throws -> [NoticeAttachment]
 
     /// 時間割を取得する
     func fetchTimetable(completion: @escaping (Result<[Course], Error>) -> Void)
