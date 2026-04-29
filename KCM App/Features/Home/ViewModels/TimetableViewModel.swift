@@ -67,6 +67,10 @@ final class TimetableViewModel: ObservableObject {
         await refreshFromServer(scope: .schedule)
     }
 
+    func refreshScheduleFromServer(through targetDate: Date) async -> Bool {
+        await refreshFromServer(scope: .scheduleMonths(scheduleMonthOffsets(through: targetDate)))
+    }
+
     func refreshWeeklyFromServer() async -> Bool {
         await refreshFromServer(scope: .weekly)
     }
@@ -80,7 +84,7 @@ final class TimetableViewModel: ObservableObject {
             var fetchedScheduleCourses: [Course] = []
 
             if scope.includesSchedule {
-                let scheduleMonthOffsets = scheduleMonthOffsetsToFetch()
+                let scheduleMonthOffsets = scope.explicitScheduleMonthOffsets ?? scheduleMonthOffsetsToFetch()
                 let scheduleMonthKeys = Set(scheduleMonthOffsets.map { scheduleMonthKey(monthOffset: $0) })
                 let fetchedCourses = try await portalClient.fetchTimetable(monthOffsets: scheduleMonthOffsets)
                 fetchedScheduleCourses = fetchedCourses
@@ -128,6 +132,17 @@ final class TimetableViewModel: ObservableObject {
         }
     }
 
+    func scheduleMonthOffsets(through targetDate: Date, referenceDate: Date = Date()) -> [Int] {
+        let calendar = Calendar(identifier: .gregorian)
+        let referenceDay = calendar.startOfDay(for: referenceDate)
+        let maxDate = calendar.date(byAdding: .year, value: 1, to: referenceDay) ?? referenceDay
+        let clampedDate = min(max(targetDate, referenceDay), maxDate)
+        let currentMonth = startOfMonth(for: referenceDay, calendar: calendar)
+        let targetMonth = startOfMonth(for: clampedDate, calendar: calendar)
+        let monthCount = calendar.dateComponents([.month], from: currentMonth, to: targetMonth).month ?? 0
+        return Array(0...max(0, min(monthCount, 12)))
+    }
+
     private func scheduleMonthKey(monthOffset: Int) -> String {
         let calendar = Calendar(identifier: .gregorian)
         let baseDate = calendar.startOfDay(for: Date())
@@ -137,17 +152,40 @@ final class TimetableViewModel: ObservableObject {
         return formatter.string(from: targetDate)
     }
 
+    private func startOfMonth(for date: Date, calendar: Calendar) -> Date {
+        let components = calendar.dateComponents([.year, .month], from: date)
+        return calendar.date(from: components) ?? calendar.startOfDay(for: date)
+    }
+
     private enum RefreshScope {
         case schedule
+        case scheduleMonths([Int])
         case weekly
         case all
 
         var includesSchedule: Bool {
-            self == .schedule || self == .all
+            switch self {
+            case .schedule, .scheduleMonths, .all:
+                return true
+            case .weekly:
+                return false
+            }
         }
 
         var includesWeekly: Bool {
-            self == .weekly || self == .all
+            switch self {
+            case .weekly, .all:
+                return true
+            case .schedule, .scheduleMonths:
+                return false
+            }
+        }
+
+        var explicitScheduleMonthOffsets: [Int]? {
+            if case let .scheduleMonths(offsets) = self {
+                return offsets
+            }
+            return nil
         }
     }
 
@@ -157,6 +195,8 @@ final class TimetableViewModel: ObservableObject {
         let weekdayMap = ["月": 0, "火": 1, "水": 2, "木": 3, "金": 4, "土": 5]
 
         for course in rswCourses {
+            guard !course.isScheduleNote else { continue }
+
             // 曜日インデックスを取得 (prefix(1) を使うことで "月曜日" から "月" を抽出)
             let rawDay = course.weekday.trimmingCharacters(in: .whitespaces)
             let dayKey = String(rawDay.prefix(1))

@@ -48,6 +48,20 @@ final class PortalDataCoordinator {
         }
     }
 
+    func refreshSchedule(through targetDate: Date, showUpdateBanner: Bool) async {
+        let progressMessage = "指定期間の予定を更新中..."
+        if showUpdateBanner {
+            AppBannerCenter.shared.showPersistent(progressMessage)
+        }
+
+        _ = await TimetableViewModel.shared.refreshScheduleFromServer(through: targetDate)
+        if showUpdateBanner, TimetableViewModel.shared.errorMessage == nil {
+            AppBannerCenter.shared.show("指定期間の予定を更新しました")
+        } else if showUpdateBanner {
+            AppBannerCenter.shared.hide(ifShowing: progressMessage)
+        }
+    }
+
     func refreshWeeklyTimetable(showUpdateBanner: Bool) async {
         let progressMessage = "時間割タブを更新中..."
         if showUpdateBanner {

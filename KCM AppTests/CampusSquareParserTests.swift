@@ -175,6 +175,60 @@ final class CampusSquareParserTests: XCTestCase {
         XCTAssertEqual(results[0].dateString, "2026-04-15")
     }
 
+    func testParseScheduleWithLeadingTime() throws {
+        let html = """
+        <td class="day">
+            <div class="cal-head-img"><a onclick="addSchedule(20260506);"></a></div>
+            <div class="cal-content"><span class="kaiko">14:00～14:23:♪作曲Ⅲ@N-301</span></div>
+        </td>
+        """
+
+        let results = CampusSquareParser.parseSchedule(from: html)
+
+        XCTAssertEqual(results.count, 1)
+        XCTAssertEqual(results[0].title, "♪作曲Ⅲ")
+        XCTAssertEqual(results[0].period, "3")
+        XCTAssertEqual(results[0].startTime, "14:00")
+        XCTAssertEqual(results[0].endTime, "14:23")
+        XCTAssertEqual(results[0].room, "N-301")
+        XCTAssertEqual(results[0].dateString, "2026-05-06")
+    }
+
+    func testParseScheduleHolidayNote() throws {
+        let html = """
+        <td class="kyujitsu">
+            <div class="cal-head-img"><a onclick="addSchedule(20260503);"></a></div>
+            <div class="cal-content"><span class="kaiko">[休日]休日設定（練習室）</span></div>
+        </td>
+        """
+
+        let results = CampusSquareParser.parseSchedule(from: html)
+
+        XCTAssertEqual(results.count, 1)
+        XCTAssertTrue(results[0].isScheduleNote)
+        XCTAssertEqual(results[0].scheduleNoteCategory, "休日")
+        XCTAssertEqual(results[0].title, "休日設定（練習室）")
+        XCTAssertEqual(results[0].period, "")
+        XCTAssertEqual(results[0].dateString, "2026-05-03")
+    }
+
+    func testParseScheduleWeekdayClosureNote() throws {
+        let html = """
+        <td class="kyujitsu">
+            <div class="cal-head-img"><a onclick="addSchedule(20260626);"></a></div>
+            <div class="cal-content"><span class="kaiko">[休日]平日休校日</span></div>
+        </td>
+        """
+
+        let results = CampusSquareParser.parseSchedule(from: html)
+
+        XCTAssertEqual(results.count, 1)
+        XCTAssertTrue(results[0].isScheduleNote)
+        XCTAssertEqual(results[0].scheduleNoteCategory, "休日")
+        XCTAssertEqual(results[0].title, "平日休校日")
+        XCTAssertEqual(results[0].dateString, "2026-06-26")
+    }
+
     func testParseAnnouncementsFromNoticeTable() throws {
         let html = """
         <table>

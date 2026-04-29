@@ -29,9 +29,10 @@ struct DayEvent: Identifiable {
     func layout(hourHeight: CGFloat, startHour: Int) -> (top: CGFloat, height: CGFloat) {
         let start = startMinutes - startHour * 60
         let end = endMinutes - startHour * 60
+        let rawHeight = CGFloat(end - start) * (hourHeight / 60)
         return (
             top: CGFloat(start) * (hourHeight / 60),
-            height: CGFloat(end - start) * (hourHeight / 60)
+            height: max(rawHeight, 1)
         )
     }
 

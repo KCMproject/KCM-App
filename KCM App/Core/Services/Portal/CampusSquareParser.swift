@@ -282,13 +282,38 @@ enum CampusSquareParser {
                 let statusClass = String(cellHtml[classRange]).lowercased()
                 let itemContentHtml = String(cellHtml[itemContentRange])
                 let fullText = stripHtmlTags(from: itemContentHtml)
-                if fullText.isEmpty || fullText.contains("休日設定") || fullText.contains("特別期間") { continue }
+                if fullText.isEmpty { continue }
+
+                if let note = parseScheduleNote(from: fullText) {
+                    results.append(Course(
+                        id: UUID(), weekday: weekday, period: "", title: note.body, room: "",
+                        status: "", instructor: "", nextClassInfo: "", materials: [], assignments: [],
+                        startTime: nil, endTime: nil, dateString: dateString,
+                        scheduleNoteCategory: note.category
+                    ))
+                    continue
+                }
+
+                if fullText.contains("休日設定") || fullText.contains("特別期間") { continue }
                 
-                let parsePattern = "(?:.*?(\\d)限)?(?:\\((\\d{1,2}:\\d{2})[～〜-](\\d{1,2}:\\d{2})\\))?:?([^@]+)(?:@(.+))?"
                 var title = fullText, period = "", room = ""
                 var startTime: String? = nil, endTime: String? = nil
-                
-                if let pRegex = try? NSRegularExpression(pattern: parsePattern, options: []),
+
+                let leadingTimePattern = "^\\s*(\\d{1,2}:\\d{2})[～〜-](\\d{1,2}:\\d{2})\\s*:?\\s*([^@]+)(?:@(.+))?\\s*$"
+                if let timeRegex = try? NSRegularExpression(pattern: leadingTimePattern, options: []),
+                   let timeMatch = timeRegex.firstMatch(in: fullText, options: [], range: NSRange(location: 0, length: fullText.utf16.count)) {
+                    if let r1 = Range(timeMatch.range(at: 1), in: fullText) { startTime = String(fullText[r1]) }
+                    if let r2 = Range(timeMatch.range(at: 2), in: fullText) { endTime = String(fullText[r2]) }
+                    if let r3 = Range(timeMatch.range(at: 3), in: fullText) {
+                        title = String(fullText[r3]).trimmingCharacters(in: .whitespacesAndNewlines)
+                    }
+                    if let r4 = Range(timeMatch.range(at: 4), in: fullText) {
+                        room = String(fullText[r4]).trimmingCharacters(in: .whitespacesAndNewlines)
+                    }
+                    if let startTime {
+                        period = periodNumber(forStartTime: startTime)
+                    }
+                } else if let pRegex = try? NSRegularExpression(pattern: "(?:.*?(\\d)限)?(?:\\((\\d{1,2}:\\d{2})[～〜-](\\d{1,2}:\\d{2})\\))?:?([^@]+)(?:@(.+))?", options: []),
                    let pMatch = pRegex.firstMatch(in: fullText, options: [], range: NSRange(location: 0, length: fullText.utf16.count)) {
                     if let r1 = Range(pMatch.range(at: 1), in: fullText) { period = String(fullText[r1]) }
                     if let r2 = Range(pMatch.range(at: 2), in: fullText) { startTime = String(fullText[r2]) }
@@ -313,6 +338,47 @@ enum CampusSquareParser {
             }
         }
         return results
+    }
+
+    private static func periodNumber(forStartTime time: String) -> String {
+        let minutes = minutes(from: time)
+        switch minutes {
+        case 9 * 60..<(10 * 60 + 40):
+            return "1"
+        case (10 * 60 + 40)..<(13 * 60):
+            return "2"
+        case (13 * 60)..<(14 * 60 + 40):
+            return "3"
+        case (14 * 60 + 40)..<(16 * 60 + 20):
+            return "4"
+        case (16 * 60 + 20)..<(18 * 60):
+            return "5"
+        case (18 * 60)...(22 * 60):
+            return "6"
+        default:
+            return ""
+        }
+    }
+
+    private static func minutes(from time: String) -> Int {
+        let parts = time.split(separator: ":").compactMap { Int($0) }
+        guard parts.count == 2 else { return -1 }
+        return parts[0] * 60 + parts[1]
+    }
+
+    private static func parseScheduleNote(from text: String) -> (category: String, body: String)? {
+        let pattern = "^[\\[［]([^\\]］]+)[\\]］]\\s*(.*)$"
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []),
+              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count)),
+              let categoryRange = Range(match.range(at: 1), in: text),
+              let bodyRange = Range(match.range(at: 2), in: text) else {
+            return nil
+        }
+
+        let category = String(text[categoryRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+        let body = String(text[bodyRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !category.isEmpty else { return nil }
+        return (category, body.isEmpty ? category : body)
     }
 
     // MARK: - ヘルパー関数 (DOMシミュレーション)

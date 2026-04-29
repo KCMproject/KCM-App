@@ -38,4 +38,9 @@ struct Course: Identifiable, Hashable, Codable {
     let startTime: String?
     let endTime: String?
     let dateString: String? // YYYY-MM-DD形式
+    var scheduleNoteCategory: String? = nil
+
+    var isScheduleNote: Bool {
+        scheduleNoteCategory != nil
+    }
 }

@@ -239,7 +239,8 @@ func saveFavoriteNoticeIDs(_ ids: Set<String>) {
       course.weekday,
       course.period,
       course.title,
-      course.instructor
+      course.instructor,
+      course.scheduleNoteCategory ?? ""
     ].joined(separator: "|")
   }
 }
