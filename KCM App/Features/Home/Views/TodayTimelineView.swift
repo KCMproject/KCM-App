@@ -10,7 +10,9 @@ struct TodayTimelineView: View {
     @State private var weekPageOffset = 0
     @State private var isSyncingWeekPage = false
     @State private var showingCalendar = false
+    @State private var showingRefreshOptions = false
     @State private var calendarMonth = Date()
+    @State private var refreshThroughDate = Date()
     @State private var transitionDirection: TransitionDirection = .none
     @AppStorage(AppSettings.tapToSwitchDayEnabled) private var tapToSwitchDayEnabled = true
     let onToggle: () -> Void
@@ -45,6 +47,7 @@ struct TodayTimelineView: View {
         
         return viewModel.courses
             .filter { course in
+                guard !course.isScheduleNote else { return false }
                 if let courseDate = course.dateString {
                     // 具体的な日付がある場合は日付で完全一致させる
                     return courseDate == dateString
@@ -83,6 +86,15 @@ struct TodayTimelineView: View {
             }
     }
 
+    private func scheduleNotes(for date: Date) -> [Course] {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let dateString = formatter.string(from: date)
+        return viewModel.courses.filter { course in
+            course.isScheduleNote && course.dateString == dateString
+        }
+    }
+
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
@@ -119,6 +131,18 @@ struct TodayTimelineView: View {
         .onAppear {
             syncWeekPage(with: selectedDate)
         }
+        .sheet(isPresented: $showingRefreshOptions) {
+            ScheduleRefreshOptionsSheet(
+                selectedDate: $refreshThroughDate,
+                range: today...maxRefreshDate
+            ) { targetDate in
+                showingRefreshOptions = false
+                Task {
+                    await PortalDataCoordinator.shared.refreshSchedule(through: targetDate, showUpdateBanner: true)
+                }
+            }
+            .presentationDetents([.height(430)])
+        }
     }
 
     private func timelinePage(for date: Date) -> some View {
@@ -144,6 +168,10 @@ struct TodayTimelineView: View {
         calendar.startOfDay(for: Date())
     }
 
+    private var maxRefreshDate: Date {
+        calendar.date(byAdding: .year, value: 1, to: today) ?? today
+    }
+
     private var weekOffsetRange: ClosedRange<Int> {
         let baseWeek = today.startOfWeek(calendar: calendar)
         let earliestDate = viewModel.earliestCachedDate() ?? calendar.date(byAdding: .day, value: -365, to: today) ?? today
@@ -161,10 +189,16 @@ struct TodayTimelineView: View {
                         showingCalendar.toggle()
                     }
                 } label: {
-                    HStack(spacing: 6) {
-                        Text(dateLabel(selectedDate))
-                            .font(.system(size: 17))
-                            .foregroundStyle(AppTheme.textPrimary)
+                    HStack(spacing: 8) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(yearLabel(selectedDate))
+                            Text(monthDayLabel(selectedDate))
+                        }
+                        .font(.system(size: 17))
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+
                         Image(systemName: "chevron.down")
                             .font(.system(size: 13, weight: .medium))
                             .foregroundStyle(AppTheme.textMuted)
@@ -186,6 +220,19 @@ struct TodayTimelineView: View {
                 .overlay(Capsule().stroke(AppTheme.grayBorder, lineWidth: 1))
 
                 Spacer()
+
+                Button {
+                    refreshThroughDate = min(max(selectedDate, today), maxRefreshDate)
+                    showingRefreshOptions = true
+                } label: {
+                    Label("更新オプション", systemImage: "arrow.clockwise.circle")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(AppTheme.accent)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Capsule().fill(AppTheme.accent.opacity(0.10)))
+                }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
@@ -370,6 +417,7 @@ struct TodayTimelineView: View {
 
     private func timeline(for date: Date) -> some View {
         let events = events(for: date)
+        let notes = scheduleNotes(for: date)
         let slots = Array(startHour...endHour)
         let timeLabelWidth: CGFloat = 64
         let timeLabelHeight: CGFloat = 28
@@ -377,90 +425,99 @@ struct TodayTimelineView: View {
         let totalHeight = CGFloat(slots.count) * hourHeight
 
         return ScrollView(.vertical, showsIndicators: false) {
-            GeometryReader { geo in
-                let cardMaxWidth = geo.size.width - (sidePadding * 2)
-                let centerDeadZoneWidth: CGFloat = min(140, geo.size.width * 0.32)
-                let sideZoneWidth = max((geo.size.width - centerDeadZoneWidth) / 2, 0)
+            VStack(spacing: 0) {
+                if !notes.isEmpty {
+                    ScheduleNotesBanner(notes: notes)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 12)
+                        .padding(.bottom, 4)
+                }
 
-                ZStack(alignment: .topLeading) {
-                    // 背景のグリッド線（全幅）
-                    ForEach(slots, id: \.self) { hour in
-                        let y = CGFloat(hour - startHour) * hourHeight + 16
-                        Capsule()
-                            .fill(AppTheme.lightBlueBorder.opacity(0.8))
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 1.5)
-                            .offset(y: y)
-                    }
+                GeometryReader { geo in
+                    let cardMaxWidth = geo.size.width - (sidePadding * 2)
+                    let centerDeadZoneWidth: CGFloat = min(140, geo.size.width * 0.32)
+                    let sideZoneWidth = max((geo.size.width - centerDeadZoneWidth) / 2, 0)
 
-                    // 時刻ラベル（線の真上に重ねる）
-                    ForEach(slots, id: \.self) { hour in
-                        let y = CGFloat(hour - startHour) * hourHeight + 16
-                        Text("\(hour):00")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(AppTheme.textPrimary)
-                            .frame(width: timeLabelWidth, height: timeLabelHeight, alignment: .center)
-                            .background(
-                                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                    .fill(AppTheme.pageBackground)
-                            )
-                            .offset(y: y - (timeLabelHeight / 2))
-                    }
-
-                    // タップゾーン（日付切り替え）
-                    HStack(spacing: 0) {
-                        // 左ゾーン：前日へ
-                        Color.clear
-                            .frame(width: sideZoneWidth)
-                            .contentShape(Rectangle())
-                            .onTapGesture { shiftDate(by: -1) }
-
-                        // 中央ゾーン：長押しはカードに任せる
-                        Color.clear
-                            .frame(width: centerDeadZoneWidth)
-
-                        // 右ゾーン：翌日へ
-                        Color.clear
-                            .frame(width: sideZoneWidth)
-                            .contentShape(Rectangle())
-                            .onTapGesture { shiftDate(by: 1) }
-                    }
-                    .zIndex(-1)
-
-                    // イベントカード（スライドアニメーション）
-                    EventCardsView(
-                        date: date,
-                        events: events,
-                        cardMaxWidth: cardMaxWidth,
-                        hourHeight: hourHeight,
-                        startHour: startHour,
-                        timeLabelWidth: timeLabelWidth,
-                        transitionDirection: transitionDirection
-                    )
-
-                    // 現在時刻の線＋ラベル（今日のみ）
-                    if calendar.isDate(date, inSameDayAs: currentTime), let indicatorTop = currentIndicatorTop {
-                        let indicatorLabelHeight: CGFloat = 24
-                        HStack(spacing: 8) {
-                            Text(currentTimeLabel)
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 8)
-                                .frame(height: indicatorLabelHeight)
-                                .background(Capsule().fill(Color.red))
-
-                            Rectangle()
-                                .fill(Color.red.opacity(0.75))
+                    ZStack(alignment: .topLeading) {
+                        // 背景のグリッド線（全幅）
+                        ForEach(slots, id: \.self) { hour in
+                            let y = CGFloat(hour - startHour) * hourHeight + 16
+                            Capsule()
+                                .fill(AppTheme.lightBlueBorder.opacity(0.8))
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 1.5)
+                                .offset(y: y)
                         }
-                        .frame(height: indicatorLabelHeight, alignment: .leading)
-                        .offset(y: indicatorTop + 16 - (indicatorLabelHeight / 2))
+
+                        // 時刻ラベル（線の真上に重ねる）
+                        ForEach(slots, id: \.self) { hour in
+                            let y = CGFloat(hour - startHour) * hourHeight + 16
+                            Text("\(hour):00")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(AppTheme.textPrimary)
+                                .frame(width: timeLabelWidth, height: timeLabelHeight, alignment: .center)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                        .fill(AppTheme.pageBackground)
+                                )
+                                .offset(y: y - (timeLabelHeight / 2))
+                        }
+
+                        // タップゾーン（日付切り替え）
+                        HStack(spacing: 0) {
+                            // 左ゾーン：前日へ
+                            Color.clear
+                                .frame(width: sideZoneWidth)
+                                .contentShape(Rectangle())
+                                .onTapGesture { shiftDate(by: -1) }
+
+                            // 中央ゾーン：長押しはカードに任せる
+                            Color.clear
+                                .frame(width: centerDeadZoneWidth)
+
+                            // 右ゾーン：翌日へ
+                            Color.clear
+                                .frame(width: sideZoneWidth)
+                                .contentShape(Rectangle())
+                                .onTapGesture { shiftDate(by: 1) }
+                        }
+                        .zIndex(-1)
+
+                        // イベントカード（スライドアニメーション）
+                        EventCardsView(
+                            date: date,
+                            events: events,
+                            cardMaxWidth: cardMaxWidth,
+                            hourHeight: hourHeight,
+                            startHour: startHour,
+                            timeLabelWidth: timeLabelWidth,
+                            transitionDirection: transitionDirection
+                        )
+
+                        // 現在時刻の線＋ラベル（今日のみ）
+                        if calendar.isDate(date, inSameDayAs: currentTime), let indicatorTop = currentIndicatorTop {
+                            let indicatorLabelHeight: CGFloat = 24
+                            HStack(spacing: 8) {
+                                Text(currentTimeLabel)
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 8)
+                                    .frame(height: indicatorLabelHeight)
+                                    .background(Capsule().fill(Color.red))
+
+                                Rectangle()
+                                    .fill(Color.red.opacity(0.75))
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 1.5)
+                            }
+                            .frame(height: indicatorLabelHeight, alignment: .leading)
+                            .offset(y: indicatorTop + 16 - (indicatorLabelHeight / 2))
+                        }
                     }
                 }
+                .frame(height: totalHeight)
+                .padding(.horizontal, sidePadding)
             }
-            .frame(height: totalHeight)
-            .padding(.horizontal, sidePadding)
         }
         .background(AppTheme.pageBackground)
         .refreshable {
@@ -484,10 +541,17 @@ struct TodayTimelineView: View {
         return f
     }()
 
-    private static let fullDateFormatter: DateFormatter = {
+    private static let yearFormatter: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "ja_JP")
-        f.dateFormat = "yyyy年M月d日"
+        f.dateFormat = "yyyy年"
+        return f
+    }()
+
+    private static let monthDayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "ja_JP")
+        f.dateFormat = "M月d日"
         return f
     }()
 
@@ -495,8 +559,12 @@ struct TodayTimelineView: View {
         Self.timeFormatter.string(from: currentTime)
     }
 
-    private func dateLabel(_ date: Date) -> String {
-        Self.fullDateFormatter.string(from: date)
+    private func yearLabel(_ date: Date) -> String {
+        Self.yearFormatter.string(from: date)
+    }
+
+    private func monthDayLabel(_ date: Date) -> String {
+        Self.monthDayFormatter.string(from: date)
     }
 
     private func shiftDate(by days: Int) {
@@ -697,6 +765,128 @@ private struct CalendarPickerView: View {
     }
 }
 
+private struct ScheduleRefreshOptionsSheet: View {
+    @Binding var selectedDate: Date
+    let range: ClosedRange<Date>
+    let onRefresh: (Date) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .center) {
+                Text("更新オプション")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(AppTheme.textPrimary)
+
+                Spacer()
+
+                Button("閉じる") {
+                    dismiss()
+                }
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(AppTheme.textMuted)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(Capsule().fill(AppTheme.grayPill))
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 18)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("この日まで読み込む")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(AppTheme.textPrimary)
+                Text("通常のスクロール更新では、今月と翌月までを更新します")
+                    .font(.system(size: 13))
+                    .foregroundStyle(AppTheme.textMuted)
+                Text("長期の取得は時間がかかるおそれがあります")
+                    .font(.system(size: 13))
+                    .foregroundStyle(AppTheme.textMuted)
+            }
+            .padding(.horizontal, 20)
+
+            DatePicker(
+                "読み込み終了日",
+                selection: $selectedDate,
+                in: range,
+                displayedComponents: .date
+            )
+            .datePickerStyle(.wheel)
+            .labelsHidden()
+            .frame(maxWidth: .infinity)
+            .frame(height: 150)
+            .clipped()
+            .padding(.horizontal, 12)
+
+            Button {
+                onRefresh(selectedDate)
+            } label: {
+                Text("指定期間を更新")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(AppTheme.accent)
+                    )
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 16)
+        }
+        .background(AppTheme.pageBackground)
+    }
+}
+
+private struct ScheduleNotesBanner: View {
+    let notes: [Course]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(notes) { note in
+                HStack(alignment: .top, spacing: 8) {
+                    Text(note.scheduleNoteCategory ?? "予定")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(categoryColor(for: note)))
+
+                    Text(note.title)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Spacer(minLength: 0)
+                }
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.orange.opacity(0.12))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.orange.opacity(0.35), lineWidth: 1)
+        )
+    }
+
+    private func categoryColor(for note: Course) -> Color {
+        switch note.scheduleNoteCategory {
+        case "休日":
+            return .orange
+        case "特別期間":
+            return AppTheme.accent
+        default:
+            return AppTheme.textMuted
+        }
+    }
+}
+
 // MARK: - イベントカード（スライドアニメーション対応）
 private struct EventCardsView: View {
     let date: Date
@@ -759,38 +949,79 @@ private struct EventCardsView: View {
             let statusColor = isCancelled ? Color.red : (isSupplementary ? Color.blue : AppTheme.accent)
             let cardBg = isCancelled ? Color.red.opacity(0.1) : (isSupplementary ? Color.blue.opacity(0.1) : Color.white.opacity(0.7))
             let cardBorder = isCancelled ? Color.red.opacity(0.5) : (isSupplementary ? Color.blue.opacity(0.5) : AppTheme.blueCardBorder)
+            let isCompact = layout.height < 48
 
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .top) {
-                    Text(event.title)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(isCancelled ? .red : AppTheme.textPrimary)
+            Group {
+                if isCompact {
+                    HStack(spacing: 6) {
+                        Text(event.title)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(isCancelled ? .red : AppTheme.textPrimary)
+                            .lineLimit(1)
 
-                    Spacer()
+                        Text("\(event.startTime)-\(event.endTime)")
+                            .font(.system(size: 11))
+                            .foregroundStyle(isSupplementary ? .blue : (isCancelled ? .red.opacity(0.8) : AppTheme.textBlue))
+                            .lineLimit(1)
 
-                    if !event.status.isEmpty {
-                        Text(event.status)
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(statusColor)
-                            .cornerRadius(4)
+                        if !event.location.isEmpty {
+                            Text(event.location)
+                                .font(.system(size: 11))
+                                .foregroundStyle(AppTheme.textMuted)
+                                .lineLimit(1)
+                        }
+
+                        Spacer(minLength: 0)
+
+                        if !event.status.isEmpty {
+                            Text(event.status)
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 1)
+                                .background(statusColor)
+                                .cornerRadius(4)
+                        }
                     }
-                }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                } else {
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack(alignment: .top) {
+                            Text(event.title)
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(isCancelled ? .red : AppTheme.textPrimary)
+                                .lineLimit(1)
 
-                Text("\(event.startTime) - \(event.endTime)")
-                    .font(.system(size: 12))
-                    .foregroundStyle(isSupplementary ? .blue : (isCancelled ? .red.opacity(0.8) : AppTheme.textBlue))
+                            Spacer()
 
-                if !event.location.isEmpty {
-                    Text(event.location)
-                        .font(.system(size: 12))
-                        .foregroundStyle(AppTheme.textMuted)
+                            if !event.status.isEmpty {
+                                Text(event.status)
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(statusColor)
+                                    .cornerRadius(4)
+                            }
+                        }
+
+                        Text("\(event.startTime) - \(event.endTime)")
+                            .font(.system(size: 12))
+                            .foregroundStyle(isSupplementary ? .blue : (isCancelled ? .red.opacity(0.8) : AppTheme.textBlue))
+
+                        if !event.location.isEmpty {
+                            Text(event.location)
+                                .font(.system(size: 12))
+                                .foregroundStyle(AppTheme.textMuted)
+                                .lineLimit(1)
+                        }
+                    }
+                    .padding(8)
                 }
             }
-            .padding(10)
             .frame(width: cardMaxWidth, height: layout.height, alignment: .topLeading)
+            .clipped()
             .background(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(cardBg)
@@ -830,18 +1061,20 @@ private struct EventCardsView: View {
                     Label("詳細を表示", systemImage: "info.circle")
                 }
             } preview: {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text(event.title)
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(isCancelled ? .red : AppTheme.textPrimary)
+                        .lineLimit(1)
                     Text("\(event.startTime) - \(event.endTime)")
                         .font(.system(size: 12))
                         .foregroundStyle(isSupplementary ? .blue : (isCancelled ? .red.opacity(0.8) : AppTheme.textBlue))
                     Text(event.location)
                         .font(.system(size: 12))
                         .foregroundStyle(AppTheme.textMuted)
+                        .lineLimit(1)
                 }
-                .padding(10)
+                .padding(8)
                 .frame(width: cardMaxWidth, height: layout.height, alignment: .topLeading)
                 .background(
                     RoundedRectangle(cornerRadius: 12, style: .continuous)

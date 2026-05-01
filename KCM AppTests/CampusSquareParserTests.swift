@@ -174,4 +174,121 @@ final class CampusSquareParserTests: XCTestCase {
         XCTAssertEqual(results[0].room, "N-301")
         XCTAssertEqual(results[0].dateString, "2026-04-15")
     }
+
+    func testParseScheduleWithLeadingTime() throws {
+        let html = """
+        <td class="day">
+            <div class="cal-head-img"><a onclick="addSchedule(20260506);"></a></div>
+            <div class="cal-content"><span class="kaiko">14:00～14:23:♪作曲Ⅲ@N-301</span></div>
+        </td>
+        """
+
+        let results = CampusSquareParser.parseSchedule(from: html)
+
+        XCTAssertEqual(results.count, 1)
+        XCTAssertEqual(results[0].title, "♪作曲Ⅲ")
+        XCTAssertEqual(results[0].period, "3")
+        XCTAssertEqual(results[0].startTime, "14:00")
+        XCTAssertEqual(results[0].endTime, "14:23")
+        XCTAssertEqual(results[0].room, "N-301")
+        XCTAssertEqual(results[0].dateString, "2026-05-06")
+    }
+
+    func testParseScheduleHolidayNote() throws {
+        let html = """
+        <td class="kyujitsu">
+            <div class="cal-head-img"><a onclick="addSchedule(20260503);"></a></div>
+            <div class="cal-content"><span class="kaiko">[休日]休日設定（練習室）</span></div>
+        </td>
+        """
+
+        let results = CampusSquareParser.parseSchedule(from: html)
+
+        XCTAssertEqual(results.count, 1)
+        XCTAssertTrue(results[0].isScheduleNote)
+        XCTAssertEqual(results[0].scheduleNoteCategory, "休日")
+        XCTAssertEqual(results[0].title, "休日設定（練習室）")
+        XCTAssertEqual(results[0].period, "")
+        XCTAssertEqual(results[0].dateString, "2026-05-03")
+    }
+
+    func testParseScheduleWeekdayClosureNote() throws {
+        let html = """
+        <td class="kyujitsu">
+            <div class="cal-head-img"><a onclick="addSchedule(20260626);"></a></div>
+            <div class="cal-content"><span class="kaiko">[休日]平日休校日</span></div>
+        </td>
+        """
+
+        let results = CampusSquareParser.parseSchedule(from: html)
+
+        XCTAssertEqual(results.count, 1)
+        XCTAssertTrue(results[0].isScheduleNote)
+        XCTAssertEqual(results[0].scheduleNoteCategory, "休日")
+        XCTAssertEqual(results[0].title, "平日休校日")
+        XCTAssertEqual(results[0].dateString, "2026-06-26")
+    }
+
+    func testParseAnnouncementsFromNoticeTable() throws {
+        let html = """
+        <table>
+            <tr>
+                <td>2026/04/27 13:35:02</td>
+                <td>
+                    <a href="campussquare.do?_flowExecutionKey=abc&amp;_eventId=displayMidoku&amp;keijitype=4&amp;genrecd=429&amp;seqNo=382">求人についてのお知らせ</a>
+                </td>
+                <td align="center">-</td>
+                <td>全学掲示板</td>
+                <td>学務部</td>
+                <td>学生支援課</td>
+                <td>2026/04/27 13:32から<br>2026/05/27 13:32まで</td>
+            </tr>
+        </table>
+        """
+
+        let results = CampusSquareParser.parseAnnouncements(from: html)
+
+        XCTAssertEqual(results.count, 1)
+        XCTAssertEqual(results[0].title, "求人についてのお知らせ")
+        XCTAssertEqual(results[0].date, "2026/04/27")
+        XCTAssertEqual(results[0].category, "全学掲示板")
+        XCTAssertEqual(results[0].url, "campussquare.do?_flowExecutionKey=abc&_eventId=displayMidoku&keijitype=4&genrecd=429&seqNo=382")
+    }
+
+    func testExtractNoticeGenreLinks() throws {
+        let html = """
+        <a href="https://cs.kunitachi.ac.jp/campusweb/campussquare.do?_flowExecutionKey=abc&amp;_eventId=dispKeijiListGenre&amp;keijitype=4&amp;genrecd=429">全学掲示板</a>
+        <a href="https://cs.kunitachi.ac.jp/campusweb/campussquare.do?_flowExecutionKey=abc&amp;_eventId=dispKeijiListGenre&amp;keijitype=3&amp;genrecd=431">個人掲示板</a>
+        """
+
+        let links = CampusSquareParser.extractNoticeGenreLinks(from: html)
+
+        XCTAssertEqual(links.count, 2)
+        XCTAssertEqual(links[0].keijitype, "4")
+        XCTAssertEqual(links[0].genrecd, "429")
+        XCTAssertTrue(links[0].href.contains("_eventId=dispKeijiListGenre"))
+        XCTAssertEqual(links[1].keijitype, "3")
+        XCTAssertEqual(links[1].genrecd, "431")
+    }
+
+    func testParseNoticeAttachments() throws {
+        let html = """
+        <table>
+            <tbody>
+                <tr><th class="keiji-normal">添付ファイル</th></tr>
+                <tr>
+                    <td class="keiji-normal">
+                        <a href="campussquare.do?_flowExecutionKey=abc&amp;_eventId=download&amp;keijitype=4&amp;genrecd=429&amp;seqNo=329&amp;index=0">ミッシャ・マイスキー学内.pdf</a>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        """
+
+        let attachments = CampusSquareParser.parseNoticeAttachments(from: html, baseURL: "https://cs.kunitachi.ac.jp/campusweb")
+
+        XCTAssertEqual(attachments.count, 1)
+        XCTAssertEqual(attachments[0].title, "ミッシャ・マイスキー学内.pdf")
+        XCTAssertEqual(attachments[0].url, "https://cs.kunitachi.ac.jp/campusweb/campussquare.do?_flowExecutionKey=abc&_eventId=download&keijitype=4&genrecd=429&seqNo=329&index=0")
+    }
 }

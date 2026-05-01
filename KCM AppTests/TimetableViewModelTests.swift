@@ -68,6 +68,32 @@ final class TimetableViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.hasSaturdayClass)
         XCTAssertEqual(viewModel.weeklySchedule[0][0].title, "月曜の授業")
     }
+
+    @MainActor
+    func testScheduleMonthOffsetsThroughDateIncludesTargetMonth() {
+        let viewModel = TimetableViewModel(portalClient: MockPortalClient())
+        let calendar = Calendar(identifier: .gregorian)
+        let reference = calendar.date(from: DateComponents(year: 2026, month: 4, day: 29))!
+        let target = calendar.date(from: DateComponents(year: 2026, month: 8, day: 10))!
+
+        XCTAssertEqual(
+            viewModel.scheduleMonthOffsets(through: target, referenceDate: reference),
+            [0, 1, 2, 3, 4]
+        )
+    }
+
+    @MainActor
+    func testScheduleMonthOffsetsClampToOneYear() {
+        let viewModel = TimetableViewModel(portalClient: MockPortalClient())
+        let calendar = Calendar(identifier: .gregorian)
+        let reference = calendar.date(from: DateComponents(year: 2026, month: 4, day: 29))!
+        let target = calendar.date(from: DateComponents(year: 2028, month: 1, day: 1))!
+
+        XCTAssertEqual(
+            viewModel.scheduleMonthOffsets(through: target, referenceDate: reference),
+            Array(0...12)
+        )
+    }
 }
 
 // MARK: - Mock
@@ -83,6 +109,7 @@ class MockPortalClient: PortalClientProtocol {
     }
     func fetchAnnouncements() async throws -> [NoticeCard] { return [] }
     func fetchAnnouncements(completion: @escaping (Result<[NoticeCard], Error>) -> Void) {}
+    func fetchNoticeAttachments(for notice: NoticeCard) async throws -> [NoticeAttachment] { return [] }
     func fetchTimetable() async throws -> [Course] { return [] }
     func fetchTimetable(monthOffsets: [Int]) async throws -> [Course] { return [] }
     func fetchTimetable(completion: @escaping (Result<[Course], Error>) -> Void) {}

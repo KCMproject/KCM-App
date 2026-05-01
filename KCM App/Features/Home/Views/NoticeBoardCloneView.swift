@@ -47,6 +47,10 @@ struct NoticeBoardCloneView: View {
         }
     }
 
+    private var shouldShowInitialLoading: Bool {
+        viewModel.isLoading && viewModel.announcements.isEmpty
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             VStack(spacing: 12) {
@@ -141,17 +145,8 @@ struct NoticeBoardCloneView: View {
 
             ZStack {
                 ScrollView(.vertical, showsIndicators: false) {
-                    if filteredNotices.isEmpty && !viewModel.isLoading {
-                        VStack(spacing: 8) {
-                            Image(systemName: "star")
-                                .font(.system(size: 32))
-                                .foregroundStyle(AppTheme.textSoft)
-                            Text(selectedCategory == "お気に入り" ? "お気に入りはまだありません" : "お知らせがありません")
-                                .font(.system(size: 14))
-                                .foregroundStyle(AppTheme.textMuted)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 120)
+                    if filteredNotices.isEmpty && !shouldShowInitialLoading {
+                        emptyStateView
                     } else {
                         LazyVStack(spacing: 0) {
                             ForEach(Array(filteredNotices.enumerated()), id: \.element.id) { index, notice in
@@ -161,9 +156,7 @@ struct NoticeBoardCloneView: View {
                                         isFavorite: favoriteIDs.contains(notice.id)
                                     ) {
                                         toggleFavorite(notice.id)
-                                    }
-                                    .contentShape(Rectangle())
-                                    .onTapGesture {
+                                    } onOpen: {
                                         openNotice(notice)
                                     }
                                     
@@ -184,7 +177,7 @@ struct NoticeBoardCloneView: View {
                     await PortalDataCoordinator.shared.refreshNotices(showUpdateBanner: true)
                 }
 
-                if viewModel.isLoading {
+                if shouldShowInitialLoading {
                     ProgressView()
                         .scaleEffect(1.5)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -198,6 +191,31 @@ struct NoticeBoardCloneView: View {
         .sheet(item: $webDestination) { destination in
             CampusWebSheet(destination: destination, presentedDestination: $webDestination)
         }
+    }
+
+    @ViewBuilder
+    private var emptyStateView: some View {
+        VStack(spacing: 8) {
+            if let errorMessage = viewModel.errorMessage, !errorMessage.isEmpty, viewModel.announcements.isEmpty {
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.system(size: 32))
+                    .foregroundStyle(AppTheme.textSoft)
+                Text(errorMessage)
+                    .font(.system(size: 14))
+                    .foregroundStyle(AppTheme.textMuted)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+            } else {
+                Image(systemName: "star")
+                    .font(.system(size: 32))
+                    .foregroundStyle(AppTheme.textSoft)
+                Text(selectedCategory == "お気に入り" ? "お気に入りはまだありません" : "お知らせがありません")
+                    .font(.system(size: 14))
+                    .foregroundStyle(AppTheme.textMuted)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 120)
     }
 
     private func openNotice(_ notice: NoticeCard) {
@@ -241,14 +259,34 @@ private struct NoticeRow: View {
     let notice: NoticeCard
     let isFavorite: Bool
     let onToggleFavorite: () -> Void
+    let onOpen: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .top, spacing: 8) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text(notice.title)
                     .font(.system(size: 16, weight: .bold))
                     .foregroundStyle(AppTheme.textPrimary)
                     .frame(maxWidth: .infinity, alignment: .leading)
+
+                HStack(spacing: 6) {
+                    Text(notice.category)
+                        .font(.system(size: 12))
+                        .foregroundStyle(AppTheme.textBlue)
+                    Text("·")
+                        .font(.system(size: 12))
+                        .foregroundStyle(AppTheme.textMuted)
+                    Text(notice.date)
+                        .font(.system(size: 12))
+                        .foregroundStyle(AppTheme.textMuted)
+                }
+
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .onTapGesture(perform: onOpen)
+
+            VStack(spacing: 6) {
                 Button(action: onToggleFavorite) {
                     Image(systemName: isFavorite ? "star.fill" : "star")
                         .font(.system(size: 15, weight: .semibold))
@@ -260,24 +298,18 @@ private struct NoticeRow: View {
                         )
                 }
                 .buttonStyle(.plain)
-            }
 
-            HStack(spacing: 6) {
-                Text(notice.category)
-                    .font(.system(size: 12))
-                    .foregroundStyle(AppTheme.textBlue)
-                Text("·")
-                    .font(.system(size: 12))
-                    .foregroundStyle(AppTheme.textMuted)
-                Text(notice.date)
-                    .font(.system(size: 12))
-                    .foregroundStyle(AppTheme.textMuted)
+                ZStack {
+                    Circle()
+                        .fill(notice.hasAttachments ? AppTheme.accent.opacity(0.12) : Color.clear)
+                    Image(systemName: "paperclip")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(notice.hasAttachments ? AppTheme.textBlue : Color.clear)
+                }
+                .frame(width: 32, height: 32)
+                .contentShape(Circle())
+                .onTapGesture {}
             }
-
-            Text(notice.content)
-                .font(.system(size: 14))
-                .foregroundStyle(AppTheme.textSecondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 16)

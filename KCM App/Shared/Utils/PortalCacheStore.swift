@@ -13,6 +13,7 @@ private enum Key {
     static let scheduleMonthKeys = "portalCache.scheduleMonthKeys"
     static let weeklyCoursesPrefix = "portalCache.weeklyCourses."
     static let notices = "portalCache.notices"
+    static let noticeAttachments = "portalCache.noticeAttachments"
     static let favoriteNoticeIDs = "portalCache.favoriteNoticeIDs"
     static let classroomURLs = "portalCache.classroomURLs"
   }
@@ -83,6 +84,94 @@ private enum Key {
         defaults.set(data, forKey: Key.notices)
     }
 
+    func mergeAndSaveNotices(_ serverNotices: [NoticeCard]) -> [NoticeCard] {
+        var merged: [String: NoticeCard] = [:]
+        for notice in applyCachedAttachments(to: loadNotices()) {
+            merged[noticeCacheKey(for: notice)] = notice
+        }
+
+        for notice in applyCachedAttachments(to: serverNotices) {
+            let key = noticeCacheKey(for: notice)
+            merged[key] = notice
+        }
+
+        let notices = merged.values.sorted { lhs, rhs in
+            if lhs.date != rhs.date { return lhs.date > rhs.date }
+            return lhs.title < rhs.title
+        }
+        saveNotices(notices)
+        return notices
+    }
+
+    private func noticeCacheKey(for notice: NoticeCard) -> String {
+        stableNoticeKey(from: notice.url) ?? notice.id
+    }
+
+    private func noticeAttachmentCacheKey(for notice: NoticeCard) -> String {
+        "noticeAttachment.v5.\(stableNoticeKey(from: notice.url) ?? notice.id)"
+    }
+
+    private func stableNoticeKey(from rawURL: String?) -> String? {
+        guard let rawURL, !rawURL.isEmpty else {
+            return nil
+        }
+
+        let decodedURL = rawURL.replacingOccurrences(of: "&amp;", with: "&")
+        let absoluteURL: String
+        if decodedURL.hasPrefix("http://") || decodedURL.hasPrefix("https://") {
+            absoluteURL = decodedURL
+        } else if decodedURL.hasPrefix("/") {
+            absoluteURL = "https://cs.kunitachi.ac.jp\(decodedURL)"
+        } else {
+            absoluteURL = "https://cs.kunitachi.ac.jp/campusweb/\(decodedURL)"
+        }
+
+        if let components = URLComponents(string: absoluteURL),
+           let queryItems = components.queryItems {
+            var values: [String: String] = [:]
+            for item in queryItems {
+                values[item.name] = item.value ?? ""
+            }
+            if let keijitype = values["keijitype"],
+               let genrecd = values["genrecd"],
+               let seqNo = values["seqNo"] {
+                return "\(keijitype).\(genrecd).\(seqNo)"
+            }
+        }
+
+        return nil
+    }
+
+    private func loadNoticeAttachmentsCache() -> [String: [NoticeAttachment]] {
+        guard let data = defaults.data(forKey: Key.noticeAttachments),
+              let cache = try? decoder.decode([String: [NoticeAttachment]].self, from: data) else {
+            return [:]
+        }
+        return cache
+    }
+
+    private func saveNoticeAttachmentsCache(_ cache: [String: [NoticeAttachment]]) {
+        guard let data = try? encoder.encode(cache) else { return }
+        defaults.set(data, forKey: Key.noticeAttachments)
+    }
+
+    func saveNoticeAttachments(_ attachments: [NoticeAttachment], for notice: NoticeCard) {
+        var cache = loadNoticeAttachmentsCache()
+        cache[noticeAttachmentCacheKey(for: notice)] = attachments
+        saveNoticeAttachmentsCache(cache)
+    }
+
+    func applyCachedAttachments(to notices: [NoticeCard]) -> [NoticeCard] {
+        let cache = loadNoticeAttachmentsCache()
+        return notices.map { notice in
+            let strippedNotice = notice.withAttachments(nil)
+            guard let cached = cache[noticeAttachmentCacheKey(for: notice)] else {
+                return strippedNotice
+            }
+            return strippedNotice.withAttachments(cached)
+        }
+    }
+
     func loadFavoriteNoticeIDs() -> Set<String> {
         guard let data = defaults.data(forKey: Key.favoriteNoticeIDs),
               let ids = try? decoder.decode([String].self, from: data) else {
@@ -150,7 +239,8 @@ func saveFavoriteNoticeIDs(_ ids: Set<String>) {
       course.weekday,
       course.period,
       course.title,
-      course.instructor
+      course.instructor,
+      course.scheduleNoteCategory ?? ""
     ].joined(separator: "|")
   }
 }

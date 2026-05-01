@@ -29,9 +29,10 @@ struct DayEvent: Identifiable {
     func layout(hourHeight: CGFloat, startHour: Int) -> (top: CGFloat, height: CGFloat) {
         let start = startMinutes - startHour * 60
         let end = endMinutes - startHour * 60
+        let rawHeight = CGFloat(end - start) * (hourHeight / 60)
         return (
             top: CGFloat(start) * (hourHeight / 60),
-            height: CGFloat(end - start) * (hourHeight / 60)
+            height: max(rawHeight, 1)
         )
     }
 
@@ -278,14 +279,38 @@ enum WeekdayLabels {
     static let weekdays = ["月", "火", "水", "木", "金", "土"]
 }
 
+struct NoticeAttachment: Identifiable, Codable, Equatable {
+    let id: String
+    let title: String
+    let url: String
+}
+
 struct NoticeCard: Identifiable, Codable, Equatable {
     let id: String
     let title: String
     let date: String
     let category: String
     let url: String?
+    let attachments: [NoticeAttachment]?
     let isPinned: Bool
     let content: String
+
+    var hasAttachments: Bool {
+        !(attachments ?? []).isEmpty
+    }
+
+    func withAttachments(_ attachments: [NoticeAttachment]?) -> NoticeCard {
+        NoticeCard(
+            id: id,
+            title: title,
+            date: date,
+            category: category,
+            url: url,
+            attachments: attachments,
+            isPinned: isPinned,
+            content: content
+        )
+    }
 }
 
 struct MessageThread: Identifiable, Equatable {
