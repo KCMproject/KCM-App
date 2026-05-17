@@ -11,12 +11,11 @@ import Foundation
 
 /// ログイン成功後のセッション情報
 struct CampusSquareSession {
+    /// ポータルから取得した実際のセッション識別子（JSESSIONID等）
     let sessionId: String
-    let cookies: [HTTPCookie]
     let loggedInAt: Date
-
-    /// セッション有効期限（分）
-    var expiresInMinutes: Int = 30
+    /// Cookieから算出した有効期限（分）。取得できない場合はフォールバック値
+    let expiresInMinutes: Int
 
     /// セッションが有効かどうか
     var isValid: Bool {
@@ -24,4 +23,3 @@ struct CampusSquareSession {
         return Date() < (expirationTime ?? Date())
     }
 }
-

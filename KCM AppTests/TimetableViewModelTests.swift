@@ -100,16 +100,22 @@ final class TimetableViewModelTests: XCTestCase {
 
 class MockPortalClient: PortalClientProtocol {
     var weeklyCourses: [Course] = []
+    var isLoggedIn = true
     
     func login(credentials: CampusSquareCredentials, completion: @escaping (CampusSquareLoginResult) -> Void) {}
-    func logout(completion: @escaping (Bool) -> Void) {}
-    func validateSession(completion: @escaping (Bool) -> Void) {}
-    func fetchOshirase(completion: @escaping (Bool) -> Void) {
-        completion(true)
+    func logout() async {
+        isLoggedIn = false
+    }
+    func validateSession() async throws -> Bool {
+        return isLoggedIn
+    }
+    func fetchOshirase() async -> Bool {
+        return true
     }
     func fetchAnnouncements() async throws -> [NoticeCard] { return [] }
     func fetchAnnouncements(completion: @escaping (Result<[NoticeCard], Error>) -> Void) {}
     func fetchNoticeAttachments(for notice: NoticeCard) async throws -> [NoticeAttachment] { return [] }
+    func resolveNoticeDetailURL(for notice: NoticeCard) async throws -> URL? { return nil }
     func fetchTimetable() async throws -> [Course] { return [] }
     func fetchTimetable(monthOffsets: [Int]) async throws -> [Course] { return [] }
     func fetchTimetable(completion: @escaping (Result<[Course], Error>) -> Void) {}
