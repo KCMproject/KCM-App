@@ -69,6 +69,16 @@ final class NoticeBoardViewModel: ObservableObject {
         }
     }
     
+    /// 掲示板詳細の最新URLを解決する（セッション切れ後に古いURLを更新）
+    func resolveNoticeURL(for notice: NoticeCard) async -> URL? {
+        do {
+            return try await portalClient.resolveNoticeDetailURL(for: notice)
+        } catch {
+            print("❌ [NoticeBoardViewModel] URL解決失敗: \(error.localizedDescription)")
+            return nil
+        }
+    }
+    
     // (Existing completion based method can stay for legacy or be removed)
     func fetchAnnouncements() {
         Task { await initialFetch() }

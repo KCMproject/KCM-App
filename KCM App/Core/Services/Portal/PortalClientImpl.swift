@@ -29,95 +29,163 @@ final class PortalClientImpl: PortalClientProtocol {
     func login(credentials: CampusSquareCredentials, completion: @escaping (CampusSquareLoginResult) -> Void) {
         Task {
             do {
-                // 1. バリデーション
-                switch credentials.validate() {
-                case .success: break
-                case .failure(let msg):
-                    completion(.failure(.authenticationFailed(msg))); return
-                }
-
-                // 2. ログインページにアクセスして rwfHash を取得
-                let loginPageHtml = try await networkClient.fetchHTML(from: "\(networkClient.baseURL)\(portalURL)?locale=ja_JP")
-                
-                let pattern = "'rwfHash'\\s*:\\s*'([^']+)'"
-                if let regex = try? NSRegularExpression(pattern: pattern, options: []),
-                   let match = regex.firstMatch(in: loginPageHtml, options: [], range: NSRange(location: 0, length: loginPageHtml.utf16.count)),
-                   let range = Range(match.range(at: 1), in: loginPageHtml) {
-                    self.rwfHash = String(loginPageHtml[range])
-                }
-
-                // 3. ログイン情報をPOST送信
-                let postURL = URL(string: "\(networkClient.baseURL)\(portalURL)")!
-                var request = networkClient.makeRequest(url: postURL, method: "POST", referer: "\(networkClient.baseURL)\(portalURL)?locale=ja_JP")
-                
-                request.setValue("application/x-www-form-urlencoded; charset=UTF-8", forHTTPHeaderField: "Content-Type")
-                request.setValue("XMLHttpRequest", forHTTPHeaderField: "X-Requested-With")
-                request.setValue("https://cs.kunitachi.ac.jp", forHTTPHeaderField: "Origin")
-
-                let bodyString = [
-                    "wfId=nwf_PTW0060002_login",
-                    "locale=ja_JP",
-                    "userName=\(credentials.userName.urlEncoded)",
-                    "password=\(credentials.password.urlEncoded)",
-                    "action=rwf",
-                    "tabId=home",
-                    "page=",
-                    "rwfHash=\(self.rwfHash)"
-                ].joined(separator: "&")
-                request.httpBody = bodyString.data(using: .utf8)
-
-                let (data, _) = try await networkClient.send(request)
-                guard let responseString = String(data: data, encoding: .utf8) else {
-                    completion(.failure(.authenticationFailed("レスポンス解析失敗"))); return
-                }
-
-                // 4. エラー判定
-                if responseString.contains("class=\"error\"") || responseString.contains("入力に誤りがあります") {
-                    completion(.failure(.authenticationFailed("ユーザー名またはパスワードが間違っています")))
-                } else {
-                    let sessionId = UUID().uuidString
-                    print("📡 ログイン成功: SessionID=\(sessionId)")
-                    
-                    self.currentSession = CampusSquareSession(
-                        sessionId: sessionId,
-                        cookies: [], // CookieはPortalNetworkClientのURLSessionが内部で保持
-                        loggedInAt: Date()
-                    )
-                    completion(.success(session: self.currentSession!))
-                }
+                let session = try await performLogin(credentials: credentials)
+                completion(.success(session: session))
+            } catch let error as CampusSquareLoginError {
+                completion(.failure(error))
             } catch {
                 completion(.failure(.networkError(error)))
             }
         }
     }
+    
+    // MARK: - 内部ログイン実装（async/await）
+    
+    private func performLogin(credentials: CampusSquareCredentials) async throws -> CampusSquareSession {
+        // 1. バリデーション
+        switch credentials.validate() {
+        case .success: break
+        case .failure(let msg):
+            throw CampusSquareLoginError.authenticationFailed(msg)
+        }
 
-    func logout(completion: @escaping (Bool) -> Void) {
-        currentSession = nil
-        rwfHash = ""
-        // CookieのクリアはPortalNetworkClientに任せるか、必要に応じて拡張
-        completion(true)
+        // 2. ログインページにアクセスして rwfHash を取得
+        let loginPageHtml = try await networkClient.fetchHTML(from: "\(networkClient.baseURL)\(portalURL)?locale=ja_JP")
+        
+        let pattern = "'rwfHash'\\s*:\\s*'([^']+)'"
+        if let regex = try? NSRegularExpression(pattern: pattern, options: []),
+           let match = regex.firstMatch(in: loginPageHtml, options: [], range: NSRange(location: 0, length: loginPageHtml.utf16.count)),
+           let range = Range(match.range(at: 1), in: loginPageHtml) {
+            self.rwfHash = String(loginPageHtml[range])
+        }
+
+        // 3. ログイン情報をPOST送信
+        let postURL = URL(string: "\(networkClient.baseURL)\(portalURL)")!
+        var request = networkClient.makeRequest(url: postURL, method: "POST", referer: "\(networkClient.baseURL)\(portalURL)?locale=ja_JP")
+        
+        request.setValue("application/x-www-form-urlencoded; charset=UTF-8", forHTTPHeaderField: "Content-Type")
+        request.setValue("XMLHttpRequest", forHTTPHeaderField: "X-Requested-With")
+        request.setValue("https://cs.kunitachi.ac.jp", forHTTPHeaderField: "Origin")
+
+        let bodyString = [
+            "wfId=nwf_PTW0060002_login",
+            "locale=ja_JP",
+            "userName=\(credentials.userName.urlEncoded)",
+            "password=\(credentials.password.urlEncoded)",
+            "action=rwf",
+            "tabId=home",
+            "page=",
+            "rwfHash=\(self.rwfHash)"
+        ].joined(separator: "&")
+        request.httpBody = bodyString.data(using: .utf8)
+
+        let (data, response) = try await networkClient.send(request)
+        
+        // 🍪 Cookieを明示的に保存
+        if let httpResponse = response as? HTTPURLResponse,
+           let url = response.url {
+            let fields = httpResponse.allHeaderFields as? [String: String] ?? [:]
+            let cookies = HTTPCookie.cookies(withResponseHeaderFields: fields, for: url)
+            for cookie in cookies {
+                HTTPCookieStorage.shared.setCookie(cookie)
+                print("🍪 Cookie保存: \(cookie.name)=\(cookie.value.prefix(20))... domain=\(cookie.domain)")
+            }
+        }
+        
+        guard let responseString = String(data: data, encoding: .utf8) else {
+            throw CampusSquareLoginError.authenticationFailed("レスポンス解析失敗")
+        }
+
+        // 4. エラー判定
+        if responseString.contains("class=\"error\"") || responseString.contains("入力に誤りがあります") {
+            throw CampusSquareLoginError.authenticationFailed("ユーザー名またはパスワードが間違っています")
+        }
+        
+        // 実際のセッション識別子をCookieから取得
+        let sessionId = self.networkClient.sessionIdentifier() ?? UUID().uuidString
+        let expiresIn = self.networkClient.earliestExpirationInMinutes() ?? 20
+        print("📡 ログイン成功: SessionID=\(sessionId), 有効期限: \(expiresIn)分")
+        
+        let session = CampusSquareSession(
+            sessionId: sessionId,
+            loggedInAt: Date(),
+            expiresInMinutes: expiresIn
+        )
+        self.currentSession = session
+        return session
+    }
+    
+    // MARK: - セッション切れ時の自動再ログイン
+    
+    private func attemptRelogin() async throws -> Bool {
+        guard let credentials = SavedCredentialsStore.shared.load() else {
+            print("🔑 [Portal] 再ログイン不可: 保存された資格情報がありません")
+            return false
+        }
+        print("🔑 [Portal] セッション切れ。保存された資格情報で再ログインを試行します...")
+        do {
+            let session = try await performLogin(credentials: CampusSquareCredentials(
+                userName: credentials.studentID,
+                password: credentials.password
+            ))
+            print("🔑 [Portal] 自動再ログイン成功。SessionID=\(session.sessionId)")
+            return true
+        } catch {
+            print("❌ [Portal] 自動再ログイン失敗: \(error.localizedDescription)")
+            return false
+        }
+    }
+    
+    /// セッション切れ時に自動再ログインし、元の操作を再試行する
+    private func executeWithAutoRelogin<T>(_ operation: () async throws -> T) async throws -> T {
+        do {
+            return try await operation()
+        } catch CampusSquareLoginError.sessionExpired {
+            print("🔑 [Portal] セッション切れを検出。自動再ログインを試行します...")
+            let reloginSuccess = try await attemptRelogin()
+            guard reloginSuccess else {
+                throw CampusSquareLoginError.sessionExpired
+            }
+            print("🔑 [Portal] 再ログイン成功。元のリクエストを再試行します。")
+            return try await operation()
+        }
     }
 
-    func validateSession(completion: @escaping (Bool) -> Void) {
-        Task {
-            guard let session = currentSession, session.isValid else {
-                completion(false); return
-            }
-            do {
-                let html = try await networkClient.fetchHTML(from: "\(networkClient.baseURL)\(portalURL)?page=main")
-                let hasPasswordField = html.contains("id=\"passwordInput\"") || html.contains("name=\"password\"")
-                completion(!hasPasswordField)
-            } catch {
-                completion(false)
-            }
+    func logout() async {
+        currentSession = nil
+        rwfHash = ""
+        networkClient.deleteCookies()
+        print("🔒 ログアウト完了: Cookieとセッションをクリアしました")
+    }
+
+    func validateSession() async throws -> Bool {
+        guard let session = currentSession, session.isValid else {
+            return false
+        }
+        do {
+            let html = try await networkClient.fetchHTML(from: "\(networkClient.baseURL)\(portalURL)?page=main")
+            let hasPasswordField = html.contains("id=\"passwordInput\"") || html.contains("name=\"password\"")
+            return !hasPasswordField
+        } catch {
+            // HTTPエラー（401/403等）や通信エラーはセッション無効とみなす
+            return false
         }
     }
 
     // MARK: - お知らせ
 
     func fetchAnnouncements() async throws -> [NoticeCard] {
+        try await executeWithAutoRelogin {
+            try await self._fetchAnnouncements()
+        }
+    }
+    
+    private func _fetchAnnouncements() async throws -> [NoticeCard] {
         let urlString = "\(networkClient.baseURL)\(portalURL)?page=main"
         let mainHtml = try await networkClient.fetchHTML(from: urlString)
+
+        // セッション切れチェック
+        try validatePortalPage(mainHtml)
 
         guard let bulletinPath = CampusSquareParser.extractHref(from: mainHtml, withId: "menu-link-mf-164854") else {
             throw NSError(domain: "PortalClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "掲示板リンクが見つかりません"])
@@ -157,6 +225,18 @@ final class PortalClientImpl: PortalClientProtocol {
     }
 
     func fetchNoticeAttachments(for notice: NoticeCard) async throws -> [NoticeAttachment] {
+        try await executeWithAutoRelogin {
+            try await self._fetchNoticeAttachments(for: notice)
+        }
+    }
+    
+    func resolveNoticeDetailURL(for notice: NoticeCard) async throws -> URL? {
+        try await executeWithAutoRelogin {
+            try await self._resolveNoticeDetailURL(for: notice)
+        }
+    }
+    
+    private func _fetchNoticeAttachments(for notice: NoticeCard) async throws -> [NoticeAttachment] {
         guard let path = notice.url, !path.isEmpty else {
             return []
         }
@@ -185,6 +265,12 @@ final class PortalClientImpl: PortalClientProtocol {
     }
 
     func fetchTimetable(monthOffsets: [Int]) async throws -> [Course] {
+        try await executeWithAutoRelogin {
+            try await self._fetchTimetable(monthOffsets: monthOffsets)
+        }
+    }
+    
+    private func _fetchTimetable(monthOffsets: [Int]) async throws -> [Course] {
         print("🌐 [Portal] fetchTimetable 開始: メインページ取得中...")
         let mainURL = "\(networkClient.baseURL)\(portalURL)?page=main"
         let mainHtml = try await networkClient.fetchHTML(from: mainURL)
@@ -226,9 +312,18 @@ final class PortalClientImpl: PortalClientProtocol {
     }
 
     func fetchWeeklyTimetable(semester: TimetableSemester) async throws -> [Course] {
+        try await executeWithAutoRelogin {
+            try await self._fetchWeeklyTimetable(semester: semester)
+        }
+    }
+    
+    private func _fetchWeeklyTimetable(semester: TimetableSemester) async throws -> [Course] {
         print("🌐 [Portal] fetchWeeklyTimetable(\(semester.displayName)) 開始")
         let mainURL = "\(networkClient.baseURL)\(portalURL)?page=main"
         let mainHtml = try await networkClient.fetchHTML(from: mainURL)
+        
+        // セッション切れチェック
+        try validatePortalPage(mainHtml)
 
         guard let rswPath = CampusSquareParser.extractHref(from: mainHtml, withId: "menu-link-mf-164915") else {
             print("❌ [Portal] 履修登録リンク(menu-link-mf-164915)が見つかりません。")
@@ -256,14 +351,12 @@ final class PortalClientImpl: PortalClientProtocol {
 
     // MARK: - レガシーサポート
 
-    func fetchOshirase(completion: @escaping (Bool) -> Void) {
-        Task {
-            do {
-                _ = try await fetchAnnouncements()
-                completion(true)
-            } catch {
-                completion(false)
-            }
+    func fetchOshirase() async -> Bool {
+        do {
+            _ = try await fetchAnnouncements()
+            return true
+        } catch {
+            return false
         }
     }
 }
@@ -343,6 +436,14 @@ private extension PortalClientImpl {
 
         let detailURL = absolutePortalURLString(from: detailHref)
         return (detailURL, genreURL)
+    }
+    
+    private func _resolveNoticeDetailURL(for notice: NoticeCard) async throws -> URL? {
+        let mainURL = "\(networkClient.baseURL)\(portalURL)?page=main"
+        guard let freshDetail = try await resolveFreshNoticeDetailURL(for: notice, mainURL: mainURL) else {
+            return nil
+        }
+        return URL(string: freshDetail.url)
     }
 
     func extractNoticeDetailHref(from html: String, keijitype: String, genrecd: String, seqNo: String) -> String? {

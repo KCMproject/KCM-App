@@ -24,35 +24,44 @@ final class LoginViewModel: ObservableObject {
         login(studentID: studentID, password: password, automatic: false)
     }
 
+    /// アプリ起動時に呼ばれる。既存セッションを破棄し、自動ログイン設定に応じて分岐する。
     func checkSession() {
-        portalClient.validateSession { [weak self] isValid in
-            guard let self = self else { return }
-            DispatchQueue.main.async {
-                self.isLoggedIn = isValid
-                if isValid {
-                    self.shouldShowCachedPortal = true
-                    Task {
-                        PortalDataCoordinator.shared.loadCachedData()
-                        await PortalDataCoordinator.shared.refreshAll(showUpdateBanner: true)
-                    }
-                } else {
-                    self.tryAutomaticLoginIfNeeded()
-                }
+        Task {
+            // 1. 既存セッションを明示的に破棄（Cookieクリア）
+            await portalClient.logout()
+            isLoggedIn = false
+
+            // 2. キャッシュデータを読み込み
+            PortalDataCoordinator.shared.loadCachedData()
+
+            // 3. 自動ログイン設定がONで資格情報が保存されている場合、裏でログイン
+            if isPasswordAutofillEnabled, let credentials = credentialsStore.load() {
+                // 自動ログインON：キャッシュを表示しつつ裏でログイン
+                shouldShowCachedPortal = PortalDataCoordinator.shared.hasCachedContent
+                isLoading = true
+                studentID = credentials.studentID
+                password = credentials.password
+                login(studentID: credentials.studentID, password: credentials.password, automatic: true)
+            } else {
+                // 自動ログインOFF：ログイン画面を表示
+                shouldShowCachedPortal = false
             }
         }
     }
 
-    func logout() {
-        portalClient.logout { [weak self] success in
-            guard let self = self else { return }
-            DispatchQueue.main.async {
-                if success {
-                    self.password = ""
-                    self.isLoggedIn = false
-                    self.shouldShowCachedPortal = false
-                }
-            }
-        }
+    func logout() async {
+        await portalClient.logout()
+        password = ""
+        isLoggedIn = false
+        shouldShowCachedPortal = false
+    }
+
+    /// セッションをクリアする（デバッグ用）
+    func clearSession() async {
+        await portalClient.logout()
+        isLoggedIn = false
+        print("🔑 [Debug] セッションをクリアしました。次のリクエストで再ログインが必要です。")
+        AppBannerCenter.shared.show("セッションをクリアしました")
     }
 
     var isPasswordAutofillEnabled: Bool {
@@ -104,31 +113,19 @@ final class LoginViewModel: ObservableObject {
                     self.persistCredentialsIfNeeded()
 
                     Task {
-                        PortalDataCoordinator.shared.loadCachedData()
                         await PortalDataCoordinator.shared.refreshAll(showUpdateBanner: true)
                     }
                 case .failure(let error):
                     if automatic {
-                        self.shouldShowCachedPortal = false
-                    }
-                    if !automatic {
+                        // 自動ログイン失敗時はキャッシュ表示を維持し、静かに失敗
+                        self.shouldShowCachedPortal = true
+                        print("⚠️ 自動ログイン失敗: \(error.errorDescription ?? "不明なエラー")")
+                    } else {
                         self.errorMessage = error.errorDescription
                     }
                 }
             }
         }
-    }
-
-    private func tryAutomaticLoginIfNeeded() {
-        guard isPasswordAutofillEnabled,
-              let credentials = credentialsStore.load() else {
-            return
-        }
-
-        shouldShowCachedPortal = PortalDataCoordinator.shared.hasCachedContent
-        studentID = credentials.studentID
-        password = credentials.password
-        login(studentID: credentials.studentID, password: credentials.password, automatic: true)
     }
 
     private func persistCredentialsIfNeeded() {

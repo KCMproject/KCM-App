@@ -124,6 +124,11 @@ struct AccountProfileCloneView: View {
                     }),
                     .link("shield", Color.green, "プライバシー設定", "学内データのみ扱います", {}),
                     .link("info.circle", AppTheme.textSoft, "アプリについて", "v1.0.0", {}),
+                    .link("xmark.shield", Color.orange.opacity(0.8), "セッションをクリア", "デバッグ用: Cookieとセッションを削除します", {
+                        Task {
+                            await loginViewModel.clearSession()
+                        }
+                    }),
                     .link("rectangle.portrait.and.arrow.right", AppTheme.danger.opacity(0.8), "ログアウト", nil, onLogout)
                 ]
             )
