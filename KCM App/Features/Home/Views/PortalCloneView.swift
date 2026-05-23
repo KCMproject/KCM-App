@@ -26,6 +26,8 @@ struct PortalCloneView: View {
         return normalizedTabConfig(defaultTabs)
     }
 
+    @State private var hasRefreshedOneYear = false
+
     var body: some View {
         VStack(spacing: 0) {
             TabView(selection: $selectedTab) {
@@ -37,6 +39,14 @@ struct PortalCloneView: View {
             .tabViewStyle(.page(indexDisplayMode: .never))
 
             customTabBar
+        }
+        .onAppear {
+            if !hasRefreshedOneYear {
+                hasRefreshedOneYear = true
+                Task {
+                    await PortalDataCoordinator.shared.refreshScheduleForOneYear(showUpdateBanner: true)
+                }
+            }
         }
     }
 

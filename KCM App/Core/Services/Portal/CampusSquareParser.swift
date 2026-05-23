@@ -238,6 +238,61 @@ enum CampusSquareParser {
         return results
     }
 
+    /// 集中講義テーブルのパース (rishu-etc)
+    static func parseIntensiveCoursesFromRSW(from html: String) -> [IntensiveCourseCard] {
+        print("🕵️ [Parser] parseIntensiveCoursesFromRSW 開始")
+        guard let tableHtml = findTagWithClass("table", className: "rishu-etc", in: html) else {
+            print("❌ [Parser] table.rishu-etc が見つかりません")
+            return []
+        }
+
+        let tbodyInner = extractInnerOfFirstTag(tag: "tbody", from: tableHtml) ?? tableHtml
+        let rows = extractDirectChildTags(tag: "tr", in: tbodyInner)
+        var results: [IntensiveCourseCard] = []
+
+        for rowHtml in rows {
+            // ヘッダー行（thを含む、または「曜日」「開講科目名」などのヘッダテキストを含む）をスキップ
+            if rowHtml.contains("<th") || rowHtml.contains("曜日") || rowHtml.contains("開講科目名") {
+                continue
+            }
+
+            let tds = extractDirectChildTags(tag: "td", in: rowHtml)
+            guard tds.count >= 5 else { continue }
+
+            let cells = tds.map { stripHtmlTags(from: stripOuterTag(tag: "td", from: $0)) }
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+            // cells: [曜日, 時限, コード, 科目名, 教員名, 単位, 教室]
+            let title = cells[safe: 3] ?? ""
+            let instructor = cells[safe: 4] ?? ""
+            let room = cells[safe: 6] ?? ""
+            let day = cells[safe: 0] ?? ""
+            let period = cells[safe: 1] ?? ""
+
+            guard !title.isEmpty else { continue }
+
+            // 曜日と時限が両方「その他」の場合は空文字（表示しない）、そうでなければ「曜日 時限」
+            let displayPeriod: String
+            if day == "その他" && period == "その他" {
+                displayPeriod = ""
+            } else if !day.isEmpty && !period.isEmpty {
+                displayPeriod = "\(day) \(period)"
+            } else {
+                displayPeriod = ""
+            }
+
+            results.append(IntensiveCourseCard(
+                title: title,
+                period: displayPeriod,
+                location: room,
+                instructor: instructor
+            ))
+        }
+
+        print("🕵️ [Parser] 集中講義 \(results.count) 件を抽出")
+        return results
+    }
+
     /// スケジュール管理（カレンダー形式）のパース
     static func parseSchedule(from html: String) -> [Course] {
         print("🕵️ [Parser] parseSchedule 開始")

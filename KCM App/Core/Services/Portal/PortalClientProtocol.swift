@@ -45,4 +45,7 @@ protocol PortalClientProtocol: AnyObject {
     /// 週間時間割（グリッド形式）を取得する
     func fetchWeeklyTimetable() async throws -> [Course]
     func fetchWeeklyTimetable(semester: TimetableSemester) async throws -> [Course]
+
+    /// 週間時間割ページの生HTMLを取得する（集中講義パース用）
+    func fetchWeeklyTimetableHTML(semester: TimetableSemester) async throws -> String
 }

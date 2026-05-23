@@ -10,9 +10,7 @@ struct TodayTimelineView: View {
     @State private var weekPageOffset = 0
     @State private var isSyncingWeekPage = false
     @State private var showingCalendar = false
-    @State private var showingRefreshOptions = false
     @State private var calendarMonth = Date()
-    @State private var refreshThroughDate = Date()
     @State private var transitionDirection: TransitionDirection = .none
     @AppStorage(AppSettings.tapToSwitchDayEnabled) private var tapToSwitchDayEnabled = true
     let onToggle: () -> Void
@@ -131,18 +129,6 @@ struct TodayTimelineView: View {
         .onAppear {
             syncWeekPage(with: selectedDate)
         }
-        .sheet(isPresented: $showingRefreshOptions) {
-            ScheduleRefreshOptionsSheet(
-                selectedDate: $refreshThroughDate,
-                range: today...maxRefreshDate
-            ) { targetDate in
-                showingRefreshOptions = false
-                Task {
-                    await PortalDataCoordinator.shared.refreshSchedule(through: targetDate, showUpdateBanner: true)
-                }
-            }
-            .presentationDetents([.height(430)])
-        }
     }
 
     private func timelinePage(for date: Date) -> some View {
@@ -166,10 +152,6 @@ struct TodayTimelineView: View {
 
     private var today: Date {
         calendar.startOfDay(for: Date())
-    }
-
-    private var maxRefreshDate: Date {
-        calendar.date(byAdding: .year, value: 1, to: today) ?? today
     }
 
     private var weekOffsetRange: ClosedRange<Int> {
@@ -220,19 +202,6 @@ struct TodayTimelineView: View {
                 .overlay(Capsule().stroke(AppTheme.grayBorder, lineWidth: 1))
 
                 Spacer()
-
-                Button {
-                    refreshThroughDate = min(max(selectedDate, today), maxRefreshDate)
-                    showingRefreshOptions = true
-                } label: {
-                    Label("更新オプション", systemImage: "arrow.clockwise.circle")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(AppTheme.accent)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(Capsule().fill(AppTheme.accent.opacity(0.10)))
-                }
-                .buttonStyle(.plain)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
@@ -521,7 +490,7 @@ struct TodayTimelineView: View {
         }
         .background(AppTheme.pageBackground)
         .refreshable {
-            await PortalDataCoordinator.shared.refreshSchedule(showUpdateBanner: true)
+            await PortalDataCoordinator.shared.refreshScheduleForOneYear(showUpdateBanner: true)
         }
     }
 
@@ -762,81 +731,6 @@ private struct CalendarPickerView: View {
             return .white
         }
         return AppTheme.textPrimary
-    }
-}
-
-private struct ScheduleRefreshOptionsSheet: View {
-    @Binding var selectedDate: Date
-    let range: ClosedRange<Date>
-    let onRefresh: (Date) -> Void
-
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .center) {
-                Text("更新オプション")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundStyle(AppTheme.textPrimary)
-
-                Spacer()
-
-                Button("閉じる") {
-                    dismiss()
-                }
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(AppTheme.textMuted)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(Capsule().fill(AppTheme.grayPill))
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 18)
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("この日まで読み込む")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(AppTheme.textPrimary)
-                Text("通常のスクロール更新では、今月と翌月までを更新します")
-                    .font(.system(size: 13))
-                    .foregroundStyle(AppTheme.textMuted)
-                Text("長期の取得は時間がかかるおそれがあります")
-                    .font(.system(size: 13))
-                    .foregroundStyle(AppTheme.textMuted)
-            }
-            .padding(.horizontal, 20)
-
-            DatePicker(
-                "読み込み終了日",
-                selection: $selectedDate,
-                in: range,
-                displayedComponents: .date
-            )
-            .datePickerStyle(.wheel)
-            .labelsHidden()
-            .frame(maxWidth: .infinity)
-            .frame(height: 150)
-            .clipped()
-            .padding(.horizontal, 12)
-
-            Button {
-                onRefresh(selectedDate)
-            } label: {
-                Text("指定期間を更新")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(AppTheme.accent)
-                    )
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 20)
-            .padding(.bottom, 16)
-        }
-        .background(AppTheme.pageBackground)
     }
 }
 

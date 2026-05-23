@@ -65,15 +65,11 @@ final class LoginViewModel: ObservableObject {
     }
 
     var isPasswordAutofillEnabled: Bool {
-        defaults.bool(forKey: AppSettings.passwordAutofillEnabled)
+        true
     }
 
     func loadSavedCredentials() -> SavedCredentials? {
         credentialsStore.load()
-    }
-
-    func setPasswordAutofillEnabled(_ enabled: Bool) {
-        defaults.set(enabled, forKey: AppSettings.passwordAutofillEnabled)
     }
 
     func saveCredentials(studentID: String, password: String) {

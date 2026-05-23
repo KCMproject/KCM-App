@@ -64,12 +64,20 @@ struct ClassCell: Equatable {
     }
 }
 
-struct IntensiveCourseCard: Identifiable {
-    let id = UUID()
+struct IntensiveCourseCard: Identifiable, Codable, Equatable {
+    let id: UUID
     let title: String
     let period: String
     let location: String
     let instructor: String
+
+    init(title: String, period: String, location: String, instructor: String) {
+        self.id = UUID()
+        self.title = title
+        self.period = period
+        self.location = location
+        self.instructor = instructor
+    }
 }
 
 struct LessonCard: Identifiable {

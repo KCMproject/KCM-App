@@ -11,7 +11,7 @@ struct AccountProfileCloneView: View {
     @AppStorage(AppSettings.pushNotificationsEnabled) private var pushEnabled = true
     @AppStorage(AppSettings.reminderEnabled) private var reminderEnabled = true
     @AppStorage(AppSettings.darkModeEnabled) private var darkEnabled = false
-    @AppStorage(AppSettings.passwordAutofillEnabled) private var passwordAutofillEnabled = false
+
     @AppStorage(AppSettings.tabBarConfiguration) private var tabBarData: Data = Data()
     @State private var tabOrder: [TabOrderItem] = []
     @StateObject private var loginViewModel = LoginViewModel.shared
@@ -41,7 +41,7 @@ struct AccountProfileCloneView: View {
         .sheet(isPresented: $showingPasswordManager) {
             PasswordManagementView(
                 initialCredentials: loginViewModel.loadSavedCredentials(),
-                isAutofillEnabled: passwordAutofillEnabled
+                isAutofillEnabled: true
             ) { studentID, password in
                 loginViewModel.saveCredentials(studentID: studentID, password: password)
             }
@@ -116,7 +116,6 @@ struct AccountProfileCloneView: View {
             settingsSection(
                 title: "アカウント",
                 rows: [
-                    .toggle("key.fill", AppTheme.accent, "パスワード自動入力", "起動時に保存済みログイン情報で更新します", bindingForPasswordAutofill),
                     .link("lock.shield", Color.orange, "パスワード管理", "保存済みログイン情報を編集", {
                         Task {
                             await authenticateForPasswordManagement()
@@ -124,6 +123,11 @@ struct AccountProfileCloneView: View {
                     }),
                     .link("shield", Color.green, "プライバシー設定", "学内データのみ扱います", {}),
                     .link("info.circle", AppTheme.textSoft, "アプリについて", "v1.0.0", {}),
+                    .link("exclamationmark.bubble", AppTheme.accent, "アプリへのご意見", "フィードバックを送る", {
+                        if let url = URL(string: "https://docs.google.com/forms/d/e/1FAIpQLSeRo82PhT8RFdF0JVs5NUu0zNqalONR8n_vwnakIptR8n7YIA/viewform?usp=publish-editor") {
+                            UIApplication.shared.open(url)
+                        }
+                    }),
                     .link("xmark.shield", Color.orange.opacity(0.8), "セッションをクリア", "デバッグ用: Cookieとセッションを削除します", {
                         Task {
                             await loginViewModel.clearSession()
@@ -136,22 +140,6 @@ struct AccountProfileCloneView: View {
         .padding(.horizontal, 16)
         .padding(.top, 16)
         .padding(.bottom, 32)
-    }
-
-    private var bindingForPasswordAutofill: Binding<Bool> {
-        Binding(
-            get: { passwordAutofillEnabled },
-            set: { newValue in
-                if newValue {
-                    Task {
-                        await authenticateAndEnablePasswordAutofill()
-                    }
-                } else {
-                    passwordAutofillEnabled = false
-                    loginViewModel.setPasswordAutofillEnabled(false)
-                }
-            }
-        )
     }
 
     private var authenticationAlertBinding: Binding<Bool> {
@@ -229,7 +217,9 @@ struct AccountProfileCloneView: View {
 
             if !rows.isEmpty {
                 VStack(spacing: 0) {
-                    ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                    switch row.kind {
+                    case .toggle(let binding):
                         HStack(spacing: 12) {
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
                                 .fill(AppTheme.grayPill)
@@ -252,28 +242,52 @@ struct AccountProfileCloneView: View {
 
                             Spacer()
 
-                            switch row.kind {
-                            case .toggle(let binding):
-                                Toggle("", isOn: binding)
-                                    .labelsHidden()
-                                    .tint(AppTheme.accent)
-                            case .link(let action):
-                                Button(action: action) {
-                                    Image(systemName: "chevron.right")
-                                        .foregroundStyle(Color.gray.opacity(0.5))
-                                }
-                                .buttonStyle(.plain)
-                            }
+                            Toggle("", isOn: binding)
+                                .labelsHidden()
+                                .tint(AppTheme.accent)
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 14)
 
-                        if index < rows.count - 1 {
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.12))
-                                .frame(height: 1)
+                    case .link(let action):
+                        Button(action: action) {
+                            HStack(spacing: 12) {
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(AppTheme.grayPill)
+                                    .frame(width: 32, height: 32)
+                                    .overlay {
+                                        Image(systemName: row.icon)
+                                            .foregroundStyle(row.color)
+                                    }
+
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(row.title)
+                                        .font(.system(size: 14))
+                                        .foregroundStyle(AppTheme.textPrimary)
+                                    if let subtitle = row.subtitle {
+                                        Text(subtitle)
+                                            .font(.system(size: 12))
+                                            .foregroundStyle(AppTheme.textMuted)
+                                    }
+                                }
+
+                                Spacer()
+
+                                Image(systemName: "chevron.right")
+                                    .foregroundStyle(Color.gray.opacity(0.5))
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 14)
                         }
+                        .buttonStyle(.plain)
                     }
+
+                    if index < rows.count - 1 {
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.12))
+                            .frame(height: 1)
+                    }
+                }
                 }
                 .background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
@@ -296,19 +310,6 @@ struct AccountProfileCloneView: View {
 
         let filtered = decoded.filter { $0.id != "account" }
         tabOrder = filtered.isEmpty ? defaultTabOrder : filtered
-    }
-
-    private func authenticateAndEnablePasswordAutofill() async {
-        do {
-            try await DeviceAuthenticationManager.shared.authenticate(
-                reason: "パスワード自動入力を有効にします"
-            )
-            passwordAutofillEnabled = true
-            loginViewModel.setPasswordAutofillEnabled(true)
-        } catch {
-            passwordAutofillEnabled = false
-            authenticationErrorMessage = authenticationMessage(for: error)
-        }
     }
 
     private func authenticateForPasswordManagement() async {

@@ -201,7 +201,30 @@ struct WeeklyTimetableCloneView: View {
                             .padding(.vertical, 4)
                         }
 
-                        // ... (レッスン等・集中講義セクション remains similar, but use empty arrays if not implemented yet)
+                        // 集中講義セクション
+                        if !viewModel.intensiveCourses.isEmpty {
+                            VStack(spacing: 12) {
+                                // セクションタイトル（左右に線）
+                                HStack(spacing: 12) {
+                                    Rectangle()
+                                        .fill(AppTheme.border)
+                                        .frame(height: 1)
+                                    Text("集中講義")
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundStyle(AppTheme.textMuted)
+                                    Rectangle()
+                                        .fill(AppTheme.border)
+                                        .frame(height: 1)
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.top, 16)
+
+                                ForEach(viewModel.intensiveCourses) { course in
+                                    IntensiveCourseRow(course: course)
+                                }
+                            }
+                            .padding(.bottom, 24)
+                        }
                     }
                 }
                 .refreshable {
@@ -421,9 +444,11 @@ private struct IntensiveCourseRow: View {
       Text(course.title)
         .font(.system(size: 14, weight: .semibold))
         .foregroundStyle(AppTheme.textPrimary)
-      Text(course.period)
-        .font(.system(size: 12))
-        .foregroundStyle(AppTheme.textBlue)
+      if !course.period.isEmpty {
+        Text(course.period)
+          .font(.system(size: 12))
+          .foregroundStyle(AppTheme.textBlue)
+      }
       Text("\(course.location) \(course.instructor)")
         .font(.system(size: 12))
         .foregroundStyle(AppTheme.textMuted)

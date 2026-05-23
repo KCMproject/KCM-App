@@ -12,6 +12,7 @@ private enum Key {
     static let courses = "portalCache.courses"
     static let scheduleMonthKeys = "portalCache.scheduleMonthKeys"
     static let weeklyCoursesPrefix = "portalCache.weeklyCourses."
+    static let intensiveCourses = "portalCache.intensiveCourses"
     static let notices = "portalCache.notices"
     static let noticeAttachments = "portalCache.noticeAttachments"
     static let favoriteNoticeIDs = "portalCache.favoriteNoticeIDs"
@@ -69,6 +70,19 @@ private enum Key {
     func saveWeeklyCourses(_ courses: [Course], for semester: TimetableSemester) {
         guard let data = try? encoder.encode(courses) else { return }
         defaults.set(data, forKey: weeklyCoursesKey(for: semester))
+    }
+
+    func loadIntensiveCourses() -> [IntensiveCourseCard] {
+        guard let data = defaults.data(forKey: Key.intensiveCourses),
+              let courses = try? decoder.decode([IntensiveCourseCard].self, from: data) else {
+            return []
+        }
+        return courses
+    }
+
+    func saveIntensiveCourses(_ courses: [IntensiveCourseCard]) {
+        guard let data = try? encoder.encode(courses) else { return }
+        defaults.set(data, forKey: Key.intensiveCourses)
     }
 
     func loadNotices() -> [NoticeCard] {
