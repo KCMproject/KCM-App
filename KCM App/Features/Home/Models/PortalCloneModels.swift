@@ -9,12 +9,13 @@ struct DayEvent: Identifiable {
     let location: String
     let classroomKey: String?
     let status: String
+    let isIntensive: Bool
 
     // 計算済み分数（パフォーマンス最適化）
     let startMinutes: Int
     let endMinutes: Int
 
-    init(title: String, startTime: String, endTime: String, location: String, status: String = "", classroomKey: String? = nil) {
+    init(title: String, startTime: String, endTime: String, location: String, status: String = "", classroomKey: String? = nil, isIntensive: Bool = false) {
         self.id = "\(title)|\(startTime)|\(endTime)|\(location)|\(status)"
         self.title = title
         self.startTime = startTime
@@ -22,8 +23,15 @@ struct DayEvent: Identifiable {
         self.location = location
         self.classroomKey = classroomKey
         self.status = status
-        self.startMinutes = Self.parseMinutes(startTime)
-        self.endMinutes = Self.parseMinutes(endTime)
+        self.isIntensive = isIntensive
+        self.startMinutes = DayEvent.minutes(from: startTime)
+        self.endMinutes = DayEvent.minutes(from: endTime)
+    }
+
+    private static func minutes(from time: String) -> Int {
+        let parts = time.split(separator: ":").compactMap { Int($0) }
+        guard parts.count == 2 else { return 0 }
+        return parts[0] * 60 + parts[1]
     }
 
     func layout(hourHeight: CGFloat, startHour: Int) -> (top: CGFloat, height: CGFloat) {
@@ -68,15 +76,21 @@ struct IntensiveCourseCard: Identifiable, Codable, Equatable {
     let id: UUID
     let title: String
     let period: String
-    let location: String
+    var location: String
     let instructor: String
+    var dates: [String]            // ["2025-08-04", ...] 手動入力された日程
+    var startTime: String?         // "09:00"
+    var endTime: String?           // "17:00"
 
-    init(title: String, period: String, location: String, instructor: String) {
+    init(title: String, period: String, location: String, instructor: String, dates: [String] = [], startTime: String? = nil, endTime: String? = nil) {
         self.id = UUID()
         self.title = title
         self.period = period
         self.location = location
         self.instructor = instructor
+        self.dates = dates
+        self.startTime = startTime
+        self.endTime = endTime
     }
 }
 

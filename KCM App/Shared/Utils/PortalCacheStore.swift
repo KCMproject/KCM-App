@@ -24,14 +24,20 @@ private enum Key {
     func loadCourses() -> [Course] {
         guard let data = defaults.data(forKey: Key.courses),
               let courses = try? decoder.decode([Course].self, from: data) else {
+            print("📦 [PortalCacheStore] loadCourses: キャッシュなし")
             return []
         }
+        print("📦 [PortalCacheStore] loadCourses: \(courses.count)件読み込み")
         return courses
     }
 
     func saveCourses(_ courses: [Course]) {
-        guard let data = try? encoder.encode(courses) else { return }
+        guard let data = try? encoder.encode(courses) else {
+            print("📦 [PortalCacheStore] saveCourses: エンコード失敗")
+            return
+        }
         defaults.set(data, forKey: Key.courses)
+        print("📦 [PortalCacheStore] saveCourses: \(courses.count)件保存")
     }
 
     func mergeAndSaveCourses(_ serverCourses: [Course]) -> [Course] {
@@ -222,6 +228,12 @@ func saveFavoriteNoticeIDs(_ ids: Set<String>) {
   }
 
   private func mergeCourses(cached: [Course], server: [Course], replacingMonthKeys monthKeys: Set<String>) -> [Course] {
+    // サーバーが空の場合はキャッシュを消さない（セッション切れ等で空配列が返る可能性があるため）
+    if server.isEmpty {
+      print("📦 [PortalCacheStore] mergeCourses: serverが空のためキャッシュを保持 (cached:\(cached.count)件)")
+      return cached
+    }
+    print("📦 [PortalCacheStore] mergeCourses: cached=\(cached.count), server=\(server.count), monthKeys=\(monthKeys)")
     var merged: [String: Course] = [:]
     let serverDates = Set(server.compactMap(\.dateString))
     for course in cached {

@@ -30,6 +30,7 @@ final class TimetableViewModel: ObservableObject {
         let cachedCourses = cacheStore.loadCourses()
         let cachedWeeklyCourses = cacheStore.loadWeeklyCourses(for: selectedSemester)
         let cachedIntensive = cacheStore.loadIntensiveCourses()
+        print("📊 [TimetableViewModel] loadCachedData: courses=\(cachedCourses.count), weekly=\(cachedWeeklyCourses.count), intensive=\(cachedIntensive.count)")
         if !cachedCourses.isEmpty {
             applyCourses(cachedCourses)
         }
@@ -123,12 +124,13 @@ final class TimetableViewModel: ObservableObject {
                 weeklySchedule = newWeeklySchedule
                 cacheStore.saveWeeklyCourses(fetchedWeeklyCourses, for: selectedSemester)
 
-                // 集中講義も同時に取得
+                // 集中講義も同時に取得（既存の手動日程は保持してマージ）
                 let weeklyHtml = try await portalClient.fetchWeeklyTimetableHTML(semester: selectedSemester)
-                let newIntensive = CampusSquareParser.parseIntensiveCoursesFromRSW(from: weeklyHtml)
-                didUpdate = didUpdate || newIntensive != intensiveCourses
-                intensiveCourses = newIntensive
-                cacheStore.saveIntensiveCourses(newIntensive)
+                let parsedIntensive = CampusSquareParser.parseIntensiveCoursesFromRSW(from: weeklyHtml)
+                let mergedIntensive = mergeIntensiveCourses(existing: intensiveCourses, parsed: parsedIntensive)
+                didUpdate = didUpdate || mergedIntensive != intensiveCourses
+                intensiveCourses = mergedIntensive
+                cacheStore.saveIntensiveCourses(mergedIntensive)
             }
 
             isLoading = false
@@ -256,6 +258,28 @@ final class TimetableViewModel: ObservableObject {
         print("📊 [TimetableViewModel] グリッド構築完了。土曜日の授業: \(hasSat ? "あり" : "なし")")
         
         return grid
+    }
+
+    /// 既存の手動日程を保持しつつ、パース結果とマージ
+    private func mergeIntensiveCourses(existing: [IntensiveCourseCard], parsed: [IntensiveCourseCard]) -> [IntensiveCourseCard] {
+        let existingByTitle = Dictionary(grouping: existing, by: \.title)
+        return parsed.map { parsedCourse in
+            guard let existingCourse = existingByTitle[parsedCourse.title]?.first else {
+                return parsedCourse
+            }
+            var merged = parsedCourse
+            // 手動入力した日程・時間は保持
+            if !existingCourse.dates.isEmpty {
+                merged.dates = existingCourse.dates
+            }
+            if let start = existingCourse.startTime {
+                merged.startTime = start
+            }
+            if let end = existingCourse.endTime {
+                merged.endTime = end
+            }
+            return merged
+        }
     }
 
     private func applyCourses(_ fetchedCourses: [Course]) {

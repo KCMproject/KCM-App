@@ -22,11 +22,13 @@ final class PortalDataCoordinator {
         }
 
         async let scheduleUpdated = TimetableViewModel.shared.refreshScheduleForOneYearFromServer()
+        async let weeklyUpdated = TimetableViewModel.shared.refreshWeeklyFromServer()
         async let noticesUpdated = NoticeBoardViewModel.shared.refreshFromServer()
 
         let didUpdateSchedule = await scheduleUpdated
+        let didUpdateWeekly = await weeklyUpdated
         let didUpdateNotices = await noticesUpdated
-        let didUpdate = didUpdateSchedule || didUpdateNotices
+        let didUpdate = didUpdateSchedule || didUpdateWeekly || didUpdateNotices
         if showUpdateBanner, didUpdate {
             AppBannerCenter.shared.show("最新データに更新しました")
         } else if showUpdateBanner {
