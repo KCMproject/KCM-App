@@ -275,7 +275,7 @@ final class PortalClientImpl: PortalClientProtocol {
         let mainURL = "\(networkClient.baseURL)\(portalURL)?page=main"
         let mainHtml = try await networkClient.fetchHTML(from: mainURL)
         print("✅ [Portal] メインページ取得成功 (サイズ: \(mainHtml.count))")
-        
+
         // セッションが切れていないか確認
         if mainHtml.contains("ログイン") && (mainHtml.contains("password") || mainHtml.contains("userName")) {
             print("❌ [Portal] セッション切れ。ログイン画面に戻っています。")
@@ -283,14 +283,38 @@ final class PortalClientImpl: PortalClientProtocol {
         }
 
         let uniqueOffsets = Array(Set(monthOffsets)).sorted()
+        let maxConcurrent = 5
         var results: [Course] = []
-        for offset in uniqueOffsets {
-            let html = try await fetchScheduleHTML(monthOffset: offset, referer: mainURL)
-            if !html.contains("schedule-calender") {
-                print("⚠️ [Portal] 警告: スケジュールグリッドが見つかりません。offset=\(offset)")
+
+        await withTaskGroup(of: [Course].self) { group in
+            var pending = 0
+            for offset in uniqueOffsets {
+                group.addTask {
+                    do {
+                        let html = try await self.fetchScheduleHTML(monthOffset: offset, referer: mainURL)
+                        if !html.contains("schedule-calender") {
+                            print("⚠️ [Portal] 警告: スケジュールグリッドが見つかりません。offset=\(offset)")
+                        }
+                        return await CampusSquareParser.parseSchedule(from: html)
+                    } catch {
+                        print("❌ [Portal] offset=\(offset) の取得に失敗: \(error.localizedDescription)")
+                        return []
+                    }
+                }
+                pending += 1
+                // 最大並列数に達したら、1つ完了するまで待機
+                if pending >= maxConcurrent {
+                    let courses = await group.next() ?? []
+                    results.append(contentsOf: courses)
+                    pending -= 1
+                }
             }
-            results.append(contentsOf: CampusSquareParser.parseSchedule(from: html))
+            // 残りを全て収集
+            for await courses in group {
+                results.append(contentsOf: courses)
+            }
         }
+
         print("🏁 [Portal] パース完了: \(results.count) 件のコースを返します")
         return results
     }
@@ -313,15 +337,22 @@ final class PortalClientImpl: PortalClientProtocol {
 
     func fetchWeeklyTimetable(semester: TimetableSemester) async throws -> [Course] {
         try await executeWithAutoRelogin {
-            try await self._fetchWeeklyTimetable(semester: semester)
+            let html = try await self._fetchWeeklyTimetableHTML(semester: semester)
+            return CampusSquareParser.parseWeeklyTimetableFromRSW(from: html)
         }
     }
-    
-    private func _fetchWeeklyTimetable(semester: TimetableSemester) async throws -> [Course] {
-        print("🌐 [Portal] fetchWeeklyTimetable(\(semester.displayName)) 開始")
+
+    func fetchWeeklyTimetableHTML(semester: TimetableSemester) async throws -> String {
+        try await executeWithAutoRelogin {
+            try await self._fetchWeeklyTimetableHTML(semester: semester)
+        }
+    }
+
+    private func _fetchWeeklyTimetableHTML(semester: TimetableSemester) async throws -> String {
+        print("🌐 [Portal] fetchWeeklyTimetableHTML(\(semester.displayName)) 開始")
         let mainURL = "\(networkClient.baseURL)\(portalURL)?page=main"
         let mainHtml = try await networkClient.fetchHTML(from: mainURL)
-        
+
         // セッション切れチェック
         try validatePortalPage(mainHtml)
 
@@ -346,7 +377,7 @@ final class PortalClientImpl: PortalClientProtocol {
             html = initialHtml
         }
 
-        return CampusSquareParser.parseWeeklyTimetableFromRSW(from: html)
+        return html
     }
 
     // MARK: - レガシーサポート

@@ -7,6 +7,7 @@ final class TimetableViewModel: ObservableObject {
     
     @Published var courses: [Course] = []
     @Published var weeklySchedule: [[ClassCell]] = Array(repeating: Array(repeating: .empty, count: 6), count: 6)
+    @Published var intensiveCourses: [IntensiveCourseCard] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var selectedSemester: TimetableSemester = .current
@@ -28,11 +29,16 @@ final class TimetableViewModel: ObservableObject {
     func loadCachedData() {
         let cachedCourses = cacheStore.loadCourses()
         let cachedWeeklyCourses = cacheStore.loadWeeklyCourses(for: selectedSemester)
+        let cachedIntensive = cacheStore.loadIntensiveCourses()
+        print("📊 [TimetableViewModel] loadCachedData: courses=\(cachedCourses.count), weekly=\(cachedWeeklyCourses.count), intensive=\(cachedIntensive.count)")
         if !cachedCourses.isEmpty {
             applyCourses(cachedCourses)
         }
         if !cachedWeeklyCourses.isEmpty {
             weeklySchedule = buildGrid(from: cachedWeeklyCourses)
+        }
+        if !cachedIntensive.isEmpty {
+            intensiveCourses = cachedIntensive
         }
     }
 
@@ -71,6 +77,10 @@ final class TimetableViewModel: ObservableObject {
         await refreshFromServer(scope: .scheduleMonths(scheduleMonthOffsets(through: targetDate)))
     }
 
+    func refreshScheduleForOneYearFromServer() async -> Bool {
+        await refreshFromServer(scope: .scheduleOneYear)
+    }
+
     func refreshWeeklyFromServer() async -> Bool {
         await refreshFromServer(scope: .weekly)
     }
@@ -84,7 +94,7 @@ final class TimetableViewModel: ObservableObject {
             var fetchedScheduleCourses: [Course] = []
 
             if scope.includesSchedule {
-                let scheduleMonthOffsets = scope.explicitScheduleMonthOffsets ?? scheduleMonthOffsetsToFetch()
+                let scheduleMonthOffsets = scope.explicitScheduleMonthOffsets ?? scheduleMonthOffsetsToFetch(forOneYear: scope.isOneYear)
                 let scheduleMonthKeys = Set(scheduleMonthOffsets.map { scheduleMonthKey(monthOffset: $0) })
                 let fetchedCourses = try await portalClient.fetchTimetable(monthOffsets: scheduleMonthOffsets)
                 fetchedScheduleCourses = fetchedCourses
@@ -113,6 +123,14 @@ final class TimetableViewModel: ObservableObject {
                 didUpdate = didUpdate || newWeeklySchedule != weeklySchedule
                 weeklySchedule = newWeeklySchedule
                 cacheStore.saveWeeklyCourses(fetchedWeeklyCourses, for: selectedSemester)
+
+                // 集中講義も同時に取得（既存の手動日程は保持してマージ）
+                let weeklyHtml = try await portalClient.fetchWeeklyTimetableHTML(semester: selectedSemester)
+                let parsedIntensive = CampusSquareParser.parseIntensiveCoursesFromRSW(from: weeklyHtml)
+                let mergedIntensive = mergeIntensiveCourses(existing: intensiveCourses, parsed: parsedIntensive)
+                didUpdate = didUpdate || mergedIntensive != intensiveCourses
+                intensiveCourses = mergedIntensive
+                cacheStore.saveIntensiveCourses(mergedIntensive)
             }
 
             isLoading = false
@@ -125,10 +143,14 @@ final class TimetableViewModel: ObservableObject {
         }
     }
 
-    private func scheduleMonthOffsetsToFetch() -> [Int] {
+    private func scheduleMonthOffsetsToFetch(forOneYear: Bool = false) -> [Int] {
         let loadedMonthKeys = cacheStore.loadScheduleMonthKeys()
-        return (0...2).filter { offset in
-            offset <= 1 || !loadedMonthKeys.contains(scheduleMonthKey(monthOffset: offset))
+        let maxOffset = forOneYear ? 12 : 2
+        let range = (0...maxOffset)
+        // 1年分更新の場合は毎回全月を読み直して、変更を見逃さない
+        guard !forOneYear else { return Array(range) }
+        return range.filter { offset in
+            !loadedMonthKeys.contains(scheduleMonthKey(monthOffset: offset))
         }
     }
 
@@ -160,12 +182,13 @@ final class TimetableViewModel: ObservableObject {
     private enum RefreshScope {
         case schedule
         case scheduleMonths([Int])
+        case scheduleOneYear
         case weekly
         case all
 
         var includesSchedule: Bool {
             switch self {
-            case .schedule, .scheduleMonths, .all:
+            case .schedule, .scheduleMonths, .scheduleOneYear, .all:
                 return true
             case .weekly:
                 return false
@@ -176,16 +199,25 @@ final class TimetableViewModel: ObservableObject {
             switch self {
             case .weekly, .all:
                 return true
-            case .schedule, .scheduleMonths:
+            case .schedule, .scheduleMonths, .scheduleOneYear:
                 return false
             }
         }
 
-        var explicitScheduleMonthOffsets: [Int]? {
-            if case let .scheduleMonths(offsets) = self {
-                return offsets
+        var isOneYear: Bool {
+            if case .scheduleOneYear = self {
+                return true
             }
-            return nil
+            return false
+        }
+
+        var explicitScheduleMonthOffsets: [Int]? {
+            switch self {
+            case .scheduleMonths(let offsets):
+                return offsets
+            default:
+                return nil
+            }
         }
     }
 
@@ -226,6 +258,28 @@ final class TimetableViewModel: ObservableObject {
         print("📊 [TimetableViewModel] グリッド構築完了。土曜日の授業: \(hasSat ? "あり" : "なし")")
         
         return grid
+    }
+
+    /// 既存の手動日程を保持しつつ、パース結果とマージ
+    private func mergeIntensiveCourses(existing: [IntensiveCourseCard], parsed: [IntensiveCourseCard]) -> [IntensiveCourseCard] {
+        let existingByTitle = Dictionary(grouping: existing, by: \.title)
+        return parsed.map { parsedCourse in
+            guard let existingCourse = existingByTitle[parsedCourse.title]?.first else {
+                return parsedCourse
+            }
+            var merged = parsedCourse
+            // 手動入力した日程・時間は保持
+            if !existingCourse.dates.isEmpty {
+                merged.dates = existingCourse.dates
+            }
+            if let start = existingCourse.startTime {
+                merged.startTime = start
+            }
+            if let end = existingCourse.endTime {
+                merged.endTime = end
+            }
+            return merged
+        }
     }
 
     private func applyCourses(_ fetchedCourses: [Course]) {

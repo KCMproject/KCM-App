@@ -10,9 +10,7 @@ struct TodayTimelineView: View {
     @State private var weekPageOffset = 0
     @State private var isSyncingWeekPage = false
     @State private var showingCalendar = false
-    @State private var showingRefreshOptions = false
     @State private var calendarMonth = Date()
-    @State private var refreshThroughDate = Date()
     @State private var transitionDirection: TransitionDirection = .none
     @AppStorage(AppSettings.tapToSwitchDayEnabled) private var tapToSwitchDayEnabled = true
     let onToggle: () -> Void
@@ -45,14 +43,15 @@ struct TodayTimelineView: View {
             .init(number: 6, start: "18:00", end: "19:30")
         ]
         
-        return viewModel.courses
+        var results: [DayEvent] = []
+        
+        // 通常授業
+        let regularEvents = viewModel.courses
             .filter { course in
                 guard !course.isScheduleNote else { return false }
                 if let courseDate = course.dateString {
-                    // 具体的な日付がある場合は日付で完全一致させる
                     return courseDate == dateString
                 } else {
-                    // 日付がない（週間時間割テンプレートなど）場合は曜日で判定
                     return course.weekday == weekday
                 }
             }
@@ -60,7 +59,6 @@ struct TodayTimelineView: View {
                 let p = course.period.split(separator: ",").compactMap { Int($0) }.first ?? Int(course.period) ?? 1
                 let classroomKey = weekdayIndex >= 0 ? "\(weekdayIndex)_\(p)_\(course.title)" : nil
 
-                // 個別の時間が取得できている場合はそれを優先する
                 if let start = course.startTime, let end = course.endTime {
                     return DayEvent(
                         title: course.title,
@@ -72,7 +70,6 @@ struct TodayTimelineView: View {
                     )
                 }
 
-                // 取得できていない場合は時限から推測
                 let start = periods[min(max(0, p-1), periods.count-1)].start
                 let end = periods[min(max(0, p-1), periods.count-1)].end
                 return DayEvent(
@@ -84,6 +81,25 @@ struct TodayTimelineView: View {
                     classroomKey: classroomKey
                 )
             }
+        results.append(contentsOf: regularEvents)
+        
+        // 集中講義（日程が入力されているもの）
+        let intensiveEvents = viewModel.intensiveCourses
+            .filter { $0.dates.contains(dateString) && !$0.dates.isEmpty }
+            .map { course in
+                DayEvent(
+                    title: course.title,
+                    startTime: course.startTime ?? "09:00",
+                    endTime: course.endTime ?? "17:00",
+                    location: course.location,
+                    status: "集中",
+                    classroomKey: nil,
+                    isIntensive: true
+                )
+            }
+        results.append(contentsOf: intensiveEvents)
+        
+        return results
     }
 
     private func scheduleNotes(for date: Date) -> [Course] {
@@ -130,18 +146,7 @@ struct TodayTimelineView: View {
         }
         .onAppear {
             syncWeekPage(with: selectedDate)
-        }
-        .sheet(isPresented: $showingRefreshOptions) {
-            ScheduleRefreshOptionsSheet(
-                selectedDate: $refreshThroughDate,
-                range: today...maxRefreshDate
-            ) { targetDate in
-                showingRefreshOptions = false
-                Task {
-                    await PortalDataCoordinator.shared.refreshSchedule(through: targetDate, showUpdateBanner: true)
-                }
-            }
-            .presentationDetents([.height(430)])
+            viewModel.loadCachedData()
         }
     }
 
@@ -166,10 +171,6 @@ struct TodayTimelineView: View {
 
     private var today: Date {
         calendar.startOfDay(for: Date())
-    }
-
-    private var maxRefreshDate: Date {
-        calendar.date(byAdding: .year, value: 1, to: today) ?? today
     }
 
     private var weekOffsetRange: ClosedRange<Int> {
@@ -220,19 +221,6 @@ struct TodayTimelineView: View {
                 .overlay(Capsule().stroke(AppTheme.grayBorder, lineWidth: 1))
 
                 Spacer()
-
-                Button {
-                    refreshThroughDate = min(max(selectedDate, today), maxRefreshDate)
-                    showingRefreshOptions = true
-                } label: {
-                    Label("更新オプション", systemImage: "arrow.clockwise.circle")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(AppTheme.accent)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(Capsule().fill(AppTheme.accent.opacity(0.10)))
-                }
-                .buttonStyle(.plain)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
@@ -434,7 +422,7 @@ struct TodayTimelineView: View {
                 }
 
                 GeometryReader { geo in
-                    let cardMaxWidth = geo.size.width - (sidePadding * 2)
+                    let cardMaxWidth = geo.size.width - (sidePadding * 2) - timeLabelWidth
                     let centerDeadZoneWidth: CGFloat = min(140, geo.size.width * 0.32)
                     let sideZoneWidth = max((geo.size.width - centerDeadZoneWidth) / 2, 0)
 
@@ -521,7 +509,7 @@ struct TodayTimelineView: View {
         }
         .background(AppTheme.pageBackground)
         .refreshable {
-            await PortalDataCoordinator.shared.refreshSchedule(showUpdateBanner: true)
+            await PortalDataCoordinator.shared.refreshScheduleForOneYear(showUpdateBanner: true)
         }
     }
 
@@ -765,81 +753,6 @@ private struct CalendarPickerView: View {
     }
 }
 
-private struct ScheduleRefreshOptionsSheet: View {
-    @Binding var selectedDate: Date
-    let range: ClosedRange<Date>
-    let onRefresh: (Date) -> Void
-
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .center) {
-                Text("更新オプション")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundStyle(AppTheme.textPrimary)
-
-                Spacer()
-
-                Button("閉じる") {
-                    dismiss()
-                }
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(AppTheme.textMuted)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(Capsule().fill(AppTheme.grayPill))
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 18)
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("この日まで読み込む")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(AppTheme.textPrimary)
-                Text("通常のスクロール更新では、今月と翌月までを更新します")
-                    .font(.system(size: 13))
-                    .foregroundStyle(AppTheme.textMuted)
-                Text("長期の取得は時間がかかるおそれがあります")
-                    .font(.system(size: 13))
-                    .foregroundStyle(AppTheme.textMuted)
-            }
-            .padding(.horizontal, 20)
-
-            DatePicker(
-                "読み込み終了日",
-                selection: $selectedDate,
-                in: range,
-                displayedComponents: .date
-            )
-            .datePickerStyle(.wheel)
-            .labelsHidden()
-            .frame(maxWidth: .infinity)
-            .frame(height: 150)
-            .clipped()
-            .padding(.horizontal, 12)
-
-            Button {
-                onRefresh(selectedDate)
-            } label: {
-                Text("指定期間を更新")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(AppTheme.accent)
-                    )
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 20)
-            .padding(.bottom, 16)
-        }
-        .background(AppTheme.pageBackground)
-    }
-}
-
 private struct ScheduleNotesBanner: View {
     let notes: [Course]
 
@@ -942,96 +855,145 @@ private struct EventCardsView: View {
     }
 
     var body: some View {
-        ForEach(events) { event in
-            let layout = event.layout(hourHeight: hourHeight, startHour: startHour)
-            let isCancelled = event.status == "休講"
-            let isSupplementary = event.status == "補講"
-            let statusColor = isCancelled ? Color.red : (isSupplementary ? Color.blue : AppTheme.accent)
-            let cardBg = isCancelled ? Color.red.opacity(0.1) : (isSupplementary ? Color.blue.opacity(0.1) : Color.white.opacity(0.7))
-            let cardBorder = isCancelled ? Color.red.opacity(0.5) : (isSupplementary ? Color.blue.opacity(0.5) : AppTheme.blueCardBorder)
-            let isCompact = layout.height < 48
+        let grouped = groupOverlappingEvents(events)
+        
+        ForEach(Array(grouped.enumerated()), id: \.offset) { groupIndex, group in
+            // すべての重複イベントを重ねて表示
+            ForEach(Array(group.enumerated()), id: \.element.id) { index, event in
+                eventCard(
+                    for: event,
+                    width: cardMaxWidth,
+                    xOffset: timeLabelWidth + CGFloat(index) * 6,
+                    opacity: index == 0 ? 1.0 : 0.85
+                )
+            }
+        }
+        .id(date)
+        .transition(.move(edge: .trailing))
+        .animation(.easeInOut(duration: 0.25), value: date)
+        .onAppear {
+            loadClassroomURLs()
+        }
+        .sheet(item: $webDestination) { destination in
+            CampusWebSheet(destination: destination, presentedDestination: $webDestination)
+        }
+    }
+    
+    private func groupOverlappingEvents(_ events: [DayEvent]) -> [[DayEvent]] {
+        var groups: [[DayEvent]] = []
+        var currentGroup: [DayEvent] = []
+        
+        for event in events.sorted(by: { $0.startMinutes < $1.startMinutes }) {
+            if let last = currentGroup.last {
+                // 前のイベントと時間が重なるかチェック
+                if event.startMinutes < last.endMinutes {
+                    currentGroup.append(event)
+                } else {
+                    groups.append(currentGroup)
+                    currentGroup = [event]
+                }
+            } else {
+                currentGroup.append(event)
+            }
+        }
+        if !currentGroup.isEmpty {
+            groups.append(currentGroup)
+        }
+        return groups
+    }
+    
+    private func eventCard(for event: DayEvent, width: CGFloat, xOffset: CGFloat, opacity: Double = 1.0) -> some View {
+        let layout = event.layout(hourHeight: hourHeight, startHour: startHour)
+        let isCancelled = event.status == "休講"
+        let isSupplementary = event.status == "補講"
+        let isIntensive = event.isIntensive
+        let statusColor = isCancelled ? Color.red : (isSupplementary ? Color.blue : (isIntensive ? Color.orange : AppTheme.accent))
+        let cardBg = isCancelled ? Color.red.opacity(0.1) : (isSupplementary ? Color.blue.opacity(0.1) : (isIntensive ? Color.orange.opacity(0.1) : Color.white.opacity(0.7)))
+        let cardBorder = isCancelled ? Color.red.opacity(0.5) : (isSupplementary ? Color.blue.opacity(0.5) : (isIntensive ? Color.orange.opacity(0.5) : AppTheme.blueCardBorder))
+        let isCompact = layout.height < 48
 
-            Group {
-                if isCompact {
-                    HStack(spacing: 6) {
+        return Group {
+            if isCompact {
+                HStack(spacing: 6) {
+                    Text(event.title)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(isCancelled ? .red : AppTheme.textPrimary)
+                        .lineLimit(1)
+
+                    Text("\(event.startTime)-\(event.endTime)")
+                        .font(.system(size: 11))
+                        .foregroundStyle(isSupplementary ? .blue : (isCancelled ? .red.opacity(0.8) : AppTheme.textBlue))
+                        .lineLimit(1)
+
+                    if !event.location.isEmpty {
+                        Text(event.location)
+                            .font(.system(size: 11))
+                            .foregroundStyle(AppTheme.textMuted)
+                            .lineLimit(1)
+                    }
+
+                    Spacer(minLength: 0)
+
+                    if !event.status.isEmpty {
+                        Text(event.status)
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(statusColor)
+                            .cornerRadius(4)
+                    }
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+            } else {
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(alignment: .top) {
                         Text(event.title)
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.system(size: 14, weight: .semibold))
                             .foregroundStyle(isCancelled ? .red : AppTheme.textPrimary)
                             .lineLimit(1)
 
-                        Text("\(event.startTime)-\(event.endTime)")
-                            .font(.system(size: 11))
-                            .foregroundStyle(isSupplementary ? .blue : (isCancelled ? .red.opacity(0.8) : AppTheme.textBlue))
-                            .lineLimit(1)
-
-                        if !event.location.isEmpty {
-                            Text(event.location)
-                                .font(.system(size: 11))
-                                .foregroundStyle(AppTheme.textMuted)
-                                .lineLimit(1)
-                        }
-
-                        Spacer(minLength: 0)
+                        Spacer()
 
                         if !event.status.isEmpty {
                             Text(event.status)
-                                .font(.system(size: 9, weight: .bold))
+                                .font(.system(size: 10, weight: .bold))
                                 .foregroundStyle(.white)
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 1)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
                                 .background(statusColor)
                                 .cornerRadius(4)
                         }
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                } else {
-                    VStack(alignment: .leading, spacing: 3) {
-                        HStack(alignment: .top) {
-                            Text(event.title)
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(isCancelled ? .red : AppTheme.textPrimary)
-                                .lineLimit(1)
 
-                            Spacer()
+                    Text("\(event.startTime) - \(event.endTime)")
+                        .font(.system(size: 12))
+                        .foregroundStyle(isSupplementary ? .blue : (isCancelled ? .red.opacity(0.8) : AppTheme.textBlue))
 
-                            if !event.status.isEmpty {
-                                Text(event.status)
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(statusColor)
-                                    .cornerRadius(4)
-                            }
-                        }
-
-                        Text("\(event.startTime) - \(event.endTime)")
+                    if !event.location.isEmpty {
+                        Text(event.location)
                             .font(.system(size: 12))
-                            .foregroundStyle(isSupplementary ? .blue : (isCancelled ? .red.opacity(0.8) : AppTheme.textBlue))
-
-                        if !event.location.isEmpty {
-                            Text(event.location)
-                                .font(.system(size: 12))
-                                .foregroundStyle(AppTheme.textMuted)
-                                .lineLimit(1)
-                        }
+                            .foregroundStyle(AppTheme.textMuted)
+                            .lineLimit(1)
                     }
-                    .padding(8)
                 }
+                .padding(8)
             }
-            .frame(width: cardMaxWidth, height: layout.height, alignment: .topLeading)
-            .clipped()
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(cardBg)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(cardBorder, lineWidth: 1.5)
-            )
-            .shadow(color: .black.opacity(0.04), radius: 3, y: 1)
-            .offset(x: timeLabelWidth, y: layout.top + 16)
+        }
+        .frame(width: width, height: layout.height, alignment: .topLeading)
+        .clipped()
+        .opacity(opacity)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(cardBg)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(cardBorder, lineWidth: 1.5)
+        )
+        .shadow(color: .black.opacity(0.04), radius: 3, y: 1)
+        .offset(x: xOffset, y: layout.top + 16)
             .contextMenu {
                 if classroomURL(for: event) != nil {
                     Button {
@@ -1075,7 +1037,7 @@ private struct EventCardsView: View {
                         .lineLimit(1)
                 }
                 .padding(8)
-                .frame(width: cardMaxWidth, height: layout.height, alignment: .topLeading)
+                .frame(width: width, height: layout.height, alignment: .topLeading)
                 .background(
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .fill(cardBg.opacity(1.2))
@@ -1104,14 +1066,38 @@ private struct EventCardsView: View {
                 Text("Google Classroom・Zoom等のURLを入力してください. ClassroomのURLはアプリではなくブラウザから取得できます。")
             }
         }
-        .id(date)
-        .transition(.move(edge: .trailing))
-        .animation(.easeInOut(duration: 0.25), value: date)
-        .onAppear {
-            loadClassroomURLs()
-        }
-        .sheet(item: $webDestination) { destination in
-            CampusWebSheet(destination: destination, presentedDestination: $webDestination)
+    }
+
+private struct OverlappingEventsSheet: View {
+    let events: [DayEvent]
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationStack {
+            List(events) { event in
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(event.title)
+                        .font(.system(size: 16, weight: .semibold))
+                    Text("\(event.startTime) - \(event.endTime)")
+                        .font(.system(size: 14))
+                        .foregroundStyle(AppTheme.textBlue)
+                    if !event.location.isEmpty {
+                        Text(event.location)
+                            .font(.system(size: 13))
+                            .foregroundStyle(AppTheme.textMuted)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+            .navigationTitle("重複イベント")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("閉じる") {
+                        dismiss()
+                    }
+                }
+            }
         }
     }
 }
