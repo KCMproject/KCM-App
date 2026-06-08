@@ -12,6 +12,11 @@ struct TodayTimelineView: View {
     @State private var showingCalendar = false
     @State private var calendarMonth = Date()
     @State private var transitionDirection: TransitionDirection = .none
+    @State private var selectedActionEvent: DayEvent?
+    @State private var webDestination: CampusWebDestination?
+    @State private var showingClassroomURLAlert = false
+    @State private var tempClassroomURL = ""
+    @State private var classroomURLs: [String: String] = [:]
     @AppStorage(AppSettings.tapToSwitchDayEnabled) private var tapToSwitchDayEnabled = true
     let onToggle: () -> Void
 
@@ -148,6 +153,58 @@ struct TodayTimelineView: View {
             syncWeekPage(with: selectedDate)
             viewModel.loadCachedData()
         }
+        .sheet(item: $webDestination) { destination in
+            CampusWebSheet(destination: destination, presentedDestination: $webDestination)
+        }
+        .alert("クラスルームURLを設定", isPresented: $showingClassroomURLAlert) {
+            TextField("URLを入力", text: $tempClassroomURL)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            Button("キャンセル", role: .cancel) {}
+            Button("保存") {
+                if let event = selectedActionEvent {
+                    setClassroomURL(for: event, url: tempClassroomURL)
+                }
+            }
+            Button("クリア", role: .destructive) {
+                if let event = selectedActionEvent {
+                    setClassroomURL(for: event, url: nil)
+                }
+            }
+        } message: {
+            Text("Google Classroom・Zoom等のURLを入力してください. ClassroomのURLはアプリではなくブラウザから取得できます。")
+        }
+    }
+
+    private func openURL(_ urlString: String) {
+        guard let url = URL(string: urlString) else { return }
+        UIApplication.shared.open(url)
+    }
+
+    private func openSyllabusSearch(for event: DayEvent) {
+        UIPasteboard.general.string = event.title
+        guard let url = URL(string: "https://cs.kunitachi.ac.jp/campusweb/campussquare.do?_flowId=SBW3701300-flow&link=menu-link-mf-164899") else { return }
+        webDestination = CampusWebDestination(url: url, title: "シラバス参照", autoSearchText: event.title)
+    }
+
+    private func classroomURL(for event: DayEvent) -> String? {
+        if classroomURLs.isEmpty {
+            classroomURLs = PortalCacheStore.shared.loadClassroomURLs()
+        }
+        if let key = event.classroomKey, let url = classroomURLs[key] {
+            return url
+        }
+        return classroomURLs[event.id]
+    }
+
+    private func setClassroomURL(for event: DayEvent, url: String?) {
+        let key = event.classroomKey ?? event.id
+        if let url = url, !url.isEmpty {
+            classroomURLs[key] = url
+        } else {
+            classroomURLs.removeValue(forKey: key)
+        }
+        PortalCacheStore.shared.saveClassroomURLs(classroomURLs)
     }
 
     private func timelinePage(for date: Date) -> some View {
@@ -479,8 +536,28 @@ struct TodayTimelineView: View {
                             hourHeight: hourHeight,
                             startHour: startHour,
                             timeLabelWidth: timeLabelWidth,
-                            transitionDirection: transitionDirection
+                            transitionDirection: transitionDirection,
+                            onShowSyllabus: { event in
+                                openSyllabusSearch(for: event)
+                            },
+                            onShowClassroom: { event in
+                                if let url = classroomURL(for: event) {
+                                    openURL(url)
+                                }
+                            },
+                            onEditClassroom: { event in
+                                selectedActionEvent = event
+                                tempClassroomURL = classroomURL(for: event) ?? ""
+                                showingClassroomURLAlert = true
+                            },
+                            onScheduleAdjust: { _ in
+                                onToggle()
+                            },
+                            classroomURL: { event in
+                                classroomURL(for: event)
+                            }
                         )
+                        .id(date)
 
                         // 現在時刻の線＋ラベル（今日のみ）
                         if calendar.isDate(date, inSameDayAs: currentTime), let indicatorTop = currentIndicatorTop {
@@ -500,6 +577,7 @@ struct TodayTimelineView: View {
                             }
                             .frame(height: indicatorLabelHeight, alignment: .leading)
                             .offset(y: indicatorTop + 16 - (indicatorLabelHeight / 2))
+                            .allowsHitTesting(false)
                         }
                     }
                 }
@@ -809,74 +887,40 @@ private struct EventCardsView: View {
     let startHour: Int
     let timeLabelWidth: CGFloat
     let transitionDirection: TodayTimelineView.TransitionDirection
+    let onShowSyllabus: (DayEvent) -> Void
+    let onShowClassroom: (DayEvent) -> Void
+    let onEditClassroom: (DayEvent) -> Void
+    let onScheduleAdjust: (DayEvent) -> Void
+    let classroomURL: (DayEvent) -> String?
 
-    @State private var classroomURLs: [String: String] = [:]
-    @State private var showingURLAlert = false
-    @State private var tempURL = ""
-    @State private var selectedEventID: String?
-    @State private var webDestination: CampusWebDestination?
-
-    private func loadClassroomURLs() {
-        classroomURLs = PortalCacheStore.shared.loadClassroomURLs()
-    }
-
-    private func saveClassroomURLs() {
-        PortalCacheStore.shared.saveClassroomURLs(classroomURLs)
-    }
-
-    private func classroomURL(for event: DayEvent) -> String? {
-        if let classroomKey = event.classroomKey, let url = classroomURLs[classroomKey] {
-            return url
-        }
-        return classroomURLs[event.id]
-    }
-
-    private func setClassroomURL(for event: DayEvent, url: String?) {
-        let key = event.classroomKey ?? event.id
-        if let url = url, !url.isEmpty {
-            classroomURLs[key] = url
-        } else {
-            classroomURLs.removeValue(forKey: key)
-            classroomURLs.removeValue(forKey: event.id)
-        }
-        saveClassroomURLs()
-    }
-
-    private func openURL(_ urlString: String) {
-        if let url = URL(string: urlString) {
-            UIApplication.shared.open(url)
-        }
-    }
-
-    private func openSyllabusSearch(for event: DayEvent) {
-        UIPasteboard.general.string = event.title
-        guard let url = URL(string: "https://cs.kunitachi.ac.jp/campusweb/campussquare.do?_flowId=SBW3701300-flow&link=menu-link-mf-164899") else { return }
-        webDestination = CampusWebDestination(url: url, title: "シラバス参照", autoSearchText: event.title)
-    }
+    @State private var selectedMenuEventID: String?
 
     var body: some View {
         let grouped = groupOverlappingEvents(events)
         
-        ForEach(Array(grouped.enumerated()), id: \.offset) { groupIndex, group in
-            // すべての重複イベントを重ねて表示
-            ForEach(Array(group.enumerated()), id: \.element.id) { index, event in
-                eventCard(
-                    for: event,
-                    width: cardMaxWidth,
-                    xOffset: timeLabelWidth + CGFloat(index) * 6,
-                    opacity: index == 0 ? 1.0 : 0.85
-                )
+        ZStack {
+            ForEach(Array(grouped.enumerated()), id: \.offset) { groupIndex, group in
+                ForEach(Array(group.enumerated()), id: \.element.id) { index, event in
+                    EventCardView(
+                        event: event,
+                        width: cardMaxWidth,
+                        xOffset: timeLabelWidth + CGFloat(index) * 6,
+                        opacity: index == 0 ? 1.0 : 0.85,
+                        hourHeight: hourHeight,
+                        startHour: startHour,
+                        selectedMenuEventID: $selectedMenuEventID,
+                        onShowSyllabus: onShowSyllabus,
+                        onShowClassroom: onShowClassroom,
+                        onEditClassroom: onEditClassroom,
+                        onScheduleAdjust: onScheduleAdjust,
+                        classroomURL: classroomURL(event)
+                    )
+                }
             }
         }
         .id(date)
         .transition(.move(edge: .trailing))
         .animation(.easeInOut(duration: 0.25), value: date)
-        .onAppear {
-            loadClassroomURLs()
-        }
-        .sheet(item: $webDestination) { destination in
-            CampusWebSheet(destination: destination, presentedDestination: $webDestination)
-        }
     }
     
     private func groupOverlappingEvents(_ events: [DayEvent]) -> [[DayEvent]] {
@@ -885,7 +929,6 @@ private struct EventCardsView: View {
         
         for event in events.sorted(by: { $0.startMinutes < $1.startMinutes }) {
             if let last = currentGroup.last {
-                // 前のイベントと時間が重なるかチェック
                 if event.startMinutes < last.endMinutes {
                     currentGroup.append(event)
                 } else {
@@ -901,8 +944,29 @@ private struct EventCardsView: View {
         }
         return groups
     }
+}
+
+// MARK: - 個別イベントカード
+private struct EventCardView: View {
+    let event: DayEvent
+    let width: CGFloat
+    let xOffset: CGFloat
+    let opacity: Double
+    let hourHeight: CGFloat
+    let startHour: Int
     
-    private func eventCard(for event: DayEvent, width: CGFloat, xOffset: CGFloat, opacity: Double = 1.0) -> some View {
+    @Binding var selectedMenuEventID: String?
+    let onShowSyllabus: (DayEvent) -> Void
+    let onShowClassroom: (DayEvent) -> Void
+    let onEditClassroom: (DayEvent) -> Void
+    let onScheduleAdjust: (DayEvent) -> Void
+    let classroomURL: String?
+    
+    private var isMenuOpen: Bool {
+        selectedMenuEventID == event.id
+    }
+    
+    var body: some View {
         let layout = event.layout(hourHeight: hourHeight, startHour: startHour)
         let isCancelled = event.status == "休講"
         let isSupplementary = event.status == "補講"
@@ -993,80 +1057,61 @@ private struct EventCardsView: View {
                 .stroke(cardBorder, lineWidth: 1.5)
         )
         .shadow(color: .black.opacity(0.04), radius: 3, y: 1)
+        .contentShape(Rectangle())
         .offset(x: xOffset, y: layout.top + 16)
-            .contextMenu {
-                if classroomURL(for: event) != nil {
-                    Button {
-                        if let url = classroomURL(for: event) {
-                            openURL(url)
-                        }
-                    } label: {
-                        Label("クラスルームを表示", systemImage: "video")
-                    }
-                }
-                Button {
-                    selectedEventID = event.id
-                    tempURL = classroomURL(for: event) ?? ""
-                    showingURLAlert = true
-                } label: {
-                    Label("クラスルームを設定", systemImage: "link.badge.plus")
-                }
-                Divider()
-                Button {
-                    openSyllabusSearch(for: event)
-                } label: {
-                    Label("シラバスを表示", systemImage: "book")
-                }
-                Button {
-                    // 詳細表示アクション
-                } label: {
-                    Label("詳細を表示", systemImage: "info.circle")
-                }
-            } preview: {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(event.title)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(isCancelled ? .red : AppTheme.textPrimary)
-                        .lineLimit(1)
-                    Text("\(event.startTime) - \(event.endTime)")
-                        .font(.system(size: 12))
-                        .foregroundStyle(isSupplementary ? .blue : (isCancelled ? .red.opacity(0.8) : AppTheme.textBlue))
-                    Text(event.location)
-                        .font(.system(size: 12))
-                        .foregroundStyle(AppTheme.textMuted)
-                        .lineLimit(1)
-                }
-                .padding(8)
-                .frame(width: width, height: layout.height, alignment: .topLeading)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(cardBg.opacity(1.2))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(cardBorder, lineWidth: 1.5)
-                )
-            }
-            .alert("クラスルームURLを設定", isPresented: $showingURLAlert) {
-                TextField("URLを入力", text: $tempURL)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                Button("キャンセル", role: .cancel) {}
-                Button("保存") {
-                    if let eventID = selectedEventID, let event = events.first(where: { $0.id == eventID }) {
-                        setClassroomURL(for: event, url: tempURL)
-                    }
-                }
-                Button("クリア", role: .destructive) {
-                    if let eventID = selectedEventID, let event = events.first(where: { $0.id == eventID }) {
-                        setClassroomURL(for: event, url: nil)
-                    }
-                }
-            } message: {
-                Text("Google Classroom・Zoom等のURLを入力してください. ClassroomのURLはアプリではなくブラウザから取得できます。")
-            }
+        .onTapGesture {
+            selectedMenuEventID = event.id
+        }
+        .popover(isPresented: Binding(
+            get: { isMenuOpen },
+            set: { if !$0 { selectedMenuEventID = nil } }
+        ), attachmentAnchor: .rect(.rect(
+            CGRect(x: xOffset, y: layout.top + 16, width: width, height: layout.height)
+        )), arrowEdge: .bottom) {
+            popoverMenu
+                .presentationCompactAdaptation(.popover)
         }
     }
+    
+    @ViewBuilder
+    private var popoverMenu: some View {
+        VStack(spacing: 0) {
+            if classroomURL != nil {
+                Button { selectedMenuEventID = nil; onShowClassroom(event) } label: {
+                    Label("クラスルームを表示", systemImage: "video")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 12)
+                }
+                Divider()
+            }
+            Button { selectedMenuEventID = nil; onEditClassroom(event) } label: {
+                Label("クラスルームを設定", systemImage: "link.badge.plus")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 12)
+            }
+            Divider()
+            Button { selectedMenuEventID = nil; onShowSyllabus(event) } label: {
+                Label("シラバスを表示", systemImage: "book")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 12)
+            }
+            if event.isIntensive {
+                Divider()
+                Button { selectedMenuEventID = nil; onScheduleAdjust(event) } label: {
+                    Label("日程を調整", systemImage: "calendar.badge.plus")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 12)
+                }
+            }
+        }
+        .padding(.vertical, 6)
+        .frame(minWidth: 220)
+    }
+}
 
 private struct OverlappingEventsSheet: View {
     let events: [DayEvent]

@@ -231,7 +231,7 @@ struct WeeklyTimetableCloneView: View {
                                     IntensiveCourseRow(course: course, onEdit: {
                                         selectedCourseTitle = course.title
                                         showingScheduleSheet = true
-                                    })
+                                    }, onOpenSyllabusSearch: openSyllabusSearch)
                                 }
                             }
                             .padding(.bottom, 24)
@@ -301,6 +301,8 @@ private struct TimetableCell: View {
   let onOpenSyllabusSearch: (String) -> Void
   let onEditClassroomURL: () -> Void
   let onAddSchedule: () -> Void
+  
+  @State private var showingActionMenu = false
 
   var body: some View {
     VStack(spacing: 0) {
@@ -339,58 +341,40 @@ private struct TimetableCell: View {
         .stroke(cellBorder, lineWidth: 1)
     )
     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-    .contextMenu {
+    .contentShape(Rectangle())
+    .onTapGesture {
       if item.title != nil {
+        showingActionMenu = true
+      }
+    }
+    .popover(isPresented: $showingActionMenu, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
+      VStack(spacing: 0) {
         if let classroomURL {
-          Button {
-            onOpenClassroomURL(classroomURL)
-          } label: {
+          Button { showingActionMenu = false; onOpenClassroomURL(classroomURL) } label: {
             Label("クラスルームを表示", systemImage: "video")
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .padding(.vertical, 10)
+              .padding(.horizontal, 12)
           }
+          Divider()
         }
-        Button {
-          onEditClassroomURL()
-        } label: {
+        Button { showingActionMenu = false; onEditClassroomURL() } label: {
           Label("クラスルームを設定", systemImage: "link.badge.plus")
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
         }
         Divider()
-        Button {
-          if let title = item.title {
-            onOpenSyllabusSearch(title)
-          }
-        } label: {
+        Button { showingActionMenu = false; if let title = item.title { onOpenSyllabusSearch(title) } } label: {
           Label("シラバスを表示", systemImage: "book")
-        }
-        Button {
-          // 詳細表示アクション
-        } label: {
-          Label("詳細を表示", systemImage: "info.circle")
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
         }
       }
-    } preview: {
-      VStack(spacing: 4) {
-        if let title = item.title {
-          Text(title)
-            .font(.system(size: 11, weight: .medium))
-            .foregroundStyle(AppTheme.textPrimary)
-            .multilineTextAlignment(.center)
-            .lineLimit(3)
-          if let room = item.room {
-            Text(room)
-              .font(.system(size: 9))
-              .foregroundStyle(AppTheme.textMuted)
-          }
-        }
-      }
-      .frame(maxWidth: .infinity, minHeight: 72)
-      .padding(.horizontal, 4)
       .padding(.vertical, 6)
-      .background(cellBackground)
-      .overlay(
-        RoundedRectangle(cornerRadius: 16, style: .continuous)
-          .stroke(cellBorder, lineWidth: 1)
-      )
-.clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+      .frame(minWidth: 220)
+      .presentationCompactAdaptation(.popover)
     }
   }
 
@@ -418,10 +402,12 @@ private struct TimetableCell: View {
 private struct IntensiveCourseRow: View {
   let course: IntensiveCourseCard
   let onEdit: () -> Void
+  let onOpenSyllabusSearch: (String) -> Void
 
   @State private var classroomURLs: [String: String] = [:]
   @State private var showingURLAlert = false
   @State private var tempURL = ""
+  @State private var showingActionMenu = false
 
   private var cellKey: String {
     "\(course.title)_\(course.period)"
@@ -490,70 +476,51 @@ private struct IntensiveCourseRow: View {
     .frame(maxWidth: .infinity, alignment: .leading)
     .padding(.horizontal, 16)
     .padding(.vertical, 14)
-    .background(Color.white)
+    .background(AppTheme.lightBlueBorder.opacity(0.22))
     .overlay(
       RoundedRectangle(cornerRadius: 16, style: .continuous)
-        .stroke(AppTheme.lightBlueBorder, lineWidth: 1)
+        .stroke(AppTheme.blueCardBorder.opacity(0.95), lineWidth: 1)
     )
     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-    .contextMenu {
-      Button {
-        onEdit()
-      } label: {
-        Label("日程を編集", systemImage: "calendar.badge.clock")
-      }
-      if classroomURL() != nil {
-        Button {
-          if let url = classroomURL() {
-            openURL(url)
+    .contentShape(Rectangle())
+    .onTapGesture {
+      showingActionMenu = true
+    }
+    .popover(isPresented: $showingActionMenu, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
+      VStack(spacing: 0) {
+        Button { showingActionMenu = false; onEdit() } label: {
+          Label("日程を編集", systemImage: "calendar.badge.clock")
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
+        }
+        Divider()
+        if let classroomURL = classroomURL() {
+          Button { showingActionMenu = false; openURL(classroomURL) } label: {
+            Label("クラスルームを表示", systemImage: "video")
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .padding(.vertical, 10)
+              .padding(.horizontal, 12)
           }
-        } label: {
-          Label("クラスルームを表示", systemImage: "video")
+          Divider()
+        }
+        Button { showingActionMenu = false; tempURL = classroomURL() ?? ""; showingURLAlert = true } label: {
+          Label("クラスルームを設定", systemImage: "link.badge.plus")
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
+        }
+        Divider()
+        Button { showingActionMenu = false; onOpenSyllabusSearch(course.title) } label: {
+          Label("シラバスを表示", systemImage: "book")
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
         }
       }
-      Button {
-        tempURL = classroomURL() ?? ""
-        showingURLAlert = true
-      } label: {
-        Label("クラスルームを設定", systemImage: "link.badge.plus")
-      }
-      Divider()
-      Button {
-        // シラバス表示アクション
-      } label: {
-        Label("シラバスを表示", systemImage: "book")
-      }
-      Button {
-        // 詳細表示アクション
-      } label: {
-        Label("詳細を表示", systemImage: "info.circle")
-      }
-      Button {
-        // 編集アクション
-      } label: {
-        Label("編集", systemImage: "pencil")
-      }
-    } preview: {
-      VStack(alignment: .leading, spacing: 6) {
-        Text(course.title)
-          .font(.system(size: 14, weight: .semibold))
-          .foregroundStyle(AppTheme.textPrimary)
-        Text(course.period)
-          .font(.system(size: 12))
-          .foregroundStyle(AppTheme.textBlue)
-        Text("\(course.location) \(course.instructor)")
-          .font(.system(size: 12))
-          .foregroundStyle(AppTheme.textMuted)
-      }
-      .frame(maxWidth: .infinity, alignment: .leading)
-      .padding(.horizontal, 16)
-      .padding(.vertical, 14)
-      .background(Color.white)
-      .overlay(
-        RoundedRectangle(cornerRadius: 16, style: .continuous)
-          .stroke(AppTheme.lightBlueBorder, lineWidth: 1)
-      )
-      .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+      .padding(.vertical, 6)
+      .frame(minWidth: 220)
+      .presentationCompactAdaptation(.popover)
     }
     .alert("クラスルームURLを設定", isPresented: $showingURLAlert) {
       TextField("URLを入力", text: $tempURL)
@@ -583,6 +550,7 @@ private struct LessonRow: View {
   @State private var classroomURLs: [String: String] = [:]
   @State private var showingURLAlert = false
   @State private var tempURL = ""
+  @State private var showingActionMenu = false
 
   private var cellKey: String {
     "\(lesson.title)_\(lesson.schedule)"
@@ -636,61 +604,31 @@ private struct LessonRow: View {
         .stroke(AppTheme.lightBlueBorder, lineWidth: 1)
     )
     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-.contextMenu {
-        if classroomURL() != nil {
-          Button {
-            if let url = classroomURL() {
-              openURL(url)
-            }
-          } label: {
+    .contentShape(Rectangle())
+    .onTapGesture {
+      showingActionMenu = true
+    }
+    .popover(isPresented: $showingActionMenu, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
+      VStack(spacing: 0) {
+        if let classroomURL = classroomURL() {
+          Button { showingActionMenu = false; openURL(classroomURL) } label: {
             Label("クラスルームを表示", systemImage: "video")
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .padding(.vertical, 10)
+              .padding(.horizontal, 12)
           }
+          Divider()
         }
-        Button {
-          tempURL = classroomURL() ?? ""
-          DispatchQueue.main.async {
-            showingURLAlert = true
-          }
-        } label: {
+        Button { showingActionMenu = false; tempURL = classroomURL() ?? ""; showingURLAlert = true } label: {
           Label("クラスルームを設定", systemImage: "link.badge.plus")
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
         }
-        Divider()
-        Button {
-          // シラバス表示アクション
-        } label: {
-          Label("シラバスを表示", systemImage: "book")
-        }
-        Button {
-          // 詳細表示アクション
-        } label: {
-          Label("詳細を表示", systemImage: "info.circle")
-        }
-        Button {
-          // 編集アクション
-        } label: {
-          Label("編集", systemImage: "pencil")
-        }
-      } preview: {
-        VStack(alignment: .leading, spacing: 6) {
-          Text(lesson.title)
-          .font(.system(size: 14, weight: .semibold))
-          .foregroundStyle(AppTheme.textPrimary)
-        Text(lesson.schedule)
-          .font(.system(size: 12))
-          .foregroundStyle(AppTheme.textBlue)
-        Text("\(lesson.location) \(lesson.instructor)")
-          .font(.system(size: 12))
-          .foregroundStyle(AppTheme.textMuted)
       }
-      .frame(maxWidth: .infinity, alignment: .leading)
-      .padding(.horizontal, 16)
-      .padding(.vertical, 14)
-      .background(Color.white)
-      .overlay(
-        RoundedRectangle(cornerRadius: 16, style: .continuous)
-          .stroke(AppTheme.lightBlueBorder, lineWidth: 1)
-      )
-      .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+      .padding(.vertical, 6)
+      .frame(minWidth: 220)
+      .presentationCompactAdaptation(.popover)
     }
     .alert("クラスルームURLを設定", isPresented: $showingURLAlert) {
       TextField("URLを入力", text: $tempURL)
@@ -720,20 +658,21 @@ private struct IntensiveScheduleSheet: View {
     @Environment(\.dismiss) private var dismiss
     
     @State private var showingAddSheet = false
+    @State private var refreshID = UUID()
     
     private var existingCourse: IntensiveCourseCard? {
         intensiveCourses.first { $0.title == courseTitle }
     }
     
-    private var scheduleRanges: [(id: UUID, dates: [String], startTime: String?, endTime: String?)] {
+    private var scheduleRanges: [(id: String, dates: [String], startTime: String?, endTime: String?)] {
         guard let course = existingCourse, !course.dates.isEmpty else { return [] }
         // 連続した日程を範囲にグループ化
         let sorted = course.dates.sorted()
-        var ranges: [(id: UUID, dates: [String], startTime: String?, endTime: String?)] = []
+        var ranges: [(id: String, dates: [String], startTime: String?, endTime: String?)] = []
         var currentRange: [String] = []
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
-        
+
         for dateStr in sorted {
             if formatter.date(from: dateStr) != nil {
                 if let lastStr = currentRange.last,
@@ -743,14 +682,14 @@ private struct IntensiveScheduleSheet: View {
                     currentRange.append(dateStr)
                 } else {
                     if !currentRange.isEmpty {
-                        ranges.append((id: UUID(), dates: currentRange, startTime: existingCourse?.startTime, endTime: existingCourse?.endTime))
+                        ranges.append((id: currentRange.first ?? dateStr, dates: currentRange, startTime: existingCourse?.startTime, endTime: existingCourse?.endTime))
                     }
                     currentRange = [dateStr]
                 }
             }
         }
         if !currentRange.isEmpty {
-            ranges.append((id: UUID(), dates: currentRange, startTime: existingCourse?.startTime, endTime: existingCourse?.endTime))
+            ranges.append((id: currentRange.first ?? UUID().uuidString, dates: currentRange, startTime: existingCourse?.startTime, endTime: existingCourse?.endTime))
         }
         return ranges
     }
@@ -758,12 +697,6 @@ private struct IntensiveScheduleSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section(header: Text("科目名")) {
-                    Text(courseTitle)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(AppTheme.textPrimary)
-                }
-                
                 Section(header: Text("登録済み日程")) {
                     if scheduleRanges.isEmpty {
                         Text("まだ日程が追加されていません")
@@ -791,6 +724,7 @@ private struct IntensiveScheduleSheet: View {
                                 .buttonStyle(.plain)
                             }
                         }
+                        .id(refreshID)
                     }
                 }
                 
@@ -813,7 +747,9 @@ private struct IntensiveScheduleSheet: View {
                 }
             }
         }
-        .sheet(isPresented: $showingAddSheet) {
+        .sheet(isPresented: $showingAddSheet, onDismiss: {
+            refreshID = UUID()
+        }) {
             IntensiveScheduleAddSheet(
                 courseTitle: courseTitle,
                 intensiveCourses: $intensiveCourses
@@ -832,7 +768,10 @@ private struct IntensiveScheduleSheet: View {
         if let index = intensiveCourses.firstIndex(where: { $0.title == courseTitle }) {
             var updated = intensiveCourses[index]
             updated.dates.removeAll { datesToDelete.contains($0) }
-            intensiveCourses[index] = updated
+            // 配列全体を新しいインスタンスに置き換えてSwiftUIに変更を検知させる
+            var newCourses = intensiveCourses
+            newCourses[index] = updated
+            intensiveCourses = newCourses
             PortalCacheStore.shared.saveIntensiveCourses(intensiveCourses)
         }
     }
@@ -889,7 +828,7 @@ private struct IntensiveScheduleAddSheet: View {
         let calendar = Calendar(identifier: .gregorian)
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
-        
+
         var newDates: [String] = []
         var current = calendar.startOfDay(for: startDate)
         let end = calendar.startOfDay(for: endDate)
@@ -898,10 +837,10 @@ private struct IntensiveScheduleAddSheet: View {
             guard let next = calendar.date(byAdding: .day, value: 1, to: current) else { break }
             current = next
         }
-        
+
         let trimmedStart = startTimeText.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedEnd = endTimeText.trimmingCharacters(in: .whitespacesAndNewlines)
-        
+
         if let index = intensiveCourses.firstIndex(where: { $0.title == courseTitle }) {
             var updated = intensiveCourses[index]
             // 既存の日程とマージ（重複排除）
@@ -910,10 +849,13 @@ private struct IntensiveScheduleAddSheet: View {
             updated.dates = Array(mergedDates).sorted()
             updated.startTime = trimmedStart.isEmpty ? nil : trimmedStart
             updated.endTime = trimmedEnd.isEmpty ? nil : trimmedEnd
-            intensiveCourses[index] = updated
+            // 配列全体を新しいインスタンスに置き換えてSwiftUIに変更を検知させる
+            var newCourses = intensiveCourses
+            newCourses[index] = updated
+            intensiveCourses = newCourses
             PortalCacheStore.shared.saveIntensiveCourses(intensiveCourses)
         }
-        
+
         dismiss()
     }
 }
