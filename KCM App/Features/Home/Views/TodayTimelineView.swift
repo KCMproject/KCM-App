@@ -899,15 +899,6 @@ private struct EventCardsView: View {
         let grouped = groupOverlappingEvents(events)
         
         ZStack {
-            if selectedMenuEventID != nil {
-                Color.clear
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        selectedMenuEventID = nil
-                    }
-                    .zIndex(999)
-            }
-
             ForEach(Array(grouped.enumerated()), id: \.offset) { groupIndex, group in
                 ForEach(Array(group.enumerated()), id: \.element.id) { index, event in
                     EventCardView(
@@ -965,7 +956,6 @@ private struct EventCardView: View {
     let startHour: Int
     
     @Binding var selectedMenuEventID: String?
-    
     let onShowSyllabus: (DayEvent) -> Void
     let onShowClassroom: (DayEvent) -> Void
     let onEditClassroom: (DayEvent) -> Void
@@ -1070,51 +1060,56 @@ private struct EventCardView: View {
         .contentShape(Rectangle())
         .offset(x: xOffset, y: layout.top + 16)
         .onTapGesture {
-            if isMenuOpen {
-                selectedMenuEventID = nil
-            } else {
-                selectedMenuEventID = event.id
-            }
+            selectedMenuEventID = event.id
         }
         .popover(isPresented: Binding(
             get: { isMenuOpen },
             set: { if !$0 { selectedMenuEventID = nil } }
-        ), arrowEdge: .bottom) {
-            VStack(alignment: .leading, spacing: 0) {
-                if let url = classroomURL {
-                    popoverButton("クラスルームを表示", "video") { onShowClassroom(event) }
-                    Divider()
-                }
-                popoverButton("クラスルームを設定", "link.badge.plus") { onEditClassroom(event) }
-                Divider()
-                popoverButton("シラバスを表示", "book") { onShowSyllabus(event) }
-                if event.isIntensive {
-                    Divider()
-                    popoverButton("日程を調整", "calendar.badge.plus") { onScheduleAdjust(event) }
-                }
-            }
-            .frame(minWidth: 200)
-            .presentationCompactAdaptation(.popover)
+        ), attachmentAnchor: .rect(.rect(
+            CGRect(x: xOffset, y: layout.top + 16, width: width, height: layout.height)
+        )), arrowEdge: .bottom) {
+            popoverMenu
+                .presentationCompactAdaptation(.popover)
         }
-        .zIndex(isMenuOpen ? 1000 : 0)
     }
     
-    private func popoverButton(_ title: String, _ icon: String, action: @escaping () -> Void) -> some View {
-        Button(action: {
-            selectedMenuEventID = nil
-            action()
-        }) {
-            HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .frame(width: 20)
-                Text(title)
-                Spacer()
+    @ViewBuilder
+    private var popoverMenu: some View {
+        VStack(spacing: 0) {
+            if classroomURL != nil {
+                Button { selectedMenuEventID = nil; onShowClassroom(event) } label: {
+                    Label("クラスルームを表示", systemImage: "video")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 12)
+                }
+                Divider()
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .contentShape(Rectangle())
+            Button { selectedMenuEventID = nil; onEditClassroom(event) } label: {
+                Label("クラスルームを設定", systemImage: "link.badge.plus")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 12)
+            }
+            Divider()
+            Button { selectedMenuEventID = nil; onShowSyllabus(event) } label: {
+                Label("シラバスを表示", systemImage: "book")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 12)
+            }
+            if event.isIntensive {
+                Divider()
+                Button { selectedMenuEventID = nil; onScheduleAdjust(event) } label: {
+                    Label("日程を調整", systemImage: "calendar.badge.plus")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 12)
+                }
+            }
         }
-        .buttonStyle(.plain)
+        .padding(.vertical, 6)
+        .frame(minWidth: 220)
     }
 }
 

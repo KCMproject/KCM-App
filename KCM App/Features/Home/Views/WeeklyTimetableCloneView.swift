@@ -231,7 +231,7 @@ struct WeeklyTimetableCloneView: View {
                                     IntensiveCourseRow(course: course, onEdit: {
                                         selectedCourseTitle = course.title
                                         showingScheduleSheet = true
-                                    })
+                                    }, onOpenSyllabusSearch: openSyllabusSearch)
                                 }
                             }
                             .padding(.bottom, 24)
@@ -341,91 +341,40 @@ private struct TimetableCell: View {
         .stroke(cellBorder, lineWidth: 1)
     )
     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-    .contextMenu {
-      if item.title != nil {
-        if let classroomURL {
-          Button {
-            onOpenClassroomURL(classroomURL)
-          } label: {
-            Label("クラスルームを表示", systemImage: "video")
-          }
-        }
-        Button {
-          onEditClassroomURL()
-        } label: {
-          Label("クラスルームを設定", systemImage: "link.badge.plus")
-        }
-        Divider()
-        Button {
-          if let title = item.title {
-            onOpenSyllabusSearch(title)
-          }
-        } label: {
-          Label("シラバスを表示", systemImage: "book")
-        }
-        Button {
-          // 詳細表示アクション
-        } label: {
-          Label("詳細を表示", systemImage: "info.circle")
-        }
-      }
-    } preview: {
-      VStack(spacing: 4) {
-        if let title = item.title {
-          Text(title)
-            .font(.system(size: 11, weight: .medium))
-            .foregroundStyle(AppTheme.textPrimary)
-            .multilineTextAlignment(.center)
-            .lineLimit(3)
-          if let room = item.room {
-            Text(room)
-              .font(.system(size: 9))
-              .foregroundStyle(AppTheme.textMuted)
-          }
-        }
-      }
-      .frame(maxWidth: .infinity, minHeight: 72)
-      .padding(.horizontal, 4)
-      .padding(.vertical, 6)
-      .background(cellBackground)
-      .overlay(
-        RoundedRectangle(cornerRadius: 16, style: .continuous)
-          .stroke(cellBorder, lineWidth: 1)
-      )
-.clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-    }
     .contentShape(Rectangle())
     .onTapGesture {
       if item.title != nil {
         showingActionMenu = true
       }
     }
-    .confirmationDialog("", isPresented: $showingActionMenu, titleVisibility: .hidden) {
-      if let classroomURL {
-        Button {
-          onOpenClassroomURL(classroomURL)
-        } label: {
-          Label("クラスルームを表示", systemImage: "video")
+    .popover(isPresented: $showingActionMenu, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
+      VStack(spacing: 0) {
+        if let classroomURL {
+          Button { showingActionMenu = false; onOpenClassroomURL(classroomURL) } label: {
+            Label("クラスルームを表示", systemImage: "video")
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .padding(.vertical, 10)
+              .padding(.horizontal, 12)
+          }
+          Divider()
+        }
+        Button { showingActionMenu = false; onEditClassroomURL() } label: {
+          Label("クラスルームを設定", systemImage: "link.badge.plus")
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
+        }
+        Divider()
+        Button { showingActionMenu = false; if let title = item.title { onOpenSyllabusSearch(title) } } label: {
+          Label("シラバスを表示", systemImage: "book")
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
         }
       }
-      Button {
-        onEditClassroomURL()
-      } label: {
-        Label("クラスルームを設定", systemImage: "link.badge.plus")
-      }
-      Button {
-        if let title = item.title {
-          onOpenSyllabusSearch(title)
-        }
-      } label: {
-        Label("シラバスを表示", systemImage: "book")
-      }
-      Button {
-        // 詳細表示アクション
-      } label: {
-        Label("詳細を表示", systemImage: "info.circle")
-      }
-      Button("キャンセル", role: .cancel) {}
+      .padding(.vertical, 6)
+      .frame(minWidth: 220)
+      .presentationCompactAdaptation(.popover)
     }
   }
 
@@ -453,10 +402,12 @@ private struct TimetableCell: View {
 private struct IntensiveCourseRow: View {
   let course: IntensiveCourseCard
   let onEdit: () -> Void
+  let onOpenSyllabusSearch: (String) -> Void
 
   @State private var classroomURLs: [String: String] = [:]
   @State private var showingURLAlert = false
   @State private var tempURL = ""
+  @State private var showingActionMenu = false
 
   private var cellKey: String {
     "\(course.title)_\(course.period)"
@@ -531,68 +482,45 @@ private struct IntensiveCourseRow: View {
         .stroke(AppTheme.blueCardBorder.opacity(0.95), lineWidth: 1)
     )
     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-    .contextMenu {
-      Button {
-        onEdit()
-      } label: {
-        Label("日程を編集", systemImage: "calendar.badge.clock")
-      }
-      if classroomURL() != nil {
-        Button {
-          if let url = classroomURL() {
-            openURL(url)
-          }
-        } label: {
-          Label("クラスルームを表示", systemImage: "video")
-        }
-      }
-      Button {
-        tempURL = classroomURL() ?? ""
-        showingURLAlert = true
-      } label: {
-        Label("クラスルームを設定", systemImage: "link.badge.plus")
-      }
-      Divider()
-      Button {
-        // シラバス表示アクション
-      } label: {
-        Label("シラバスを表示", systemImage: "book")
-      }
-      Button {
-        // 詳細表示アクション
-      } label: {
-        Label("詳細を表示", systemImage: "info.circle")
-      }
-      Button {
-        // 編集アクション
-      } label: {
-        Label("編集", systemImage: "pencil")
-      }
-    } preview: {
-      VStack(alignment: .leading, spacing: 6) {
-        Text(course.title)
-          .font(.system(size: 14, weight: .semibold))
-          .foregroundStyle(AppTheme.textPrimary)
-        Text(course.period)
-          .font(.system(size: 12))
-          .foregroundStyle(AppTheme.textBlue)
-        Text("\(course.location) \(course.instructor)")
-          .font(.system(size: 12))
-          .foregroundStyle(AppTheme.textMuted)
-      }
-      .frame(maxWidth: .infinity, alignment: .leading)
-      .padding(.horizontal, 16)
-      .padding(.vertical, 14)
-      .background(AppTheme.lightBlueBorder.opacity(0.22))
-      .overlay(
-        RoundedRectangle(cornerRadius: 16, style: .continuous)
-          .stroke(AppTheme.blueCardBorder.opacity(0.95), lineWidth: 1)
-      )
-      .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-    }
     .contentShape(Rectangle())
     .onTapGesture {
-      onEdit()
+      showingActionMenu = true
+    }
+    .popover(isPresented: $showingActionMenu, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
+      VStack(spacing: 0) {
+        Button { showingActionMenu = false; onEdit() } label: {
+          Label("日程を編集", systemImage: "calendar.badge.clock")
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
+        }
+        Divider()
+        if let classroomURL = classroomURL() {
+          Button { showingActionMenu = false; openURL(classroomURL) } label: {
+            Label("クラスルームを表示", systemImage: "video")
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .padding(.vertical, 10)
+              .padding(.horizontal, 12)
+          }
+          Divider()
+        }
+        Button { showingActionMenu = false; tempURL = classroomURL() ?? ""; showingURLAlert = true } label: {
+          Label("クラスルームを設定", systemImage: "link.badge.plus")
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
+        }
+        Divider()
+        Button { showingActionMenu = false; onOpenSyllabusSearch(course.title) } label: {
+          Label("シラバスを表示", systemImage: "book")
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
+        }
+      }
+      .padding(.vertical, 6)
+      .frame(minWidth: 220)
+      .presentationCompactAdaptation(.popover)
     }
     .alert("クラスルームURLを設定", isPresented: $showingURLAlert) {
       TextField("URLを入力", text: $tempURL)
@@ -622,6 +550,7 @@ private struct LessonRow: View {
   @State private var classroomURLs: [String: String] = [:]
   @State private var showingURLAlert = false
   @State private var tempURL = ""
+  @State private var showingActionMenu = false
 
   private var cellKey: String {
     "\(lesson.title)_\(lesson.schedule)"
@@ -675,61 +604,31 @@ private struct LessonRow: View {
         .stroke(AppTheme.lightBlueBorder, lineWidth: 1)
     )
     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-    .contextMenu {
-        if classroomURL() != nil {
-          Button {
-            if let url = classroomURL() {
-              openURL(url)
-            }
-          } label: {
+    .contentShape(Rectangle())
+    .onTapGesture {
+      showingActionMenu = true
+    }
+    .popover(isPresented: $showingActionMenu, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
+      VStack(spacing: 0) {
+        if let classroomURL = classroomURL() {
+          Button { showingActionMenu = false; openURL(classroomURL) } label: {
             Label("クラスルームを表示", systemImage: "video")
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .padding(.vertical, 10)
+              .padding(.horizontal, 12)
           }
+          Divider()
         }
-        Button {
-          tempURL = classroomURL() ?? ""
-          DispatchQueue.main.async {
-            showingURLAlert = true
-          }
-        } label: {
+        Button { showingActionMenu = false; tempURL = classroomURL() ?? ""; showingURLAlert = true } label: {
           Label("クラスルームを設定", systemImage: "link.badge.plus")
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
         }
-        Divider()
-        Button {
-          // シラバス表示アクション
-        } label: {
-          Label("シラバスを表示", systemImage: "book")
-        }
-        Button {
-          // 詳細表示アクション
-        } label: {
-          Label("詳細を表示", systemImage: "info.circle")
-        }
-        Button {
-          // 編集アクション
-        } label: {
-          Label("編集", systemImage: "pencil")
-        }
-      } preview: {
-        VStack(alignment: .leading, spacing: 6) {
-          Text(lesson.title)
-          .font(.system(size: 14, weight: .semibold))
-          .foregroundStyle(AppTheme.textPrimary)
-        Text(lesson.schedule)
-          .font(.system(size: 12))
-          .foregroundStyle(AppTheme.textBlue)
-        Text("\(lesson.location) \(lesson.instructor)")
-          .font(.system(size: 12))
-          .foregroundStyle(AppTheme.textMuted)
       }
-      .frame(maxWidth: .infinity, alignment: .leading)
-      .padding(.horizontal, 16)
-      .padding(.vertical, 14)
-      .background(Color.white)
-      .overlay(
-        RoundedRectangle(cornerRadius: 16, style: .continuous)
-          .stroke(AppTheme.lightBlueBorder, lineWidth: 1)
-      )
-      .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+      .padding(.vertical, 6)
+      .frame(minWidth: 220)
+      .presentationCompactAdaptation(.popover)
     }
     .alert("クラスルームURLを設定", isPresented: $showingURLAlert) {
       TextField("URLを入力", text: $tempURL)
