@@ -16,7 +16,7 @@ struct NoticeBoardCloneView: View {
         return f
     }()
 
-    private let categories = ["すべて", "お気に入り", "個人掲示板", "履修登録関連", "奨学金・授業料", "就職・キャリア", "施設関連", "イベント"]
+    private let categories = ["すべて", "お気に入り", "全学掲示板", "コース関連", "履修登録関連", "術科試験関連", "個人掲示板", "授業掲示板"]
 
     private var filteredNotices: [NoticeCard] {
         let filtered = viewModel.announcements.filter { notice in
@@ -101,13 +101,22 @@ struct NoticeBoardCloneView: View {
                             Button {
                                 selectedCategory = category
                             } label: {
-                                HStack(spacing: 4) {
+                                HStack(spacing: 6) {
                                     if category == "お気に入り" {
                                         Image(systemName: "star.fill")
                                             .font(.system(size: 12))
                                     }
                                     Text(category)
                                         .font(.system(size: 14))
+                                    Text("\(countForCategory(category))")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundStyle(chipCountForeground(category))
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(
+                                            Capsule()
+                                                .fill(chipCountBackground(category))
+                                        )
                                 }
                                 .foregroundStyle(chipForeground(category))
                                 .padding(.horizontal, 14)
@@ -206,7 +215,7 @@ struct NoticeBoardCloneView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
             } else {
-                Image(systemName: "star")
+                Image(systemName: selectedCategory == "お気に入り" ? "star" : "doc.text")
                     .font(.system(size: 32))
                     .foregroundStyle(AppTheme.textSoft)
                 Text(selectedCategory == "お気に入り" ? "お気に入りはまだありません" : "お知らせがありません")
@@ -265,6 +274,25 @@ struct NoticeBoardCloneView: View {
 
     private func chipForeground(_ category: String) -> Color {
         selectedCategory == category ? .white : AppTheme.textPrimary
+    }
+
+    private func chipCountBackground(_ category: String) -> Color {
+        selectedCategory == category ? Color.white.opacity(0.25) : AppTheme.grayPill
+    }
+
+    private func chipCountForeground(_ category: String) -> Color {
+        selectedCategory == category ? .white : AppTheme.textMuted
+    }
+
+    private func countForCategory(_ category: String) -> Int {
+        switch category {
+        case "すべて":
+            return viewModel.totalCount
+        case "お気に入り":
+            return favoriteIDs.count
+        default:
+            return viewModel.count(forGenre: category)
+        }
     }
 }
 

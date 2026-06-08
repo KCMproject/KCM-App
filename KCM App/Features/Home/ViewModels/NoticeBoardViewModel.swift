@@ -23,6 +23,16 @@ final class NoticeBoardViewModel: ObservableObject {
         announcements = cachedNotices
     }
 
+    /// 指定されたジャンルの掲示板件数を返す
+    func count(forGenre genre: String) -> Int {
+        announcements.filter { $0.category == genre }.count
+    }
+
+    /// 全掲示板件数
+    var totalCount: Int {
+        announcements.count
+    }
+
     func initialFetch() async {
         _ = await refreshFromServer()
     }
