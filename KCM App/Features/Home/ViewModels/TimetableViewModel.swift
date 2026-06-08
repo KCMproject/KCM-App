@@ -12,10 +12,12 @@ final class TimetableViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var selectedSemester: TimetableSemester = .current
     
-    /// 土曜日に授業があるかどうか
+    /// 土曜日に授業があるかどうか（RSWの生データを直接見て、フォールバックデータによる誤検出を防ぐ）
     var hasSaturdayClass: Bool {
-        weeklySchedule.contains { row in
-            row.indices.contains(5) && row[5].title != nil
+        let cachedWeeklyCourses = cacheStore.loadWeeklyCourses(for: selectedSemester)
+        return cachedWeeklyCourses.contains { course in
+            let rawDay = course.weekday.trimmingCharacters(in: .whitespaces)
+            return String(rawDay.prefix(1)) == "土"
         }
     }
 
@@ -54,6 +56,7 @@ final class TimetableViewModel: ObservableObject {
     func selectSemester(_ semester: TimetableSemester) {
         guard selectedSemester != semester else { return }
         selectedSemester = semester
+        intensiveCourses = []
         let cachedWeeklyCourses = cacheStore.loadWeeklyCourses(for: semester)
         weeklySchedule = buildGrid(from: cachedWeeklyCourses)
         Task {
@@ -261,11 +264,16 @@ final class TimetableViewModel: ObservableObject {
     }
 
     /// 既存の手動日程を保持しつつ、パース結果とマージ
+    /// parsedに含まれない既存科目も残す（履修登録から外れた科目等の手動日程を保護）
     private func mergeIntensiveCourses(existing: [IntensiveCourseCard], parsed: [IntensiveCourseCard]) -> [IntensiveCourseCard] {
         let existingByTitle = Dictionary(grouping: existing, by: \.title)
-        return parsed.map { parsedCourse in
+        var mergedByTitle: [String: IntensiveCourseCard] = [:]
+
+        // parsedの科目をベースに既存の手動日程をマージ
+        for parsedCourse in parsed {
             guard let existingCourse = existingByTitle[parsedCourse.title]?.first else {
-                return parsedCourse
+                mergedByTitle[parsedCourse.title] = parsedCourse
+                continue
             }
             var merged = parsedCourse
             // 手動入力した日程・時間は保持
@@ -278,8 +286,15 @@ final class TimetableViewModel: ObservableObject {
             if let end = existingCourse.endTime {
                 merged.endTime = end
             }
-            return merged
+            mergedByTitle[merged.title] = merged
         }
+
+        // parsedに含まれない既存科目も保持（手動追加や履修登録から外れた科目など）
+        for existingCourse in existing where mergedByTitle[existingCourse.title] == nil {
+            mergedByTitle[existingCourse.title] = existingCourse
+        }
+
+        return Array(mergedByTitle.values).sorted { $0.title < $1.title }
     }
 
     private func applyCourses(_ fetchedCourses: [Course]) {
