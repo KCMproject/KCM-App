@@ -47,7 +47,7 @@ enum CampusSquareParser {
                     url = decodeHtmlEntities(extractedUrl)
                 }
 
-                let category = parseNoticeCategory(from: Array(cellTexts.dropFirst(titleIndex + 1)))
+                let category = parseNoticeCategory(from: cellTexts)
                 let id = "\(title)_\(date)".addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? UUID().uuidString
                 if !title.isEmpty && !date.isEmpty && !title.contains("掲載日時") {
                     results.append(NoticeCard(id: id, title: title, date: date, category: category, url: url, attachments: nil, isPinned: rowHtml.contains("icon_pin") || rowHtml.contains("重要"), content: ""))
