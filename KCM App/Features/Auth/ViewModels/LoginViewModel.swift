@@ -124,6 +124,10 @@ final class LoginViewModel: ObservableObject {
         }
     }
 
+    func fetchGradeReportPDF() async throws -> Data {
+        try await portalClient.fetchGradeReportPDF()
+    }
+
     private func persistCredentialsIfNeeded() {
         guard isPasswordAutofillEnabled else { return }
         guard !studentID.isEmpty, !password.isEmpty else { return }

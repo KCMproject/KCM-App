@@ -348,6 +348,14 @@ final class PortalClientImpl: PortalClientProtocol {
         }
     }
 
+    func fetchWeeklyTimetableWithHTML(semester: TimetableSemester) async throws -> (courses: [Course], html: String) {
+        try await executeWithAutoRelogin {
+            let html = try await self._fetchWeeklyTimetableHTML(semester: semester)
+            let courses = CampusSquareParser.parseWeeklyTimetableFromRSW(from: html)
+            return (courses, html)
+        }
+    }
+
     private func _fetchWeeklyTimetableHTML(semester: TimetableSemester) async throws -> String {
         print("🌐 [Portal] fetchWeeklyTimetableHTML(\(semester.displayName)) 開始")
         let mainURL = "\(networkClient.baseURL)\(portalURL)?page=main"
@@ -389,6 +397,49 @@ final class PortalClientImpl: PortalClientProtocol {
         } catch {
             return false
         }
+    }
+
+    // MARK: - 成績通知書PDF
+
+    func fetchGradeReportPDF() async throws -> Data {
+        try await executeWithAutoRelogin {
+            try await self._fetchGradeReportPDF()
+        }
+    }
+
+    private func _fetchGradeReportPDF() async throws -> Data {
+        let mainURL = "\(networkClient.baseURL)\(portalURL)?page=main"
+
+        // Step 1: 学生ポートフォリオページを開き、_flowExecutionKeyをURLから取得
+        let portfolioURL = "\(networkClient.baseURL)/campussquare.do?_flowId=CHW0001000-flow"
+        print("📄 [PDF] Step1: 学生ポートフォリオを取得: \(portfolioURL)")
+        let (portfolioData, portfolioResponse) = try await networkClient.fetchHTMLWithResponse(from: portfolioURL, referer: mainURL)
+        let key1 = try extractFlowExecutionKey(from: portfolioData, responseURL: portfolioResponse.url)
+        print("📄 [PDF] _flowExecutionKey(1) = \(key1)")
+
+        // Step 2: 成績修得状況ページへ遷移
+        let seisekiURL = "\(networkClient.baseURL)/campussquare.do?_flowExecutionKey=\(key1.urlEncoded)&_eventId=check&nextEvent=seiseki"
+        print("📄 [PDF] Step2: 成績修得状況を取得: \(seisekiURL)")
+        let (seisekiData, seisekiResponse) = try await networkClient.fetchHTMLWithResponse(from: seisekiURL, referer: portfolioURL)
+        let key2 = try extractFlowExecutionKey(from: seisekiData, responseURL: seisekiResponse.url)
+        print("📄 [PDF] _flowExecutionKey(2) = \(key2)")
+
+        // Step 3: PDFをPOSTでダウンロード
+        print("📄 [PDF] Step3: PDFをダウンロード")
+        let pdfData = try await postFormRaw(
+            fields: [
+                ("_flowExecutionKey", key2),
+                ("_eventId", "outputPdf")
+            ],
+            referer: seisekiURL
+        )
+        print("📄 [PDF] ダウンロード完了: \(pdfData.count) bytes")
+
+        guard !pdfData.isEmpty else {
+            throw NSError(domain: "PortalClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "PDFデータが空です"])
+        }
+
+        return pdfData
     }
 }
 
@@ -631,6 +682,59 @@ private extension PortalClientImpl {
         let url = absolutePortalURLString(from: path)
         print("🔗 [Portal] スケジュール月取得 offset=\(monthOffset): \(url)")
         return try await networkClient.fetchHTML(from: url, referer: referer)
+    }
+
+    func extractFlowExecutionKey(from data: Data, responseURL: URL?) throws -> String {
+        // 1. レスポンスURLから抽出（リダイレクト後にURLに含まれるケース）
+        if let url = responseURL,
+           let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+           let queryItems = components.queryItems,
+           let keyFromURL = queryItems.first(where: { $0.name == "_flowExecutionKey" })?.value,
+           !keyFromURL.isEmpty {
+            return keyFromURL
+        }
+
+        // 2. HTML内の<input hidden>から抽出
+        guard let html = String(data: data, encoding: .utf8) else {
+            throw NSError(domain: "PortalClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "HTMLのデコードに失敗しました"])
+        }
+
+        let inputPattern = "name=\"_flowExecutionKey\"\\s+value=\"([^\"]+)\""
+        if let regex = try? NSRegularExpression(pattern: inputPattern),
+           let match = regex.firstMatch(in: html, range: NSRange(location: 0, length: html.utf16.count)),
+           let range = Range(match.range(at: 1), in: html) {
+            return String(html[range])
+        }
+
+        // 3. form action URL や a href から抽出（URLエンコードされた&amp;を含む可能性あり）
+        let hrefPattern = "_flowExecutionKey=([a-zA-Z0-9_\\-]+)"
+        guard let regex = try? NSRegularExpression(pattern: hrefPattern),
+              let match = regex.firstMatch(in: html, range: NSRange(location: 0, length: html.utf16.count)),
+              let range = Range(match.range(at: 1), in: html) else {
+            throw NSError(domain: "PortalClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "_flowExecutionKeyが見つかりません"])
+        }
+        return String(html[range])
+    }
+
+    func postFormRaw(fields: [(String, String)], referer: String) async throws -> Data {
+        guard let url = URL(string: "\(networkClient.baseURL)/campussquare.do") else {
+            throw NSError(domain: "PortalClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "URLを生成できません"])
+        }
+
+        var request = networkClient.makeRequest(url: url, method: "POST", referer: referer)
+        request.setValue("application/x-www-form-urlencoded; charset=UTF-8", forHTTPHeaderField: "Content-Type")
+        request.setValue("https://cs.kunitachi.ac.jp", forHTTPHeaderField: "Origin")
+        request.setValue("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", forHTTPHeaderField: "Accept")
+        request.httpBody = formURLEncoded(fields).data(using: .utf8)
+
+        let (data, response) = try await networkClient.send(request)
+
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            throw NSError(domain: "PortalClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "PDFダウンロードに失敗しました"])
+        }
+
+        return data
     }
 
     func absolutePortalURLString(from path: String) -> String {

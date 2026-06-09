@@ -72,25 +72,102 @@ struct ClassCell: Equatable {
     }
 }
 
-struct IntensiveCourseCard: Identifiable, Codable, Equatable {
+struct DateRange: Identifiable, Codable, Equatable {
     let id: UUID
+    var startDate: String         // "yyyy-MM-dd"
+    var endDate: String           // "yyyy-MM-dd"
+    var startTime: String?        // "HH:mm"
+    var endTime: String?          // "HH:mm"
+
+    init(startDate: String, endDate: String, startTime: String? = nil, endTime: String? = nil) {
+        self.id = UUID()
+        self.startDate = startDate
+        self.endDate = endDate
+        self.startTime = startTime
+        self.endTime = endTime
+    }
+
+    var dates: [String] {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        guard let start = formatter.date(from: startDate),
+              let end = formatter.date(from: endDate) else { return [startDate] }
+        var result: [String] = []
+        var current = start
+        while current <= end {
+            result.append(formatter.string(from: current))
+            guard let next = Calendar(identifier: .gregorian).date(byAdding: .day, value: 1, to: current) else { break }
+            current = next
+        }
+        return result
+    }
+}
+
+struct IntensiveCourseCard: Identifiable, Codable, Equatable {
+    var id: UUID
     let title: String
     let period: String
     var location: String
     let instructor: String
-    var dates: [String]            // ["2025-08-04", ...] 手動入力された日程
-    var startTime: String?         // "09:00"
-    var endTime: String?           // "17:00"
+    var dateRanges: [DateRange]
+    var startTime: String?
+    var endTime: String?
 
-    init(title: String, period: String, location: String, instructor: String, dates: [String] = [], startTime: String? = nil, endTime: String? = nil) {
+    private enum CodingKeys: String, CodingKey {
+        case id, title, period, location, instructor, dateRanges, dates, startTime, endTime
+    }
+
+    var allDates: [String] {
+        dateRanges.flatMap { $0.dates }
+    }
+
+    init(title: String, period: String, location: String, instructor: String, dateRanges: [DateRange] = [], startTime: String? = nil, endTime: String? = nil) {
         self.id = UUID()
         self.title = title
         self.period = period
         self.location = location
         self.instructor = instructor
-        self.dates = dates
+        self.dateRanges = dateRanges
         self.startTime = startTime
         self.endTime = endTime
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(title, forKey: .title)
+        try container.encode(period, forKey: .period)
+        try container.encode(location, forKey: .location)
+        try container.encode(instructor, forKey: .instructor)
+        try container.encode(dateRanges, forKey: .dateRanges)
+        try container.encodeIfPresent(startTime, forKey: .startTime)
+        try container.encodeIfPresent(endTime, forKey: .endTime)
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(UUID.self, forKey: .id)
+        self.title = try container.decode(String.self, forKey: .title)
+        self.period = try container.decode(String.self, forKey: .period)
+        self.location = try container.decode(String.self, forKey: .location)
+        self.instructor = try container.decode(String.self, forKey: .instructor)
+        self.startTime = try container.decodeIfPresent(String.self, forKey: .startTime)
+        self.endTime = try container.decodeIfPresent(String.self, forKey: .endTime)
+
+        if let ranges = try container.decodeIfPresent([DateRange].self, forKey: .dateRanges) {
+            self.dateRanges = ranges
+        } else {
+            if let dates = try container.decodeIfPresent([String].self, forKey: .dates), !dates.isEmpty {
+                let sorted = dates.sorted()
+                let first = sorted.first!
+                let last = sorted.last!
+                let start = try container.decodeIfPresent(String.self, forKey: .startTime)
+                let end = try container.decodeIfPresent(String.self, forKey: .endTime)
+                self.dateRanges = [DateRange(startDate: first, endDate: last, startTime: start, endTime: end)]
+            } else {
+                self.dateRanges = []
+            }
+        }
     }
 }
 

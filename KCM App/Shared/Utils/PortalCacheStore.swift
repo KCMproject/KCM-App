@@ -8,11 +8,11 @@ final class PortalCacheStore {
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
 
-private enum Key {
+ private enum Key {
     static let courses = "portalCache.courses"
     static let scheduleMonthKeys = "portalCache.scheduleMonthKeys"
     static let weeklyCoursesPrefix = "portalCache.weeklyCourses."
-    static let intensiveCourses = "portalCache.intensiveCourses"
+    static let intensiveCoursesPrefix = "portalCache.intensiveCourses."
     static let notices = "portalCache.notices"
     static let noticeAttachments = "portalCache.noticeAttachments"
     static let favoriteNoticeIDs = "portalCache.favoriteNoticeIDs"
@@ -78,17 +78,21 @@ private enum Key {
         defaults.set(data, forKey: weeklyCoursesKey(for: semester))
     }
 
-    func loadIntensiveCourses() -> [IntensiveCourseCard] {
-        guard let data = defaults.data(forKey: Key.intensiveCourses),
+    func loadIntensiveCourses(for semester: TimetableSemester) -> [IntensiveCourseCard] {
+        guard let data = defaults.data(forKey: intensiveCoursesKey(for: semester)),
               let courses = try? decoder.decode([IntensiveCourseCard].self, from: data) else {
             return []
         }
         return courses
     }
 
-    func saveIntensiveCourses(_ courses: [IntensiveCourseCard]) {
+    func saveIntensiveCourses(_ courses: [IntensiveCourseCard], for semester: TimetableSemester) {
         guard let data = try? encoder.encode(courses) else { return }
-        defaults.set(data, forKey: Key.intensiveCourses)
+        defaults.set(data, forKey: intensiveCoursesKey(for: semester))
+    }
+
+    private func intensiveCoursesKey(for semester: TimetableSemester) -> String {
+        "\(Key.intensiveCoursesPrefix)\(semester.rawValue)"
     }
 
     func loadNotices() -> [NoticeCard] {

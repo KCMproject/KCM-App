@@ -125,4 +125,7 @@ class MockPortalClient: PortalClientProtocol {
     func fetchWeeklyTimetable(semester: TimetableSemester) async throws -> [Course] {
         return weeklyCourses
     }
+    func fetchWeeklyTimetableHTML(semester: TimetableSemester) async throws -> String {
+        return ""
+    }
 }

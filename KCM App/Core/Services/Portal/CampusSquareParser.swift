@@ -286,7 +286,7 @@ enum CampusSquareParser {
                 period: displayPeriod,
                 location: room,
                 instructor: instructor,
-                dates: [],
+                dateRanges: [],
                 startTime: nil,
                 endTime: nil
             ))

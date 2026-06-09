@@ -8,6 +8,7 @@ struct WeeklyTimetableCloneView: View {
     @State private var tempClassroomURL = ""
     @State private var webDestination: CampusWebDestination?
     @State private var showingScheduleSheet = false
+    @State private var selectedCourseID: UUID?
     @State private var selectedCourseTitle = ""
     
     let onToggle: () -> Void
@@ -198,8 +199,10 @@ struct WeeklyTimetableCloneView: View {
                                             requestClassroomURLEdit(for: cellKey)
                                         },
                                         onAddSchedule: {
-                                            if let title = item.title {
-                                                selectedCourseTitle = title
+                                            if let title = item.title,
+                                               let course = viewModel.intensiveCourses.first(where: { $0.title == title }) {
+                                                selectedCourseID = course.id
+                                                selectedCourseTitle = course.title
                                                 showingScheduleSheet = true
                                             }
                                         }
@@ -229,9 +232,16 @@ struct WeeklyTimetableCloneView: View {
 
                                 ForEach(viewModel.intensiveCourses) { course in
                                     IntensiveCourseRow(course: course, onEdit: {
+                                        selectedCourseID = course.id
                                         selectedCourseTitle = course.title
                                         showingScheduleSheet = true
-                                    }, onOpenSyllabusSearch: openSyllabusSearch)
+                                    }, onOpenSyllabusSearch: openSyllabusSearch,
+                                    onEditClassroomURL: {
+                                        let key = "\(course.title)_\(course.period)"
+                                        requestClassroomURLEdit(for: key)
+                                    }, onOpenClassroomURL: { url in
+                                        openURL(url)
+                                    })
                                 }
                             }
                             .padding(.bottom, 24)
@@ -271,7 +281,9 @@ struct WeeklyTimetableCloneView: View {
         }
         .sheet(isPresented: $showingScheduleSheet) {
             IntensiveScheduleSheet(
+                courseID: selectedCourseID,
                 courseTitle: selectedCourseTitle,
+                semester: viewModel.selectedSemester,
                 intensiveCourses: $viewModel.intensiveCourses
             )
             .presentationDetents([.height(480)])
@@ -398,47 +410,14 @@ private struct TimetableCell: View {
 }
 
 // MARK: - 集中講義カード
-
 private struct IntensiveCourseRow: View {
   let course: IntensiveCourseCard
   let onEdit: () -> Void
   let onOpenSyllabusSearch: (String) -> Void
+  let onEditClassroomURL: () -> Void
+  let onOpenClassroomURL: (String) -> Void
 
-  @State private var classroomURLs: [String: String] = [:]
-  @State private var showingURLAlert = false
-  @State private var tempURL = ""
   @State private var showingActionMenu = false
-
-  private var cellKey: String {
-    "\(course.title)_\(course.period)"
-  }
-
-  private func loadClassroomURLs() {
-    classroomURLs = PortalCacheStore.shared.loadClassroomURLs()
-  }
-
-  private func saveClassroomURLs() {
-    PortalCacheStore.shared.saveClassroomURLs(classroomURLs)
-  }
-
-  private func classroomURL() -> String? {
-    classroomURLs[cellKey]
-  }
-
-  private func setClassroomURL(url: String?) {
-    if let url = url, !url.isEmpty {
-      classroomURLs[cellKey] = url
-    } else {
-      classroomURLs.removeValue(forKey: cellKey)
-    }
-    saveClassroomURLs()
-  }
-
-  private func openURL(_ urlString: String) {
-    if let url = URL(string: urlString) {
-      UIApplication.shared.open(url)
-    }
-  }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
@@ -447,8 +426,7 @@ private struct IntensiveCourseRow: View {
           .font(.system(size: 14, weight: .semibold))
           .foregroundStyle(AppTheme.textPrimary)
         Spacer()
-        // 日程インジケーター
-        if course.dates.isEmpty {
+        if course.dateRanges.isEmpty {
           Text("日程未入力")
             .font(.system(size: 10, weight: .bold))
             .foregroundStyle(.white)
@@ -469,9 +447,30 @@ private struct IntensiveCourseRow: View {
           .font(.system(size: 12))
           .foregroundStyle(AppTheme.textBlue)
       }
-      Text("\(course.location) \(course.instructor)")
-        .font(.system(size: 12))
-        .foregroundStyle(AppTheme.textMuted)
+      ForEach(course.dateRanges) { range in
+        HStack(spacing: 4) {
+          Image(systemName: "calendar")
+            .font(.system(size: 11))
+            .foregroundStyle(AppTheme.textBlue)
+          Text(formatDateRange(range))
+            .font(.system(size: 12))
+            .foregroundStyle(AppTheme.textBlue)
+          if let s = range.startTime, let e = range.endTime {
+            Text("  \(s)-\(e)")
+              .font(.system(size: 11))
+              .foregroundStyle(AppTheme.textMuted)
+          }
+        }
+      }
+      if course.dateRanges.isEmpty {
+        Text("\(course.location) \(course.instructor)")
+          .font(.system(size: 12))
+          .foregroundStyle(AppTheme.textMuted)
+      } else {
+        Text("\(course.location) \(course.instructor)")
+          .font(.system(size: 12))
+          .foregroundStyle(AppTheme.textMuted)
+      }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .padding(.horizontal, 16)
@@ -495,20 +494,20 @@ private struct IntensiveCourseRow: View {
             .padding(.horizontal, 12)
         }
         Divider()
-        if let classroomURL = classroomURL() {
-          Button { showingActionMenu = false; openURL(classroomURL) } label: {
+        Button { showingActionMenu = false; onEditClassroomURL() } label: {
+          Label("クラスルームを設定", systemImage: "link.badge.plus")
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
+        }
+        if let url = PortalCacheStore.shared.loadClassroomURLs()["\(course.title)_\(course.period)"] {
+          Divider()
+          Button { showingActionMenu = false; onOpenClassroomURL(url) } label: {
             Label("クラスルームを表示", systemImage: "video")
               .frame(maxWidth: .infinity, alignment: .leading)
               .padding(.vertical, 10)
               .padding(.horizontal, 12)
           }
-          Divider()
-        }
-        Button { showingActionMenu = false; tempURL = classroomURL() ?? ""; showingURLAlert = true } label: {
-          Label("クラスルームを設定", systemImage: "link.badge.plus")
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 10)
-            .padding(.horizontal, 12)
         }
         Divider()
         Button { showingActionMenu = false; onOpenSyllabusSearch(course.title) } label: {
@@ -522,23 +521,11 @@ private struct IntensiveCourseRow: View {
       .frame(minWidth: 220)
       .presentationCompactAdaptation(.popover)
     }
-    .alert("クラスルームURLを設定", isPresented: $showingURLAlert) {
-      TextField("URLを入力", text: $tempURL)
-        .textInputAutocapitalization(.never)
-        .autocorrectionDisabled()
-      Button("キャンセル", role: .cancel) {}
-      Button("保存") {
-        setClassroomURL(url: tempURL)
-      }
-      Button("クリア", role: .destructive) {
-        setClassroomURL(url: nil)
-      }
-    } message: {
-        Text("Google Classroom・Zoom等のURLを入力してください. ClassroomのURLはアプリではなくブラウザから取得できます。")
-    }
-    .onAppear {
-      loadClassroomURLs()
-    }
+  }
+
+  private func formatDateRange(_ range: DateRange) -> String {
+    if range.startDate == range.endDate { return range.startDate }
+    return "\(range.startDate) 〜 \(range.endDate)"
   }
 }
 
@@ -653,60 +640,37 @@ private struct LessonRow: View {
 // MARK: - 集中講義日程管理シート
 
 private struct IntensiveScheduleSheet: View {
+    let courseID: UUID?
     let courseTitle: String
+    let semester: TimetableSemester
     @Binding var intensiveCourses: [IntensiveCourseCard]
     @Environment(\.dismiss) private var dismiss
     
     @State private var showingAddSheet = false
-    @State private var refreshID = UUID()
     
     private var existingCourse: IntensiveCourseCard? {
-        intensiveCourses.first { $0.title == courseTitle }
-    }
-    
-    private var scheduleRanges: [(id: String, dates: [String], startTime: String?, endTime: String?)] {
-        guard let course = existingCourse, !course.dates.isEmpty else { return [] }
-        // 連続した日程を範囲にグループ化
-        let sorted = course.dates.sorted()
-        var ranges: [(id: String, dates: [String], startTime: String?, endTime: String?)] = []
-        var currentRange: [String] = []
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-
-        for dateStr in sorted {
-            if formatter.date(from: dateStr) != nil {
-                if let lastStr = currentRange.last,
-                   let lastDate = formatter.date(from: lastStr),
-                   let nextDay = Calendar(identifier: .gregorian).date(byAdding: .day, value: 1, to: lastDate),
-                   formatter.string(from: nextDay) == dateStr {
-                    currentRange.append(dateStr)
-                } else {
-                    if !currentRange.isEmpty {
-                        ranges.append((id: currentRange.first ?? dateStr, dates: currentRange, startTime: existingCourse?.startTime, endTime: existingCourse?.endTime))
-                    }
-                    currentRange = [dateStr]
-                }
-            }
+        if let id = courseID, let course = intensiveCourses.first(where: { $0.id == id }) {
+            return course
         }
-        if !currentRange.isEmpty {
-            ranges.append((id: currentRange.first ?? UUID().uuidString, dates: currentRange, startTime: existingCourse?.startTime, endTime: existingCourse?.endTime))
+        if !courseTitle.isEmpty, let course = intensiveCourses.first(where: { $0.title == courseTitle }) {
+            return course
         }
-        return ranges
+        return nil
     }
     
     var body: some View {
         NavigationStack {
             Form {
                 Section(header: Text("登録済み日程")) {
-                    if scheduleRanges.isEmpty {
+                    if existingCourse?.dateRanges.isEmpty ?? true {
                         Text("まだ日程が追加されていません")
                             .font(.system(size: 14))
                             .foregroundStyle(AppTheme.textMuted)
                     } else {
-                        ForEach(Array(scheduleRanges.enumerated()), id: \.element.id) { index, range in
+                        ForEach(existingCourse?.dateRanges ?? []) { range in
                             HStack {
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text(formatDateRange(range.dates))
+                                    Text(formatDateRange(range))
                                         .font(.system(size: 14, weight: .semibold))
                                     if let start = range.startTime, let end = range.endTime {
                                         Text("\(start) 〜 \(end)")
@@ -716,7 +680,7 @@ private struct IntensiveScheduleSheet: View {
                                 }
                                 Spacer()
                                 Button(role: .destructive) {
-                                    deleteRange(range.dates)
+                                    deleteRange(range)
                                 } label: {
                                     Image(systemName: "trash")
                                         .foregroundStyle(.red)
@@ -724,7 +688,6 @@ private struct IntensiveScheduleSheet: View {
                                 .buttonStyle(.plain)
                             }
                         }
-                        .id(refreshID)
                     }
                 }
                 
@@ -737,6 +700,7 @@ private struct IntensiveScheduleSheet: View {
                     }
                 }
             }
+            .id(existingCourse?.dateRanges.count ?? -1)
             .navigationTitle("日程を編集")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -747,40 +711,45 @@ private struct IntensiveScheduleSheet: View {
                 }
             }
         }
-        .sheet(isPresented: $showingAddSheet, onDismiss: {
-            refreshID = UUID()
-        }) {
+        .sheet(isPresented: $showingAddSheet) {
             IntensiveScheduleAddSheet(
+                courseID: courseID,
                 courseTitle: courseTitle,
+                semester: semester,
                 intensiveCourses: $intensiveCourses
             )
-            .presentationDetents([.height(420)])
+            .presentationDetents([.height(480)])
         }
     }
     
-    private func formatDateRange(_ dates: [String]) -> String {
-        guard let first = dates.first, let last = dates.last else { return "" }
-        if first == last { return first }
-        return "\(first) 〜 \(last)"
+    private func formatDateRange(_ range: DateRange) -> String {
+        if range.startDate == range.endDate { return range.startDate }
+        return "\(range.startDate) 〜 \(range.endDate)"
     }
     
-    private func deleteRange(_ datesToDelete: [String]) {
-        if let index = intensiveCourses.firstIndex(where: { $0.title == courseTitle }) {
-            var updated = intensiveCourses[index]
-            updated.dates.removeAll { datesToDelete.contains($0) }
-            // 配列全体を新しいインスタンスに置き換えてSwiftUIに変更を検知させる
-            var newCourses = intensiveCourses
-            newCourses[index] = updated
-            intensiveCourses = newCourses
-            PortalCacheStore.shared.saveIntensiveCourses(intensiveCourses)
-        }
+    private func deleteRange(_ range: DateRange) {
+        let targetID = courseID
+        let targetTitle = courseTitle
+        guard let index = intensiveCourses.firstIndex(where: { course in
+            if let id = targetID, course.id == id { return true }
+            if !targetTitle.isEmpty, course.title == targetTitle { return true }
+            return false
+        }) else { return }
+        var updated = intensiveCourses[index]
+        updated.dateRanges.removeAll { $0.id == range.id }
+        var newCourses = intensiveCourses
+        newCourses[index] = updated
+        intensiveCourses = newCourses
+        PortalCacheStore.shared.saveIntensiveCourses(intensiveCourses, for: semester)
     }
 }
 
 // MARK: - 日程追加用シート（単一範囲）
 
 private struct IntensiveScheduleAddSheet: View {
+    let courseID: UUID?
     let courseTitle: String
+    let semester: TimetableSemester
     @Binding var intensiveCourses: [IntensiveCourseCard]
     @Environment(\.dismiss) private var dismiss
     
@@ -825,36 +794,35 @@ private struct IntensiveScheduleAddSheet: View {
     }
     
     private func addSchedule() {
-        let calendar = Calendar(identifier: .gregorian)
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
-
-        var newDates: [String] = []
-        var current = calendar.startOfDay(for: startDate)
-        let end = calendar.startOfDay(for: endDate)
-        while current <= end {
-            newDates.append(formatter.string(from: current))
-            guard let next = calendar.date(byAdding: .day, value: 1, to: current) else { break }
-            current = next
-        }
 
         let trimmedStart = startTimeText.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedEnd = endTimeText.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        if let index = intensiveCourses.firstIndex(where: { $0.title == courseTitle }) {
-            var updated = intensiveCourses[index]
-            // 既存の日程とマージ（重複排除）
-            var mergedDates = Set(updated.dates)
-            mergedDates.formUnion(newDates)
-            updated.dates = Array(mergedDates).sorted()
-            updated.startTime = trimmedStart.isEmpty ? nil : trimmedStart
-            updated.endTime = trimmedEnd.isEmpty ? nil : trimmedEnd
-            // 配列全体を新しいインスタンスに置き換えてSwiftUIに変更を検知させる
-            var newCourses = intensiveCourses
-            newCourses[index] = updated
-            intensiveCourses = newCourses
-            PortalCacheStore.shared.saveIntensiveCourses(intensiveCourses)
+        let newRange = DateRange(
+            startDate: formatter.string(from: startDate),
+            endDate: formatter.string(from: endDate),
+            startTime: trimmedStart.isEmpty ? nil : trimmedStart,
+            endTime: trimmedEnd.isEmpty ? nil : trimmedEnd
+        )
+
+        let targetID = courseID
+        let targetTitle = courseTitle
+        guard let index = intensiveCourses.firstIndex(where: { course in
+            if let id = targetID, course.id == id { return true }
+            if !targetTitle.isEmpty, course.title == targetTitle { return true }
+            return false
+        }) else {
+            dismiss()
+            return
         }
+        var updated = intensiveCourses[index]
+        updated.dateRanges.append(newRange)
+        var newCourses = intensiveCourses
+        newCourses[index] = updated
+        intensiveCourses = newCourses
+        PortalCacheStore.shared.saveIntensiveCourses(intensiveCourses, for: semester)
 
         dismiss()
     }

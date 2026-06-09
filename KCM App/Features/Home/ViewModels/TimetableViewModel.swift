@@ -10,7 +10,13 @@ final class TimetableViewModel: ObservableObject {
     @Published var intensiveCourses: [IntensiveCourseCard] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
-    @Published var selectedSemester: TimetableSemester = .current
+    @Published var selectedSemester: TimetableSemester = {
+        if let raw = UserDefaults.standard.string(forKey: AppSettings.lastViewedSemester),
+           let saved = TimetableSemester(rawValue: raw) {
+            return saved
+        }
+        return .current
+    }()
     
     /// 土曜日に授業があるかどうか（RSWの生データを直接見て、フォールバックデータによる誤検出を防ぐ）
     var hasSaturdayClass: Bool {
@@ -31,7 +37,7 @@ final class TimetableViewModel: ObservableObject {
     func loadCachedData() {
         let cachedCourses = cacheStore.loadCourses()
         let cachedWeeklyCourses = cacheStore.loadWeeklyCourses(for: selectedSemester)
-        let cachedIntensive = cacheStore.loadIntensiveCourses()
+        let cachedIntensive = cacheStore.loadIntensiveCourses(for: selectedSemester)
         print("📊 [TimetableViewModel] loadCachedData: courses=\(cachedCourses.count), weekly=\(cachedWeeklyCourses.count), intensive=\(cachedIntensive.count)")
         if !cachedCourses.isEmpty {
             applyCourses(cachedCourses)
@@ -56,7 +62,8 @@ final class TimetableViewModel: ObservableObject {
     func selectSemester(_ semester: TimetableSemester) {
         guard selectedSemester != semester else { return }
         selectedSemester = semester
-        intensiveCourses = []
+        UserDefaults.standard.set(semester.rawValue, forKey: AppSettings.lastViewedSemester)
+        intensiveCourses = cacheStore.loadIntensiveCourses(for: semester)
         let cachedWeeklyCourses = cacheStore.loadWeeklyCourses(for: semester)
         weeklySchedule = buildGrid(from: cachedWeeklyCourses)
         Task {
@@ -113,7 +120,7 @@ final class TimetableViewModel: ObservableObject {
             }
 
             if scope.includesWeekly {
-                let fetchedWeeklyCourses = try await portalClient.fetchWeeklyTimetable(semester: selectedSemester)
+                let (fetchedWeeklyCourses, weeklyHtml) = try await portalClient.fetchWeeklyTimetableWithHTML(semester: selectedSemester)
                 print("📊 [TimetableViewModel] 週間時間割取得完了: \(fetchedWeeklyCourses.count)件")
 
                 var newWeeklySchedule = buildGrid(from: fetchedWeeklyCourses)
@@ -127,13 +134,12 @@ final class TimetableViewModel: ObservableObject {
                 weeklySchedule = newWeeklySchedule
                 cacheStore.saveWeeklyCourses(fetchedWeeklyCourses, for: selectedSemester)
 
-                // 集中講義も同時に取得（既存の手動日程は保持してマージ）
-                let weeklyHtml = try await portalClient.fetchWeeklyTimetableHTML(semester: selectedSemester)
+                // 集中講義も同一HTMLからパース（既存の手動日程は保持してマージ）
                 let parsedIntensive = CampusSquareParser.parseIntensiveCoursesFromRSW(from: weeklyHtml)
                 let mergedIntensive = mergeIntensiveCourses(existing: intensiveCourses, parsed: parsedIntensive)
                 didUpdate = didUpdate || mergedIntensive != intensiveCourses
                 intensiveCourses = mergedIntensive
-                cacheStore.saveIntensiveCourses(mergedIntensive)
+                cacheStore.saveIntensiveCourses(mergedIntensive, for: selectedSemester)
             }
 
             isLoading = false
@@ -266,19 +272,28 @@ final class TimetableViewModel: ObservableObject {
     /// 既存の手動日程を保持しつつ、パース結果とマージ
     /// parsedに含まれない既存科目も残す（履修登録から外れた科目等の手動日程を保護）
     private func mergeIntensiveCourses(existing: [IntensiveCourseCard], parsed: [IntensiveCourseCard]) -> [IntensiveCourseCard] {
+        print("🔍 [Merge] existing count: \(existing.count), parsed count: \(parsed.count)")
+        for e in existing {
+            print("🔍 [Merge] existing: \(e.title), dateRanges: \(e.dateRanges.count), id: \(e.id)")
+        }
+        for p in parsed {
+            print("🔍 [Merge] parsed: \(p.title), dateRanges: \(p.dateRanges.count)")
+        }
+        
         let existingByTitle = Dictionary(grouping: existing, by: \.title)
         var mergedByTitle: [String: IntensiveCourseCard] = [:]
 
-        // parsedの科目をベースに既存の手動日程をマージ
         for parsedCourse in parsed {
             guard let existingCourse = existingByTitle[parsedCourse.title]?.first else {
+                print("⚠️ [Merge] No match for parsed: \(parsedCourse.title), using parsed (empty dateRanges)")
                 mergedByTitle[parsedCourse.title] = parsedCourse
                 continue
             }
+            print("✅ [Merge] Matched: \(parsedCourse.title), existing dateRanges: \(existingCourse.dateRanges.count)")
             var merged = parsedCourse
-            // 手動入力した日程・時間は保持
-            if !existingCourse.dates.isEmpty {
-                merged.dates = existingCourse.dates
+            merged.id = existingCourse.id
+            if !existingCourse.dateRanges.isEmpty {
+                merged.dateRanges = existingCourse.dateRanges
             }
             if let start = existingCourse.startTime {
                 merged.startTime = start
@@ -289,12 +304,17 @@ final class TimetableViewModel: ObservableObject {
             mergedByTitle[merged.title] = merged
         }
 
-        // parsedに含まれない既存科目も保持（手動追加や履修登録から外れた科目など）
         for existingCourse in existing where mergedByTitle[existingCourse.title] == nil {
+            print("🔒 [Merge] Keeping existing not in parsed: \(existingCourse.title)")
             mergedByTitle[existingCourse.title] = existingCourse
         }
 
-        return Array(mergedByTitle.values).sorted { $0.title < $1.title }
+        let result = Array(mergedByTitle.values).sorted { $0.title < $1.title }
+        print("🔍 [Merge] result count: \(result.count)")
+        for r in result {
+            print("🔍 [Merge] result: \(r.title), dateRanges: \(r.dateRanges.count)")
+        }
+        return result
     }
 
     private func applyCourses(_ fetchedCourses: [Course]) {
