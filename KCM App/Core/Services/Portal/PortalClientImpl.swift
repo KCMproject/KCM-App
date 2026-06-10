@@ -398,6 +398,89 @@ private extension PortalClientImpl {
             throw CampusSquareLoginError.sessionExpired
         }
     }
+    
+    // ページング: 次ページリンクを抽出（"次へ" もしくは rel="next"、またはページング用イベントが含まれるリンク）
+    func extractNextPageHref(from html: String) -> String? {
+        // rel="next"
+        if let href = firstHref(in: html, pattern: #"<a[^>]*rel=\"next\"[^>]*href=\"([^\"]+)\""#) {
+            return href
+        }
+        // _eventId_paging を含むリンク（実際のポータルで使用されるページング）
+        if let href = firstHref(in: html, pattern: #"href=\"([^\"]*_eventId_paging[^\"]*)\""#) {
+            return href
+        }
+        // アンカーテキストが「次へ」
+        if let range = html.range(of: "(?is)<a[^>]*href=\\\"([^\\\"]+)\\\"[^>]*>\\s*次へ\\s*&?[^<]*</a>", options: [.regularExpression, .caseInsensitive]) {
+            let match = String(html[range])
+            if let hrefRange = match.range(of: "href=\\\"([^\\\"]+)\\\"", options: .regularExpression) {
+                let href = String(match[hrefRange]).replacingOccurrences(of: "href=\"", with: "").replacingOccurrences(of: "\"", with: "")
+                return href.replacingOccurrences(of: "&amp;", with: "&")
+            }
+        }
+        // _eventId_next / nextPage を含むリンク
+        if let href = firstHref(in: html, pattern: #"href=\"([^\"]*_eventId_(next|nextPage)[^\"]*)\""#) {
+            return href
+        }
+        return nil
+    }
+
+    // 「前へ」リンクの抽出（必要に応じて使用）
+    func extractPrevPageHref(from html: String) -> String? {
+        // rel="prev"
+        if let href = firstHref(in: html, pattern: #"<a[^>]*rel=\"prev\"[^>]*href=\"([^\"]+)\""#) {
+            return href
+        }
+        // アンカーテキストに「前へ」
+        if let href = firstHref(in: html, pattern: #"<a[^>]*href=\"([^\"]+)\"[^>]*>\s*前へ\s*[<>\w\W]*?</a>"#) {
+            return href
+        }
+        // _eventId_prev / prevPage を含むリンク
+        if let href = firstHref(in: html, pattern: #"href=\"([^\"]*_eventId_(prev|prevPage)[^\"]*)\""#) {
+            return href
+        }
+        return nil
+    }
+
+    // 汎用: 最初にマッチした href の値を返す
+    func firstHref(in html: String, pattern: String) -> String? {
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { return nil }
+        let nsrange = NSRange(html.startIndex..<html.endIndex, in: html)
+        if let match = regex.firstMatch(in: html, options: [], range: nsrange), match.numberOfRanges >= 2,
+           let range = Range(match.range(at: 1), in: html) {
+            let href = String(html[range]).replacingOccurrences(of: "&amp;", with: "&")
+            return href
+        }
+        return nil
+    }
+
+    /// 掲示板ページをページングしながらすべてのお知らせを収集する（最大 maxPages ページ）
+    func collectAnnouncementsWithPagination(initialHtml: String, initialURL: String, referer: String, maxPages: Int = 10) async throws -> (notices: [NoticeCard], lastHtml: String, lastURL: String) {
+        var allByID: [String: NoticeCard] = [:]
+        var currentHtml = initialHtml
+        var currentURL = initialURL
+        var pageCount = 0
+
+        while pageCount < maxPages {
+            // 現ページのパース
+            let notices = CampusSquareParser.parseAnnouncements(from: currentHtml)
+            for n in notices { allByID[n.id] = n }
+
+            // 次ページリンク探索（存在しなければ終了）
+            guard let nextHref = extractNextPageHref(from: currentHtml) else {
+                break
+            }
+            pageCount += 1
+            
+            let nextURL = absolutePortalURLString(from: nextHref)
+            let nextHtml = try await networkClient.fetchHTML(from: nextURL, referer: currentURL)
+            try validatePortalPage(nextHtml)
+
+            currentHtml = nextHtml
+            currentURL = nextURL
+        }
+
+        return (sortAnnouncements(Array(allByID.values)), currentHtml, currentURL)
+    }
 
     func fetchAnnouncementGenreLists(from topHtml: String, referer: String) async throws -> [NoticeCard] {
         let targets = CampusSquareParser.extractNoticeGenreLinks(from: topHtml)
@@ -419,12 +502,12 @@ private extension PortalClientImpl {
             do {
                 let html = try await networkClient.fetchHTML(from: url, referer: currentReferer)
                 try validatePortalPage(html)
-                let notices = CampusSquareParser.parseAnnouncements(from: html)
-                for notice in notices {
+                let collected = try await collectAnnouncementsWithPagination(initialHtml: html, initialURL: url, referer: currentReferer, maxPages: 10)
+                for notice in collected.notices {
                     noticesByID[notice.id] = notice
                 }
-                currentHtml = html
-                currentReferer = url
+                currentHtml = collected.lastHtml
+                currentReferer = collected.lastURL
             } catch {
                 continue
             }
@@ -557,8 +640,10 @@ private extension PortalClientImpl {
 
             let html = try await submitAnnouncementSearch(fields: baseFields, genreValue: genreValue, referer: referer)
             try validatePortalPage(html)
-            let notices = CampusSquareParser.parseAnnouncements(from: html)
-            for notice in notices {
+            // 検索結果ページもページング対応
+            let tempURL = referer // POST のため明確なURLがないので referer を基準にする
+            let collected = try await collectAnnouncementsWithPagination(initialHtml: html, initialURL: tempURL, referer: referer, maxPages: 10)
+            for notice in collected.notices {
                 noticesByID[notice.id] = notice
             }
         }
