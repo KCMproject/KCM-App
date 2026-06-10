@@ -30,11 +30,13 @@ struct PortalCloneView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            SwipeableView(
-                content: contentView(for: tabConfig[selectedTab])
-                    .id(selectedTab),
-                onSwipeLeft: { switchTab(to: selectedTab + 1) },
-                onSwipeRight: { switchTab(to: selectedTab - 1) }
+SwipeableView(
+                selectedTab: selectedTab,
+                tabCount: tabConfig.count,
+                contentProvider: { index in
+                    AnyView(contentView(for: tabConfig[index]))
+                },
+                onSwipeToTab: { index in switchTab(to: index) }
             )
 
             customTabBar
@@ -51,9 +53,7 @@ struct PortalCloneView: View {
 
     private func switchTab(to index: Int) {
         guard index >= 0, index < tabConfig.count, index != selectedTab else { return }
-        withAnimation(.easeInOut(duration: 0.25)) {
-            selectedTab = index
-        }
+        selectedTab = index
     }
 
     @ViewBuilder
