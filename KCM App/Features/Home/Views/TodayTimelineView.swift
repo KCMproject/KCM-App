@@ -90,12 +90,14 @@ struct TodayTimelineView: View {
         
         // 集中講義（日程が入力されているもの）
         let intensiveEvents = viewModel.intensiveCourses
-            .filter { $0.dates.contains(dateString) && !$0.dates.isEmpty }
+            .filter { $0.allDates.contains(dateString) && !$0.dateRanges.isEmpty }
             .map { course in
-                DayEvent(
+                // 該当するDateRangeの時間を使用
+                let matchingRange = course.dateRanges.first { $0.dates.contains(dateString) }
+                return DayEvent(
                     title: course.title,
-                    startTime: course.startTime ?? "09:00",
-                    endTime: course.endTime ?? "17:00",
+                    startTime: matchingRange?.startTime ?? course.startTime ?? "09:00",
+                    endTime: matchingRange?.endTime ?? course.endTime ?? "17:00",
                     location: course.location,
                     status: "集中",
                     classroomKey: nil,
@@ -915,6 +917,7 @@ private struct EventCardsView: View {
                         onScheduleAdjust: onScheduleAdjust,
                         classroomURL: classroomURL(event)
                     )
+                    .zIndex(event.isIntensive ? 0 : 1)
                 }
             }
         }
@@ -926,17 +929,21 @@ private struct EventCardsView: View {
     private func groupOverlappingEvents(_ events: [DayEvent]) -> [[DayEvent]] {
         var groups: [[DayEvent]] = []
         var currentGroup: [DayEvent] = []
+        var groupMaxEnd: Int = 0
         
         for event in events.sorted(by: { $0.startMinutes < $1.startMinutes }) {
-            if let last = currentGroup.last {
-                if event.startMinutes < last.endMinutes {
+            if !currentGroup.isEmpty {
+                if event.startMinutes < groupMaxEnd {
                     currentGroup.append(event)
+                    groupMaxEnd = max(groupMaxEnd, event.endMinutes)
                 } else {
                     groups.append(currentGroup)
                     currentGroup = [event]
+                    groupMaxEnd = event.endMinutes
                 }
             } else {
                 currentGroup.append(event)
+                groupMaxEnd = event.endMinutes
             }
         }
         if !currentGroup.isEmpty {

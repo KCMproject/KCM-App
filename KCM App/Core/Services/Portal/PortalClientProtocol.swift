@@ -48,4 +48,10 @@ protocol PortalClientProtocol: AnyObject {
 
     /// 週間時間割ページの生HTMLを取得する（集中講義パース用）
     func fetchWeeklyTimetableHTML(semester: TimetableSemester) async throws -> String
+
+    /// 週間時間割と集中講義HTMLを1回のフェッチで両方取得する
+    func fetchWeeklyTimetableWithHTML(semester: TimetableSemester) async throws -> (courses: [Course], html: String)
+
+    /// 成績通知書のPDFをダウンロードする
+    func fetchGradeReportPDF() async throws -> Data
 }
