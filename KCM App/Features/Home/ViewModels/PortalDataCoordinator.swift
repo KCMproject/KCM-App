@@ -16,7 +16,7 @@ final class PortalDataCoordinator {
     }
 
     func refreshAll(showUpdateBanner: Bool) async {
-        let progressMessage = "全体を更新中..."
+        let progressMessage = "データを開いています..."
         if showUpdateBanner {
             AppBannerCenter.shared.showPersistent(progressMessage)
         }
@@ -27,77 +27,77 @@ final class PortalDataCoordinator {
 
         let didUpdate = didUpdateSchedule || didUpdateWeekly || didUpdateNotices
         if showUpdateBanner, didUpdate {
-            AppBannerCenter.shared.show("最新データに更新しました")
+            AppBannerCenter.shared.show("データを開きました")
         } else if showUpdateBanner {
             AppBannerCenter.shared.hide(ifShowing: progressMessage)
         }
     }
 
     func refreshSchedule(showUpdateBanner: Bool) async {
-        let progressMessage = "予定を更新中..."
+        let progressMessage = "予定を開いています..."
         if showUpdateBanner {
             AppBannerCenter.shared.showPersistent(progressMessage)
         }
 
         let didUpdate = await TimetableViewModel.shared.refreshScheduleForOneYearFromServer()
         if showUpdateBanner, didUpdate {
-            AppBannerCenter.shared.show("予定を更新しました")
+            AppBannerCenter.shared.show("予定を開きました")
         } else if showUpdateBanner {
             AppBannerCenter.shared.hide(ifShowing: progressMessage)
         }
     }
 
     func refreshScheduleForOneYear(showUpdateBanner: Bool) async {
-        let progressMessage = "予定を更新中..."
+        let progressMessage = "予定を開いています..."
         if showUpdateBanner {
             AppBannerCenter.shared.showPersistent(progressMessage)
         }
 
         let didUpdate = await TimetableViewModel.shared.refreshScheduleForOneYearFromServer()
         if showUpdateBanner, didUpdate {
-            AppBannerCenter.shared.show("予定を更新しました")
+            AppBannerCenter.shared.show("予定を開きました")
         } else if showUpdateBanner {
             AppBannerCenter.shared.hide(ifShowing: progressMessage)
         }
     }
 
     func refreshSchedule(through targetDate: Date, showUpdateBanner: Bool) async {
-        let progressMessage = "指定期間の予定を更新中..."
+        let progressMessage = "指定期間の予定を開いています..."
         if showUpdateBanner {
             AppBannerCenter.shared.showPersistent(progressMessage)
         }
 
         _ = await TimetableViewModel.shared.refreshScheduleFromServer(through: targetDate)
         if showUpdateBanner, TimetableViewModel.shared.errorMessage == nil {
-            AppBannerCenter.shared.show("指定期間の予定を更新しました")
+            AppBannerCenter.shared.show("指定期間の予定を開きました")
         } else if showUpdateBanner {
             AppBannerCenter.shared.hide(ifShowing: progressMessage)
         }
     }
 
     func refreshWeeklyTimetable(showUpdateBanner: Bool) async {
-        let progressMessage = "時間割タブを更新中..."
+        let progressMessage = "時間割を開いています..."
         if showUpdateBanner {
             AppBannerCenter.shared.showPersistent(progressMessage)
         }
 
         let didUpdate = await TimetableViewModel.shared.refreshWeeklyFromServer()
         if showUpdateBanner, didUpdate {
-            AppBannerCenter.shared.show("時間割を更新しました")
+            AppBannerCenter.shared.show("時間割を開きました")
         } else if showUpdateBanner {
             AppBannerCenter.shared.hide(ifShowing: progressMessage)
         }
     }
 
     func refreshNotices(showUpdateBanner: Bool) async {
-        let progressMessage = "掲示板タブを更新中..."
+        let progressMessage = "開いています..."
         if showUpdateBanner {
             AppBannerCenter.shared.showPersistent(progressMessage)
         }
 
         let didUpdate = await NoticeBoardViewModel.shared.refreshFromServer()
         if showUpdateBanner, didUpdate {
-            AppBannerCenter.shared.show("掲示板を更新しました")
+            AppBannerCenter.shared.show("開きました")
         } else if showUpdateBanner {
             AppBannerCenter.shared.hide(ifShowing: progressMessage)
         }
