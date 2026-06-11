@@ -30,13 +30,14 @@ struct PortalCloneView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            TabView(selection: $selectedTab) {
-                ForEach(Array(tabConfig.enumerated()), id: \.element.id) { index, tab in
-                    contentView(for: tab)
-                        .tag(index)
-                }
-            }
-            .tabViewStyle(.page(indexDisplayMode: .never))
+SwipeableView(
+                selectedTab: selectedTab,
+                tabCount: tabConfig.count,
+                contentProvider: { index in
+                    AnyView(contentView(for: tabConfig[index]))
+                },
+                onSwipeToTab: { index in switchTab(to: index) }
+            )
 
             customTabBar
         }
@@ -50,6 +51,11 @@ struct PortalCloneView: View {
         }
     }
 
+    private func switchTab(to index: Int) {
+        guard index >= 0, index < tabConfig.count, index != selectedTab else { return }
+        selectedTab = index
+    }
+
     @ViewBuilder
     private func contentView(for tab: TabDef) -> some View {
         switch tab.id {
@@ -57,9 +63,7 @@ struct PortalCloneView: View {
             TodayTimelineView(
                 onToggle: {
                     if let timetableIndex = tabConfig.firstIndex(where: { $0.id == "timetable" }) {
-                        withAnimation(.easeInOut(duration: 0.22)) {
-                            selectedTab = timetableIndex
-                        }
+                        switchTab(to: timetableIndex)
                     }
                 }
             )
@@ -67,9 +71,7 @@ struct PortalCloneView: View {
         case "timetable":
             WeeklyTimetableCloneView {
                 if let todayIndex = tabConfig.firstIndex(where: { $0.id == "today" }) {
-                    withAnimation(.easeInOut(duration: 0.22)) {
-                        selectedTab = todayIndex
-                    }
+                    switchTab(to: todayIndex)
                 }
             }
         case "board":
@@ -103,9 +105,7 @@ struct PortalCloneView: View {
                     todayViewKey = UUID()
                 }
             } else {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    selectedTab = index
-                }
+                switchTab(to: index)
             }
         } label: {
             VStack(spacing: 2) {
