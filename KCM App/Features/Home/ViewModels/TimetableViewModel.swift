@@ -146,7 +146,9 @@ final class TimetableViewModel: ObservableObject {
             return didUpdate
         } catch {
             print("❌ [TimetableViewModel] 更新エラー: \(error.localizedDescription)")
-            self.errorMessage = error.localizedDescription
+            if courses.isEmpty && intensiveCourses.isEmpty && weeklySchedule.allSatisfy({ $0.allSatisfy({ $0.title == nil }) }) {
+                self.errorMessage = "時間割を取得できませんでした。時間をおいて再度お試しください。"
+            }
             self.isLoading = false
             return false
         }

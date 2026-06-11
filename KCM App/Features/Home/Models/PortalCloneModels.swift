@@ -206,10 +206,12 @@ struct CampusWebDestination: Identifiable {
 struct CampusWebView: UIViewRepresentable {
     let url: URL
     let autoSearchText: String?
+    let onLoadingChange: ((Bool) -> Void)?
 
-    init(url: URL, autoSearchText: String? = nil) {
+    init(url: URL, autoSearchText: String? = nil, onLoadingChange: ((Bool) -> Void)? = nil) {
         self.url = url
         self.autoSearchText = autoSearchText
+        self.onLoadingChange = onLoadingChange
     }
 
     func makeUIView(context: Context) -> WKWebView {
@@ -236,7 +238,9 @@ struct CampusWebView: UIViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(autoSearchText: autoSearchText)
+        let coordinator = Coordinator(autoSearchText: autoSearchText)
+        coordinator.onLoadingChange = onLoadingChange
+        return coordinator
     }
 
     private func syncCookies(completion: @escaping () -> Void) {
@@ -259,6 +263,7 @@ struct CampusWebView: UIViewRepresentable {
 
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKDownloadDelegate, UIDocumentInteractionControllerDelegate {
         var autoSearchText: String?
+        var onLoadingChange: ((Bool) -> Void)?
         private var didAutoSearch = false
         private var downloadURL: URL?
         private var documentInteractionController: UIDocumentInteractionController?
@@ -267,63 +272,22 @@ struct CampusWebView: UIViewRepresentable {
             self.autoSearchText = autoSearchText
         }
 
-        func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
-            if navigationAction.targetFrame == nil {
-                webView.load(navigationAction.request)
-            }
-            return nil
+        func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+            onLoadingChange?(true)
         }
 
-        func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse, decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
-            if let response = navigationResponse.response as? HTTPURLResponse,
-               let contentDisposition = response.value(forHTTPHeaderField: "Content-Disposition"),
-               contentDisposition.contains("attachment") {
-                decisionHandler(.download)
-            } else {
-                decisionHandler(.allow)
-            }
-        }
-
-        func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
-            download.delegate = self
-        }
-
-        func download(_ download: WKDownload, decideDestinationUsing response: URLResponse, suggestedFilename: String, completionHandler: @escaping (URL?) -> Void) {
-            let temporaryDirectory = URL(fileURLWithPath: NSTemporaryDirectory())
-            let destinationURL = temporaryDirectory.appendingPathComponent(suggestedFilename)
-            try? FileManager.default.removeItem(at: destinationURL)
-            self.downloadURL = destinationURL
-            completionHandler(destinationURL)
-        }
-
-        func downloadDidFinish(_ download: WKDownload) {
-            guard let url = downloadURL else { return }
-            documentInteractionController = UIDocumentInteractionController(url: url)
-            documentInteractionController?.delegate = self
-            documentInteractionController?.presentPreview(animated: true)
-        }
-
-        func documentInteractionControllerViewControllerForPreview(_ controller: UIDocumentInteractionController) -> UIViewController {
-            if let windowScene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
-               let rootVC = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController {
-                var topVC = rootVC
-                while let presented = topVC.presentedViewController {
-                    topVC = presented
-                }
-                return topVC
-            }
-            return UIViewController()
-        }
-
-        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: any Error) {
             print("❌ [CampusWebView] didFail: \(error.localizedDescription)")
+            onLoadingChange?(false)
         }
 
-        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: any Error) {
             print("❌ [CampusWebView] didFailProvisionalNavigation: \(error.localizedDescription)")
+            onLoadingChange?(false)
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            onLoadingChange?(false)
             guard let autoSearchText, !autoSearchText.isEmpty, !didAutoSearch else { return }
             didAutoSearch = true
 
@@ -349,6 +313,25 @@ struct CampusWebView: UIViewRepresentable {
             """
             webView.evaluateJavaScript(script)
         }
+
+        func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
+            download.delegate = self
+        }
+
+        func download(_ download: WKDownload, decideDestinationUsing response: URLResponse, suggestedFilename: String, completionHandler: @escaping (URL?) -> Void) {
+            let temporaryDirectory = URL(fileURLWithPath: NSTemporaryDirectory())
+            let destinationURL = temporaryDirectory.appendingPathComponent(suggestedFilename)
+            try? FileManager.default.removeItem(at: destinationURL)
+            self.downloadURL = destinationURL
+            completionHandler(destinationURL)
+        }
+
+        func downloadDidFinish(_ download: WKDownload) {
+            guard let url = downloadURL else { return }
+            documentInteractionController = UIDocumentInteractionController(url: url)
+            documentInteractionController?.delegate = self
+            documentInteractionController?.presentPreview(animated: true)
+        }
     }
 }
 
@@ -356,18 +339,31 @@ struct CampusWebSheet: View {
     let destination: CampusWebDestination
     @Binding var presentedDestination: CampusWebDestination?
 
+    @State private var isLoading = true
+
     var body: some View {
         NavigationView {
-            CampusWebView(url: destination.url, autoSearchText: destination.autoSearchText)
-                .navigationTitle(destination.title)
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("閉じる") {
-                            presentedDestination = nil
-                        }
+            ZStack {
+                CampusWebView(url: destination.url, autoSearchText: destination.autoSearchText, onLoadingChange: { loading in
+                    isLoading = loading
+                })
+
+                if isLoading {
+                    ProgressView()
+                        .scaleEffect(1.5)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color.white.opacity(0.7))
+                }
+            }
+            .navigationTitle(destination.title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("閉じる") {
+                        presentedDestination = nil
                     }
                 }
+            }
         }
     }
 }
