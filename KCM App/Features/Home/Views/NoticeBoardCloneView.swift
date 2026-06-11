@@ -228,33 +228,22 @@ struct NoticeBoardCloneView: View {
     }
 
     private func openNotice(_ notice: NoticeCard) {
+        if let url = noticeURL(for: notice) {
+            webDestination = CampusWebDestination(url: url, title: "掲示板詳細")
+        }
         Task {
-            // 最新のURLを解決（セッション切れ後に古いURLを更新）
-            let resolvedURL = await viewModel.resolveNoticeURL(for: notice)
-            
-            let url: URL
-            if let resolved = resolvedURL {
-                url = resolved
-                print("🔗 [NoticeBoard] 最新URLを解決: \(resolved.absoluteString)")
-            } else {
-                // 解決失敗時は元のURLを使用
-                guard let urlString = notice.url else { return }
-                let fullUrlString: String
-                if urlString.hasPrefix("http") {
-                    fullUrlString = urlString
-                } else if urlString.hasPrefix("/") {
-                    fullUrlString = "https://cs.kunitachi.ac.jp\(urlString)"
-                } else {
-                    fullUrlString = "https://cs.kunitachi.ac.jp/campusweb/\(urlString)"
-                }
-                guard let fallbackURL = URL(string: fullUrlString) else { return }
-                url = fallbackURL
-                print("⚠️ [NoticeBoard] URL解決失敗。元のURLを使用: \(url.absoluteString)")
-            }
-            
-            await MainActor.run {
-                webDestination = CampusWebDestination(url: url, title: "掲示板詳細")
-            }
+            _ = try? await viewModel.resolveNoticeURL(for: notice)
+        }
+    }
+
+    private func noticeURL(for notice: NoticeCard) -> URL? {
+        guard let urlString = notice.url else { return nil }
+        if urlString.hasPrefix("http") {
+            return URL(string: urlString)
+        } else if urlString.hasPrefix("/") {
+            return URL(string: "https://cs.kunitachi.ac.jp\(urlString)")
+        } else {
+            return URL(string: "https://cs.kunitachi.ac.jp/campusweb/\(urlString)")
         }
     }
 

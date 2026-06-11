@@ -247,6 +247,19 @@ struct WeeklyTimetableCloneView: View {
                         .scaleEffect(1.5)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(Color.white.opacity(0.5))
+                } else if let error = viewModel.errorMessage, !error.isEmpty, !hasVisibleSchedule {
+                    VStack(spacing: 12) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 32))
+                            .foregroundStyle(AppTheme.textSoft)
+                        Text(error)
+                            .font(.system(size: 14))
+                            .foregroundStyle(AppTheme.textMuted)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 24)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.white.opacity(0.5))
                 }
             }
             .scrollContentBackground(.hidden)

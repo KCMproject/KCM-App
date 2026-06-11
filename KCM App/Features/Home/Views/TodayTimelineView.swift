@@ -119,6 +119,21 @@ struct TodayTimelineView: View {
 
                 ZStack {
                     timelinePage(for: selectedDate)
+
+                    if let error = viewModel.errorMessage, !error.isEmpty, events(for: selectedDate).isEmpty {
+                        VStack(spacing: 12) {
+                            Image(systemName: "exclamationmark.triangle")
+                                .font(.system(size: 32))
+                                .foregroundStyle(AppTheme.textSoft)
+                            Text(error)
+                                .font(.system(size: 14))
+                                .foregroundStyle(AppTheme.textMuted)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 40)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color.white.opacity(0.7))
+                    }
                 }
                 .clipped()
             }
