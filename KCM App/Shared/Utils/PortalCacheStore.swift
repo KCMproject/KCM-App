@@ -17,6 +17,8 @@ final class PortalCacheStore {
     static let noticeAttachments = "portalCache.noticeAttachments"
     static let favoriteNoticeIDs = "portalCache.favoriteNoticeIDs"
     static let classroomURLs = "portalCache.classroomURLs"
+    static let userName = "portalCache.userName"
+    static let userReading = "portalCache.userReading"
   }
 
     private init() {}
@@ -93,6 +95,22 @@ final class PortalCacheStore {
 
     private func intensiveCoursesKey(for semester: TimetableSemester) -> String {
         "\(Key.intensiveCoursesPrefix)\(semester.rawValue)"
+    }
+
+    func loadUserName() -> String? {
+        defaults.string(forKey: Key.userName)
+    }
+
+    func saveUserName(_ name: String) {
+        defaults.set(name, forKey: Key.userName)
+    }
+
+    func loadUserReading() -> String? {
+        defaults.string(forKey: Key.userReading)
+    }
+
+    func saveUserReading(_ reading: String) {
+        defaults.set(reading, forKey: Key.userReading)
     }
 
     func loadNotices() -> [NoticeCard] {

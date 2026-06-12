@@ -9,9 +9,8 @@ struct AccountProfileCloneView: View {
         let icon: String
     }
 
-    @AppStorage(AppSettings.pushNotificationsEnabled) private var pushEnabled = true
-    @AppStorage(AppSettings.reminderEnabled) private var reminderEnabled = true
-    @AppStorage(AppSettings.darkModeEnabled) private var darkEnabled = false
+    let onLogout: () -> Void
+    let onTabOrderChanged: ([TabOrderItem]) -> Void
 
     @AppStorage(AppSettings.tabBarConfiguration) private var tabBarData: Data = Data()
     @State private var tabOrder: [TabOrderItem] = []
@@ -24,8 +23,8 @@ struct AccountProfileCloneView: View {
     @State private var gradeReportFileURL: URL?
     @State private var showGradeReportShare = false
     @State private var gradeReportDownloadError: String?
-    let onLogout: () -> Void
-    let onTabOrderChanged: ([TabOrderItem]) -> Void
+
+    private let cacheStore = PortalCacheStore.shared
 
     private let defaultTabOrder: [TabOrderItem] = [
         .init(id: "today", title: "今日", icon: "calendar"),
@@ -84,24 +83,30 @@ struct AccountProfileCloneView: View {
     }
 
     private var header: some View {
-        VStack(spacing: 0) {
+        let userName = cacheStore.loadUserName() ?? ""
+        let userReading = cacheStore.loadUserReading() ?? ""
+        let initial = String(userName.isEmpty ? "?" : userName.prefix(1))
+
+        return VStack(spacing: 0) {
             HStack(spacing: 16) {
                 Circle()
                     .fill(Color(red: 0.29, green: 0.36, blue: 0.45))
                     .frame(width: 56, height: 56)
                     .overlay {
-                        Text("橋")
+                        Text(initial)
                             .font(.system(size: 24, weight: .semibold))
                             .foregroundStyle(.white)
                     }
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("ハシグチ")
+                    Text(userReading.isEmpty ? userName : userReading)
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(AppTheme.textPrimary)
-                    Text("工学部 情報工学科 3年")
-                        .font(.system(size: 14))
-                        .foregroundStyle(AppTheme.textMuted)
+                    if !userName.isEmpty {
+                        Text(userName)
+                            .font(.system(size: 14))
+                            .foregroundStyle(AppTheme.textMuted)
+                    }
                 }
 
                 Spacer()
@@ -125,21 +130,6 @@ struct AccountProfileCloneView: View {
             )
 
             settingsSection(
-                title: "通知",
-                rows: [
-                    .toggle("bell", AppTheme.accent, "プッシュ通知", nil, $pushEnabled),
-                    .toggle("bell", AppTheme.favorite, "授業前リマインダー", "15分前", $reminderEnabled)
-                ]
-            )
-
-            settingsSection(
-                title: "表示",
-                rows: [
-                    .toggle("moon.fill", Color.indigo, "ダークモード", nil, $darkEnabled)
-                ]
-            )
-
-            settingsSection(
                 title: "アカウント",
                 rows: [
                     .link("lock.shield", Color.orange, "パスワード管理", "保存済みログイン情報を編集", {
@@ -147,7 +137,6 @@ struct AccountProfileCloneView: View {
                             await authenticateForPasswordManagement()
                         }
                     }),
-                    .link("shield", Color.green, "プライバシー設定", "学内データのみ扱います", {}),
                     .link("doc.richtext", Color.blue, "成績通知書をダウンロード", isDownloadingGradeReport ? "ダウンロード中..." : nil, {
                         Task {
                             await downloadGradeReport()
@@ -289,36 +278,39 @@ struct AccountProfileCloneView: View {
                         .padding(.vertical, 14)
 
                     case .link(let action):
-                        Button(action: action) {
-                            HStack(spacing: 12) {
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(AppTheme.grayPill)
-                                    .frame(width: 32, height: 32)
-                                    .overlay {
-                                        Image(systemName: row.icon)
-                                            .foregroundStyle(row.color)
-                                    }
-
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(row.title)
-                                        .font(.system(size: 14))
-                                        .foregroundStyle(AppTheme.textPrimary)
-                                    if let subtitle = row.subtitle {
-                                        Text(subtitle)
-                                            .font(.system(size: 12))
-                                            .foregroundStyle(AppTheme.textMuted)
-                                    }
+                        let rowView = HStack(spacing: 12) {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(AppTheme.grayPill)
+                                .frame(width: 32, height: 32)
+                                .overlay {
+                                    Image(systemName: row.icon)
+                                        .foregroundStyle(row.color)
                                 }
 
-                                Spacer()
-
-                                Image(systemName: "chevron.right")
-                                    .foregroundStyle(Color.gray.opacity(0.5))
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(row.title)
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(AppTheme.textPrimary)
+                                if let subtitle = row.subtitle {
+                                    Text(subtitle)
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(AppTheme.textMuted)
+                                }
                             }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 14)
+
+                            Spacer()
+
+                            Image(systemName: "chevron.right")
+                                .foregroundStyle(Color.gray.opacity(0.5))
                         }
-                        .buttonStyle(.plain)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 14)
+                        .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+
+                        Button(action: action) {
+                            rowView.contentShape(Rectangle())
+                        }
+                        .buttonStyle(AccountRowButtonStyle())
                     }
 
                     if index < rows.count - 1 {
@@ -398,6 +390,13 @@ struct AccountProfileCloneView: View {
     }
 }
 
+private struct AccountRowButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(configuration.isPressed ? Color.gray.opacity(0.12) : Color.clear)
+    }
+}
+
 private struct PasswordManagementView: View {
     @Environment(\.dismiss) private var dismiss
 
@@ -438,9 +437,19 @@ private struct PasswordManagementView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                 }
 
-                Text(isAutofillEnabled ? "現在は自動入力がオンです" : "現在は自動入力がオフです")
-                    .font(.system(size: 13))
-                    .foregroundStyle(isAutofillEnabled ? AppTheme.textBlue : AppTheme.textMuted)
+                HStack {
+                    Text("自動入力")
+                        .font(.system(size: 14))
+                        .foregroundStyle(AppTheme.textPrimary)
+                    Spacer()
+                    Toggle("", isOn: Binding(
+                        get: { UserDefaults.standard.bool(forKey: AppSettings.passwordAutofillEnabled) },
+                        set: { UserDefaults.standard.set($0, forKey: AppSettings.passwordAutofillEnabled) }
+                    ))
+                    .labelsHidden()
+                    .tint(AppTheme.accent)
+                }
+                .padding(.vertical, 8)
 
                 Spacer()
             }

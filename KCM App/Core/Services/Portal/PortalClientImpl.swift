@@ -407,6 +407,16 @@ final class PortalClientImpl: PortalClientProtocol {
         }
     }
 
+    func fetchUserName() async throws -> (fullName: String, reading: String) {
+        try await executeWithAutoRelogin {
+            let html = try await self._fetchWeeklyTimetableHTML(semester: .current)
+            guard let result = CampusSquareParser.parseUserName(from: html) else {
+                throw NSError(domain: "PortalClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "ユーザー名が見つかりませんでした"])
+            }
+            return result
+        }
+    }
+
     private func _fetchGradeReportPDF() async throws -> Data {
         let mainURL = "\(networkClient.baseURL)\(portalURL)?page=main"
 

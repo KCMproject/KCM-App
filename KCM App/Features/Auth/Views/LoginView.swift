@@ -2,6 +2,7 @@ import SwiftUI
 
 struct LoginView: View {
     @ObservedObject var viewModel: LoginViewModel
+    @AppStorage(AppSettings.passwordAutofillEnabled) private var autofillEnabled = false
 
     var body: some View {
         NavigationStack {
@@ -44,21 +45,18 @@ struct LoginView: View {
                     .disabled(viewModel.isLoading)
                 }
 
+                Toggle(isOn: $autofillEnabled) {
+                    Text("ログイン情報を自動入力する")
+                        .font(.system(size: 13))
+                        .foregroundStyle(AppTheme.textMuted)
+                }
+                .tint(AppTheme.accent)
+
                 if let errorMessage = viewModel.errorMessage {
                     Text(errorMessage)
                         .font(.caption)
                         .foregroundStyle(AppTheme.danger)
                 }
-
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("担当分担")
-                        .font(.headline)
-                    Text("ハシグチ: UI/デザインと共通コンポーネント")
-                    Text("タナカ: ログイン、セッション管理、認証周り")
-                    Text("トクダ: データ取得、パーサ、掲示板/時間割の連携")
-                }
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
 
                 Spacer()
             }
