@@ -54,4 +54,7 @@ protocol PortalClientProtocol: AnyObject {
 
     /// 成績通知書のPDFをダウンロードする
     func fetchGradeReportPDF() async throws -> Data
+
+    /// ユーザー名（氏名・フリガナ）を取得する
+    func fetchUserName() async throws -> (fullName: String, reading: String)
 }

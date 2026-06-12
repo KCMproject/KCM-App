@@ -140,6 +140,13 @@ final class TimetableViewModel: ObservableObject {
                 didUpdate = didUpdate || mergedIntensive != intensiveCourses
                 intensiveCourses = mergedIntensive
                 cacheStore.saveIntensiveCourses(mergedIntensive, for: selectedSemester)
+
+                // ユーザー名をパースしてキャッシュ
+                if cacheStore.loadUserName() == nil,
+                   let userName = CampusSquareParser.parseUserName(from: weeklyHtml) {
+                    cacheStore.saveUserName(userName.fullName)
+                    cacheStore.saveUserReading(userName.reading)
+                }
             }
 
             isLoading = false

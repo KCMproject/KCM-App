@@ -128,4 +128,9 @@ class MockPortalClient: PortalClientProtocol {
     func fetchWeeklyTimetableHTML(semester: TimetableSemester) async throws -> String {
         return ""
     }
+    func fetchWeeklyTimetableWithHTML(semester: TimetableSemester) async throws -> (courses: [Course], html: String) {
+        return (weeklyCourses, "")
+    }
+    func fetchGradeReportPDF() async throws -> Data { return Data() }
+    func fetchUserName() async throws -> (fullName: String, reading: String) { return ("テスト 太郎", "テスト タロウ") }
 }
