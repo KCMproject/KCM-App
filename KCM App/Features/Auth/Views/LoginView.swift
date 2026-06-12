@@ -2,6 +2,7 @@ import SwiftUI
 
 struct LoginView: View {
     @ObservedObject var viewModel: LoginViewModel
+    @AppStorage(AppSettings.passwordAutofillEnabled) private var autofillEnabled = false
 
     var body: some View {
         NavigationStack {
@@ -43,6 +44,13 @@ struct LoginView: View {
                     .buttonStyle(PrimaryButtonStyle())
                     .disabled(viewModel.isLoading)
                 }
+
+                Toggle(isOn: $autofillEnabled) {
+                    Text("ログイン情報を自動入力する")
+                        .font(.system(size: 13))
+                        .foregroundStyle(AppTheme.textMuted)
+                }
+                .tint(AppTheme.accent)
 
                 if let errorMessage = viewModel.errorMessage {
                     Text(errorMessage)

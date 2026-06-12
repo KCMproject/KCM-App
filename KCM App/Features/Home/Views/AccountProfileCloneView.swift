@@ -437,9 +437,19 @@ private struct PasswordManagementView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                 }
 
-                Text(isAutofillEnabled ? "現在は自動入力がオンです" : "現在は自動入力がオフです")
-                    .font(.system(size: 13))
-                    .foregroundStyle(isAutofillEnabled ? AppTheme.textBlue : AppTheme.textMuted)
+                HStack {
+                    Text("自動入力")
+                        .font(.system(size: 14))
+                        .foregroundStyle(AppTheme.textPrimary)
+                    Spacer()
+                    Toggle("", isOn: Binding(
+                        get: { UserDefaults.standard.bool(forKey: AppSettings.passwordAutofillEnabled) },
+                        set: { UserDefaults.standard.set($0, forKey: AppSettings.passwordAutofillEnabled) }
+                    ))
+                    .labelsHidden()
+                    .tint(AppTheme.accent)
+                }
+                .padding(.vertical, 8)
 
                 Spacer()
             }
