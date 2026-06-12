@@ -7,6 +7,7 @@ struct NoticeBoardCloneView: View {
     @State private var selectedCategory = "すべて"
     @State private var favoriteIDs: Set<String> = []
     @State private var webDestination: CampusWebDestination?
+    @State private var isLoadingNotice = false
     private let cacheStore = PortalCacheStore.shared
 
     private static let jaDateFormatter: DateFormatter = {
@@ -194,6 +195,14 @@ struct NoticeBoardCloneView: View {
                 }
             }
         }
+        .overlay {
+            if isLoadingNotice {
+                ProgressView()
+                    .scaleEffect(1.5)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.white.opacity(0.5))
+            }
+        }
         .onAppear {
             favoriteIDs = cacheStore.loadFavoriteNoticeIDs()
         }
@@ -228,11 +237,23 @@ struct NoticeBoardCloneView: View {
     }
 
     private func openNotice(_ notice: NoticeCard) {
-        if let url = noticeURL(for: notice) {
-            webDestination = CampusWebDestination(url: url, title: "掲示板詳細")
-        }
+        isLoadingNotice = true
         Task {
-            _ = try? await viewModel.resolveNoticeURL(for: notice)
+            let resolvedURL = await viewModel.resolveNoticeURL(for: notice)
+            let url: URL
+            if let resolved = resolvedURL {
+                url = resolved
+            } else {
+                guard let fallback = noticeURL(for: notice) else {
+                    isLoadingNotice = false
+                    return
+                }
+                url = fallback
+            }
+            await MainActor.run {
+                isLoadingNotice = false
+                webDestination = CampusWebDestination(url: url, title: "掲示板詳細")
+            }
         }
     }
 
