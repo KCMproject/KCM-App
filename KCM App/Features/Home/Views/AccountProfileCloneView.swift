@@ -278,36 +278,39 @@ struct AccountProfileCloneView: View {
                         .padding(.vertical, 14)
 
                     case .link(let action):
-                        Button(action: action) {
-                            HStack(spacing: 12) {
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(AppTheme.grayPill)
-                                    .frame(width: 32, height: 32)
-                                    .overlay {
-                                        Image(systemName: row.icon)
-                                            .foregroundStyle(row.color)
-                                    }
-
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(row.title)
-                                        .font(.system(size: 14))
-                                        .foregroundStyle(AppTheme.textPrimary)
-                                    if let subtitle = row.subtitle {
-                                        Text(subtitle)
-                                            .font(.system(size: 12))
-                                            .foregroundStyle(AppTheme.textMuted)
-                                    }
+                        let rowView = HStack(spacing: 12) {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(AppTheme.grayPill)
+                                .frame(width: 32, height: 32)
+                                .overlay {
+                                    Image(systemName: row.icon)
+                                        .foregroundStyle(row.color)
                                 }
 
-                                Spacer()
-
-                                Image(systemName: "chevron.right")
-                                    .foregroundStyle(Color.gray.opacity(0.5))
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(row.title)
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(AppTheme.textPrimary)
+                                if let subtitle = row.subtitle {
+                                    Text(subtitle)
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(AppTheme.textMuted)
+                                }
                             }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 14)
+
+                            Spacer()
+
+                            Image(systemName: "chevron.right")
+                                .foregroundStyle(Color.gray.opacity(0.5))
                         }
-                        .buttonStyle(.plain)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 14)
+                        .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+
+                        Button(action: action) {
+                            rowView.contentShape(Rectangle())
+                        }
+                        .buttonStyle(AccountRowButtonStyle())
                     }
 
                     if index < rows.count - 1 {
@@ -384,6 +387,13 @@ struct AccountProfileCloneView: View {
         }
 
         return "生体認証に失敗しました。"
+    }
+}
+
+private struct AccountRowButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(configuration.isPressed ? Color.gray.opacity(0.12) : Color.clear)
     }
 }
 
