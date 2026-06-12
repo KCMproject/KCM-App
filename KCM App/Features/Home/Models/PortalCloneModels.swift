@@ -227,9 +227,8 @@ struct CampusWebView: UIViewRepresentable {
     func updateUIView(_ webView: WKWebView, context: Context) {
         context.coordinator.autoSearchText = autoSearchText
         syncCookies {
-            let currentUrl = webView.url?.absoluteString ?? "nil"
-            print("🌐 [CampusWebView] check load: current=\(currentUrl), target=\(url.absoluteString)")
-            guard webView.url != url else { return }
+            guard !context.coordinator.hasLoadedURL(url) else { return }
+            context.coordinator.setRequestedURL(url)
             print("🌐 [CampusWebView] Loading URL: \(url.absoluteString)")
             var request = URLRequest(url: url)
             request.setValue("https://cs.kunitachi.ac.jp/campusweb/campussquare.do?page=main", forHTTPHeaderField: "Referer")
@@ -265,11 +264,20 @@ struct CampusWebView: UIViewRepresentable {
         var autoSearchText: String?
         var onLoadingChange: ((Bool) -> Void)?
         private var didAutoSearch = false
+        private var lastRequestedURL: URL?
         private var downloadURL: URL?
         private var documentInteractionController: UIDocumentInteractionController?
 
         init(autoSearchText: String?) {
             self.autoSearchText = autoSearchText
+        }
+
+        func hasLoadedURL(_ url: URL) -> Bool {
+            return lastRequestedURL == url
+        }
+
+        func setRequestedURL(_ url: URL) {
+            lastRequestedURL = url
         }
 
         func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
