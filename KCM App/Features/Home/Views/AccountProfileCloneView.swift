@@ -23,6 +23,7 @@ struct AccountProfileCloneView: View {
     @State private var gradeReportFileURL: URL?
     @State private var showGradeReportShare = false
     @State private var gradeReportDownloadError: String?
+    @State private var showingAppInfo = false
 
     private let cacheStore = PortalCacheStore.shared
 
@@ -79,6 +80,13 @@ struct AccountProfileCloneView: View {
         .onAppear(perform: syncTabOrderFromStorage)
         .onChange(of: tabBarData) { _, _ in
             syncTabOrderFromStorage()
+        }
+        .alert("KCM App", isPresented: $showingAppInfo) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+            let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+            Text("バージョン \(version) (build \(build))\n\n非公式CampusSquareクライアント")
         }
     }
 
@@ -142,15 +150,10 @@ struct AccountProfileCloneView: View {
                             await downloadGradeReport()
                         }
                     }),
-                    .link("info.circle", AppTheme.textSoft, "アプリについて", "v1.0.0", {}),
+                    .link("info.circle", AppTheme.textSoft, "アプリについて", nil, { showingAppInfo = true }),
                     .link("exclamationmark.bubble", AppTheme.accent, "アプリへのご意見", "フィードバックを送る", {
                         if let url = URL(string: "https://docs.google.com/forms/d/e/1FAIpQLSeRo82PhT8RFdF0JVs5NUu0zNqalONR8n_vwnakIptR8n7YIA/viewform?usp=publish-editor") {
                             UIApplication.shared.open(url)
-                        }
-                    }),
-                    .link("xmark.shield", Color.orange.opacity(0.8), "セッションをクリア", "デバッグ用: Cookieとセッションを削除します", {
-                        Task {
-                            await loginViewModel.clearSession()
                         }
                     }),
                     .link("rectangle.portrait.and.arrow.right", AppTheme.danger.opacity(0.8), "ログアウト", nil, onLogout)
@@ -580,7 +583,7 @@ KCM App 利用規約
 2. 本規約に関して紛争が生じた場合、東京地方裁判所を第一審の専属的合意管轄裁判所とします。
 
 附則
-本規約は2025年xx月xx日から施行します。
+本規約は2026年6月12日から施行します。
 """
 
 private let privacyContent = """
