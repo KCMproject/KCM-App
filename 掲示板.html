@@ -1,0 +1,5125 @@
+
+
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+   "http://www.w3.org/TR/html4/loose.dtd">
+
+<html> 
+    
+
+
+
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+
+
+
+
+
+
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+
+
+<meta http-equiv="Cache-Control" content="no-cache">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="Thu, 01 Dec 1994 16:00:00 GMT">
+
+
+
+<meta name="format-detection" content="telephone=no">
+
+
+<link rel="SHORTCUT ICON" href="/campusweb/theme/default/image/favicon.ico">
+
+ 
+<title>掲示板</title>
+
+
+
+<link type="text/css" rel="stylesheet" href="/campusweb/static/pub/jquery-core/3.4.1/themes/smoothness/theme.css" />
+<script type="text/javascript" src="/campusweb/static/pub/jquery-core/3.4.1/jquery-3.4.1.min.js"></script>
+
+
+
+
+<link type="text/css" rel="stylesheet" href="/campusweb/static/pub/campus/6.0/css/old50_StyleSheet.css" />
+<script type="text/javascript" src="/campusweb/static/pub/campus/6.0/js/old50_Script.js"></script>
+
+
+
+
+
+
+<link type="text/css" rel="stylesheet" href="/campusweb/theme/default/newportal/portal_tabmenu.css" />
+<link type="text/css" rel="stylesheet" href="/campusweb/theme/default/newportal/portal_table.css" />
+<link type="text/css" rel="stylesheet" href="/campusweb/theme/default/newportal/portal_portlet.css" />
+
+<link type="text/css" rel="stylesheet" href="/campusweb/static/pub/campus/6.0/css/old50_StyleSheet.css" />
+<script type="text/javascript" src="/campusweb/static/pub/campus/6.0/js/old50_portal_main.js"></script>
+<script type="text/javascript" src="/campusweb/static/pub/campus/6.0/js/old50_portal_common.js"></script>
+
+
+
+
+<link type="text/css" rel="stylesheet" href="/campusweb/static/pub/materialize/1.0.0/css/materialize.css" />
+<link type="text/css" rel="stylesheet" href="/campusweb/static/pub/campus/6.0/md_icon/material-icons.css" />
+<script type="text/javascript" src="/campusweb/static/pub/materialize/1.0.0/js/materialize.js"></script>
+
+<link type="text/css" rel="stylesheet" href="/campusweb/static/pub/fontawesome/5.12.1/css/all.css" />
+
+<link type="text/css" rel="stylesheet" href="/campusweb/static/pub/perfect-scrollbar/1.4.0/css/perfect-scrollbar.css" />
+<script type="text/javascript" src="/campusweb/static/pub/perfect-scrollbar/1.4.0/dist/perfect-scrollbar.min.js"></script>
+
+<script type="text/javascript" src="/campusweb/static/pub/mousewheel/3.1.13/jquery.mousewheel.min.js"></script>
+
+<link type="text/css" rel="stylesheet" href="/campusweb/static/pub/jquery-core/3.4.1/themes/smoothness/jquery-ui.min.css" />
+<script type="text/javascript" src="/campusweb/static/pub/jquery-core/3.4.1/jquery-ui-1.12.1.min.js"></script>
+
+
+<link type="text/css" rel="stylesheet" href="/campusweb/static/pub/flexslider/2.6.0-0/flexslider.css" />
+<script type="text/javascript" src="/campusweb/static/pub/flexslider/2.6.0-0/jquery.flexslider-min.js"></script>
+
+
+<link rel="stylesheet" type="text/css" href="/campusweb/static/pub/cleditor/1.4.4/jquery.cleditor.css" />
+<script type="text/javascript" src="/campusweb/static/pub/cleditor/1.4.4/jquery.cleditor.js"></script>
+
+
+<link rel="stylesheet" type="text/css" href="/campusweb/static/pub/spectrum/1.8.1/spectrum.css" />
+<script type="text/javascript" src="/campusweb/static/pub/spectrum/1.8.1/spectrum.js"></script>
+<script type="text/javascript" src="/campusweb/static/pub/spectrum/1.8.1/jquery.spectrum-ja.js"></script>
+
+
+<link type="text/css" rel="stylesheet" href="/campusweb/static/pub/campus/6.0/css/base.css" />
+<link type="text/css" rel="stylesheet" href="/campusweb/static/pub/campus/6.0/css/theme_default.css" />
+<link type="text/css" rel="stylesheet" href="/campusweb/static/pub/campus/6.0/css/func.css" />
+<script type="text/javascript" src="/campusweb/static/pub/campus/6.0/js/convert.js"></script>
+<script type="text/javascript" src="/campusweb/static/pub/campus/6.0/js/base.js"></script>
+<script type="text/javascript" src="/campusweb/static/pub/campus/6.0/js/func.js"></script>
+
+
+
+<style type="text/css">
+body.logout { background-color: rgb(247, 247, 247); }
+:root {
+--header-background:rgb(247, 247, 247);
+--header-color:rgb(51, 51, 51);
+--body-background:rgb(247, 247, 247);
+--body-color:rgb(51, 51, 51);
+--footer-background:rgb(247, 247, 247);
+--footer-color:rgb(51, 51, 51);
+--menu-background:rgb(231, 231, 231);
+--menu-color:rgb(51, 51, 51);
+--menu-hover-background:rgba(64, 64, 64, 0.05);
+--menu-hover-color:rgb(64, 80, 255);
+--theme-background:32,103,143;
+--theme-color:238,238,238;
+--system-menu-background:rgb(255, 255, 255);
+--system-menu-color:rgb(51, 51, 51);
+--system-breadcrumb-color:rgb(102, 102, 102);
+--menu-list-background:rgb(255, 255, 255);
+--menu-list-color:rgb(51, 51, 51);
+--body-link-color:rgb(51, 51, 204);
+--body-link-hover-background:rgba(64, 64, 64, 0.05);
+--body-link-hover-color:rgb(64, 80, 255);
+--button-background:rgb(57, 105, 137);
+--button-color:rgb(240, 240, 240);
+--focus-background:rgba(0, 16, 32, 0.7);
+--focus-color:rgb(255, 255, 255);
+--focus-shadow:rgb(85, 153, 238);
+}
+#tabtable { width: 1000px; }
+#tabtable .tabcell { width: 91px; }
+#tabtable .tabcell img { width: 48px; height: 48px; margin-left: 21px; }
+.login-active .card {  background: none; background-image: none; background-color: rgb(255, 255, 255) !important; }
+.login-active .card { border: 1px transparent solid !important;}
+.login-active .card { border-radius: 0 !important; }
+.login-active .card { -webkit-border-radius: 0 !important; }  /* for Webkit */
+.login-active .card { box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.12), 0 1px 5px 0 rgba(0, 0, 0, 0.2) !important;}
+.login-active .card { -webkit-box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.12), 0 1px 5px 0 rgba(0, 0, 0, 0.2) !important; }  /* for Webkit */
+.portlet-title { display: block; }
+.portlet-title-linker { display: block; }
+.portlet-title {  background: none; background-image: none; background-color: rgb(120, 144, 156) !important; }
+.portlet-title { border-radius: 0 !important; }
+.portlet-title { -webkit-border-radius: 0 !important; }  /* for Webkit */
+.portlet-title { color: white !important; }
+body.logout { background-color: null; }
+#wf_PTW0060100-news_20200330130648-box   {  background: none; background-image: none; background-color: rgb(255, 255, 255) !important; }
+#wf_PTW0060100-news_20200330130648-box   { border: 1px transparent solid !important;}
+#wf_PTW0060100-news_20200330130648-box   { border-radius: 0 !important; }
+#wf_PTW0060100-news_20200330130648-box   { -webkit-border-radius: 0 !important; }  /* for Webkit */
+#wf_PTW0060100-news_20200330130648-box   { box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.12), 0 1px 5px 0 rgba(0, 0, 0, 0.2) !important;}
+#wf_PTW0060100-news_20200330130648-box   { -webkit-box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.12), 0 1px 5px 0 rgba(0, 0, 0, 0.2) !important; }  /* for Webkit */
+#wf_PTW0060100-news_20200330130648-box .portlet-title { display: block; }
+#wf_PTW0060100-news_20200330130648-box .portlet-title-linker { display: block; }
+#wf_PTW0060100-news_20200330130648-box .portlet-title {  background: none; background-image: none; background-color: rgb(221, 238, 255) !important; }
+#wf_PTW0060100-news_20200330130648-box .portlet-title { border-radius: 0 !important; }
+#wf_PTW0060100-news_20200330130648-box .portlet-title { -webkit-border-radius: 0 !important; }  /* for Webkit */
+#wf_PTW0060100-news_20200330130648-box .portlet-title { color: black !important;}
+body.logout { background-color: null; }
+#wf_PTW0060100-slider_20200330130552-box   {  background: none; background-image: none; background-color: rgb(255, 255, 255) !important; }
+#wf_PTW0060100-slider_20200330130552-box   { border: 1px transparent solid !important;}
+#wf_PTW0060100-slider_20200330130552-box   { border-radius: 0 !important; }
+#wf_PTW0060100-slider_20200330130552-box   { -webkit-border-radius: 0 !important; }  /* for Webkit */
+#wf_PTW0060100-slider_20200330130552-box   { box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.12), 0 1px 5px 0 rgba(0, 0, 0, 0.2) !important;}
+#wf_PTW0060100-slider_20200330130552-box   { -webkit-box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.12), 0 1px 5px 0 rgba(0, 0, 0, 0.2) !important; }  /* for Webkit */
+#wf_PTW0060100-slider_20200330130552-box .portlet-title { display: none !important;}
+#wf_PTW0060100-slider_20200330130552-box .portlet-title-linker { display: none !important; }
+body.logout { background-color: null; }
+#wf_PTW0065200-s_20121009102206-box   {  background: none; background-image: none; background-color: rgb(255, 255, 255) !important; }
+#wf_PTW0065200-s_20121009102206-box   { border: 1px transparent solid !important;}
+#wf_PTW0065200-s_20121009102206-box   { border-radius: 0 !important; }
+#wf_PTW0065200-s_20121009102206-box   { -webkit-border-radius: 0 !important; }  /* for Webkit */
+#wf_PTW0065200-s_20121009102206-box   { box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.12), 0 1px 5px 0 rgba(0, 0, 0, 0.2) !important;}
+#wf_PTW0065200-s_20121009102206-box   { -webkit-box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.12), 0 1px 5px 0 rgba(0, 0, 0, 0.2) !important; }  /* for Webkit */
+#wf_PTW0065200-s_20121009102206-box .portlet-title { display: block; }
+#wf_PTW0065200-s_20121009102206-box .portlet-title-linker { display: block; }
+#wf_PTW0065200-s_20121009102206-box .portlet-title {  background: none; background-image: none; background-color: rgb(197, 225, 165) !important; }
+#wf_PTW0065200-s_20121009102206-box .portlet-title { border-radius: 0 !important; }
+#wf_PTW0065200-s_20121009102206-box .portlet-title { -webkit-border-radius: 0 !important; }  /* for Webkit */
+#wf_PTW0065200-s_20121009102206-box .portlet-title { color: black !important;}
+body.logout { background-color: null; }
+#wf_PTW0065100-s_20120920145137-box   {  background: none; background-image: none; background-color: rgb(255, 255, 255) !important; }
+#wf_PTW0065100-s_20120920145137-box   { border: 1px transparent solid !important;}
+#wf_PTW0065100-s_20120920145137-box   { border-radius: 0 !important; }
+#wf_PTW0065100-s_20120920145137-box   { -webkit-border-radius: 0 !important; }  /* for Webkit */
+#wf_PTW0065100-s_20120920145137-box   { box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.12), 0 1px 5px 0 rgba(0, 0, 0, 0.2) !important;}
+#wf_PTW0065100-s_20120920145137-box   { -webkit-box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.12), 0 1px 5px 0 rgba(0, 0, 0, 0.2) !important; }  /* for Webkit */
+#wf_PTW0065100-s_20120920145137-box .portlet-title { display: block; }
+#wf_PTW0065100-s_20120920145137-box .portlet-title-linker { display: block; }
+#wf_PTW0065100-s_20120920145137-box .portlet-title {  background: none; background-image: none; background-color: rgb(129, 212, 250) !important; }
+#wf_PTW0065100-s_20120920145137-box .portlet-title { border-radius: 0 !important; }
+#wf_PTW0065100-s_20120920145137-box .portlet-title { -webkit-border-radius: 0 !important; }  /* for Webkit */
+#wf_PTW0065100-s_20120920145137-box .portlet-title { color: black !important;}
+body.logout { background-color: null; }
+#wf_PTW0065000-s_20120920145200-box   {  background: none; background-image: none; background-color: rgb(255, 255, 255) !important; }
+#wf_PTW0065000-s_20120920145200-box   { border: 1px transparent solid !important;}
+#wf_PTW0065000-s_20120920145200-box   { border-radius: 0 !important; }
+#wf_PTW0065000-s_20120920145200-box   { -webkit-border-radius: 0 !important; }  /* for Webkit */
+#wf_PTW0065000-s_20120920145200-box   { box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.12), 0 1px 5px 0 rgba(0, 0, 0, 0.2) !important;}
+#wf_PTW0065000-s_20120920145200-box   { -webkit-box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.12), 0 1px 5px 0 rgba(0, 0, 0, 0.2) !important; }  /* for Webkit */
+#wf_PTW0065000-s_20120920145200-box .portlet-title { display: block; }
+#wf_PTW0065000-s_20120920145200-box .portlet-title-linker { display: block; }
+#wf_PTW0065000-s_20120920145200-box .portlet-title {  background: none; background-image: none; background-color: rgb(255, 204, 128) !important; }
+#wf_PTW0065000-s_20120920145200-box .portlet-title { border-radius: 0 !important; }
+#wf_PTW0065000-s_20120920145200-box .portlet-title { -webkit-border-radius: 0 !important; }  /* for Webkit */
+#wf_PTW0065000-s_20120920145200-box .portlet-title { color: black !important;}
+body.logout { background-color: null; }
+#wf_PTW0065001-s_20120920145156-box   {  background: none; background-image: none; background-color: rgb(255, 255, 255) !important; }
+#wf_PTW0065001-s_20120920145156-box   { border: 1px transparent solid !important;}
+#wf_PTW0065001-s_20120920145156-box   { border-radius: 0 !important; }
+#wf_PTW0065001-s_20120920145156-box   { -webkit-border-radius: 0 !important; }  /* for Webkit */
+#wf_PTW0065001-s_20120920145156-box   { box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.12), 0 1px 5px 0 rgba(0, 0, 0, 0.2) !important;}
+#wf_PTW0065001-s_20120920145156-box   { -webkit-box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.12), 0 1px 5px 0 rgba(0, 0, 0, 0.2) !important; }  /* for Webkit */
+#wf_PTW0065001-s_20120920145156-box .portlet-title { display: block; }
+#wf_PTW0065001-s_20120920145156-box .portlet-title-linker { display: block; }
+#wf_PTW0065001-s_20120920145156-box .portlet-title {  background: none; background-image: none; background-color: rgb(128, 222, 234) !important; }
+#wf_PTW0065001-s_20120920145156-box .portlet-title { border-radius: 0 !important; }
+#wf_PTW0065001-s_20120920145156-box .portlet-title { -webkit-border-radius: 0 !important; }  /* for Webkit */
+#wf_PTW0065001-s_20120920145156-box .portlet-title { color: black !important;}
+</style>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+  
+  
+
+
+
+
+<script type="text/javascript">
+
+var currentTabId = 'home';
+
+
+var defWindowWidth = $(window).width();
+var defWindowHeight = $(window).height();
+
+
+var portalConf = {
+	      'bodyTagAddClass' : 'login-active ja KJW0001100 KJReferList',
+	      'funcId'          : 'KJW0001100',
+	      'viewName'        : 'KJReferList',
+	      'page'            : 'main',
+	      'lang'            : 'ja',
+	      'locale'          : 'ja_JP',
+	      'localeJa'        : true,
+	      'localeEn'        : false,
+	      'isDeviceLocaleSmartphone': false,
+	      'runMode'         : '',   
+	      'templateTabId'   : 'home',
+	      'portalUrl'       : 'portal.do',
+	      'webUrl'          : 'campussquare.do',
+	      'rwfHash'         : 'cbe584ceb223eb182c86557142c1e368',
+	      'staticHtmlDir'   : '/campusweb/static/pub/',
+	      'staticCampusDir' : '/campusweb/static/pub/campus/6.0/',
+	      'staticImageDir'  : '/campusweb/static/pub/campus/6.0/image/'
+};
+
+
+var portalMenuDispFlg = true;
+
+
+$(function () {
+  $(window).resize(function() {
+    $("#page-main").css({'cssText': 'margin-top: ' + $("#page-header").outerHeight() + 'px !important'});
+    scrollWidthSet();
+  });
+  scrollWidthSet();
+});
+
+
+function scrollWidthSet () {
+    var mw = 0;
+    
+    $('#page-main > div.container').css('min-width', '');
+    $('#page-main > div.container').css('padding-right', '');
+    $('#page-main table').each(function(){
+        var tw = 0;
+        if ($(this).hasClass("sp-table-scroll")) {
+           
+           var ptOverflow = $(this).closest('div.sp-table-scroll').css('overflow-x');
+           if (ptOverflow == 'auto') {
+               tw = $(this).closest('div.sp-table-scroll').css('width');
+           } else {
+               tw = $(this).width();
+           }
+        } else {
+           tw = $(this).width();
+        }
+        if(tw > mw){
+            mw = tw;
+         }
+    });
+    if (mw > $('#page-main > div.container').width()) {
+      $('#page-main > div.container').css('min-width', (mw + 40)+'px');
+      $('#page-main > div.container').css('padding-right', '10px');
+    }
+}
+</script>
+</head>
+
+
+
+    <body>
+        
+        
+
+
+
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+
+
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div id="test-vw100"></div>
+<div id="test-vh100"></div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+
+<div id="portlet-setting-param-dlg" class="portal-setting-dlg">
+    <div class="loading" id="portal-setting-param-dlg-box-loading"></div>
+    <div id="portal-setting-param-dlg-box">
+        
+    </div>
+</div>
+
+
+<div id="campus-loading-overlay" class="campus-loading-overlay"></div>
+<div id="campus-loading" class="campus-loading">
+  <div id="campus-loading-msg" class="campus-loading-msg">Loading...
+    <a id="campus-loading-cancel" class="campus-loading-cancel btn-flat waves-effect waves-light" href="javascript:void(0);" onclick="stopLoading();" title="Close"><i class="material-icons">close</i></a>
+    <div class="spinner-wrapper active"></div>
+  </div>
+  <div id="campus-loading-err" class="campus-loading-msg err" style="display: none">画面の表示に失敗しました<br><br><a class="btn-flat waves-effect waves-light" href="javascript:void(0);" onclick="stopLoading();" title="閉じる"><i class="material-icons">close</i>閉じる</a></div>
+</div>
+
+
+<header id="page-header" class="page-header fixed cmps theme header login-active ja KJW0001100 KJReferList">
+
+
+
+
+
+<div class="container clearfix">
+  
+    
+    <div class="row no-margin">
+      <div class="col s12 no-margin no-padding clearfix" style="line-height: normal;">
+        
+      </div>
+    </div>
+    
+    
+    <nav id="top-nav" class="navbar-fixed cmps theme header">
+      <div class="nav-wrapper">
+        <section class="page-title">
+          <div class="row no-margin">
+            
+              <div class="breadcrumb-box col s12 no-margin no-padding clearfix" style="line-height: 40px; height: 40px;">
+                <a id="breadcrumb-1" class="breadcrumb" href="portal.do?page=main" title="HOME">HOME</a>
+                <a id="breadcrumb-2" class="breadcrumb" href="javascript:void(0);" title="" style="display: none"></a>
+                <div class="sidenav-btn hide-on-large-only"> <!-- hide-on-large-only  show-on-large">-->
+                  <a id="sidenav-trigger" class="sidenav-trigger btn-floating waves-effect waves-light" data-target="sidenav-menu-wrapper" alt="MENU" href="javascript:void(0);"><i class="material-icons">menu</i></a>
+                </div>
+              </div>
+            
+            <div class="col s12 no-margin no-padding title clearfix" style="line-height: 36px;">
+
+              <i class="fas fa-search" ></i>
+              <span class="main">掲示板／掲示情報一覧</span>
+              
+            </div>
+          </div>
+        </section>
+      </div>
+    </nav>
+    
+  
+
+</div>
+</header>
+
+
+
+
+
+<main id="page-main" class="page-main cmps theme main login-active ja KJW0001100 KJReferList">
+<div class="container clearfix">
+  
+    
+    
+    
+    
+    <aside id="sidebar-nav">
+      <div id="sidenav-menu-wrapper" class="sidenav sidenav-fixed ps-scroll cmps theme menu clearfix">
+      <div id="sidenav-menu" class="sidenav-menu menu-accordion multi-open clearfix">
+        
+        <div id="sidenav-menu-header" class="sidenav-menu-header clearfix">
+          <!-- <div class="system-logo"><img src="/campusweb/static/pub/campus/6.0/image/menu_logo.png"></div> -->
+          <div class="system-logo" style="font-size:200%; font-weight: bold;">
+            
+            
+             
+            
+             <i class="fas fa-cube" style="margin-left: 1em; color: #77e7f7;"></i>
+<span><span style="color:#77e7f7;">C</span>AMPUS<span style="color:#77e7f7;">S</span>QUARE</span></span>
+          </div>
+          
+          
+
+
+
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+  
+
+
+<div id="system-menu" class="row top system-menu">
+  <div id="system-menu-row1" class="row row1">
+    <div id="system-menu-user" class="col s6 system-menu-user">
+      
+        <img alt="MYアカウント" src="/campusweb/static/pub/campus/6.0/image/icon/user.png"/><i class="fas fa-user-circle"></i><br>
+        <span class="user-name">橋口　湧吾</span>
+      
+    </div>
+    <div id="system-menu-logout" class="col s6 system-menu-logout">
+      <a id="portallogout" title="ログアウト" class="logout btn-medium waves-effect waves-light" href="portal.do?page=logout" onClick="if(confirm('ログアウトしてもよろしいですか？')){ return true; } else { return false; }">
+        <img alt="ログアウト" src="/campusweb/static/pub/campus/6.0/image/icon/logout.png"><i class="fas fa-sign-out-alt"></i><br>
+        ログアウト
+      </a>
+    </div>
+  </div>
+
+
+  <div id="system-menu-row2" class="row row2">
+    
+    
+    
+      <div id="system-menu-timer" class="col s12 system-menu-timer">
+        <a id="portaltimer" title="クリックで延長" class="timeout btn-medium waves-effect waves-light" href="javascript:void(0);">
+          <img alt="クリックで延長" src="/campusweb/static/pub/campus/6.0/image/icon/portal_timeout.png"><i class="fas fa-hourglass-half"></i><br>
+          <span>残り<span id="timeout-timer">30</span>分</span>
+        </a>
+      </div>
+    
+  </div>
+
+</div>
+
+
+
+<form name="TopForm" style="margin: 0px; padding: 0px;" action="campussquare.do">
+    <input type="hidden" name="time_cnt" value="0">
+    <input type="hidden" name="_eventId">
+    <input type="hidden" name="_flowExecutionKey">
+    <input type="hidden" name="timeout" id="timeout" value="">
+</form>
+<script type="text/javascript">
+
+
+
+  var session_time_out_timer = 0;
+  var session_last_acc_time = new Date();
+  var before_odd_time = 0;
+  
+  var session_time_out = 30;
+  
+  function checkTimeout() {
+    now = new Date();
+    t = now.getTime() - session_last_acc_time.getTime();
+    var minute_cnt = Math.floor(t / (60*1000));
+    if (minute_cnt < session_time_out) {
+      var odd_time = session_time_out - minute_cnt;
+      document.TopForm.timeout.value = odd_time;
+
+      
+      $("#timeout-timer").text(odd_time);
+
+      
+      $("#portaltimer").unbind("click");
+      $("#portaltimer").click(function(){
+        extendSession();
+      });
+
+      if(session_time_out_timer == 0){
+        session_time_out_timer = setInterval("checkTimeout()", 2000);
+      }
+
+      if ("5" != "" && before_odd_time != odd_time){
+        if ("5" == odd_time + ""){
+          var SubWin = window.open("/campusweb/theme/default/TimeoutAlert.html", "",
+            "width=750,height=240,location=0,menubar=0,scrollbars=1,resizable=1,toolbar=0");
+        }
+      }
+      before_odd_time = odd_time;
+      
+    } else {
+      clearInterval(session_time_out_timer);
+      session_time_out_timer = 0;
+      document.TopForm.timeout.value = "0";
+
+      
+      $("#timeout-timer").text("0");
+
+      
+      $("#portaltimer").unbind("click");
+      
+      if (true) {
+        var msg = "タイムアウトしました。";
+        if (msg == ""){
+          msg = "タイムアウトしました。";
+        }
+        alert(msg);
+      }
+      if (true) {
+        var SubWin = window.open("/campusweb/theme/default/Timeout.html", "",
+          "width=750,height=240,location=0,menubar=0,scrollbars=1,resizable=1,toolbar=0");
+      }
+    }
+  }
+
+  function initTimeout(){
+    if (true){
+      document.TopForm.time_cnt.value = "0";
+      clearInterval(session_time_out_timer);
+      session_time_out_timer = 0;
+      session_last_acc_time = new Date();
+      before_odd_time = 0;
+      checkTimeout();
+    }
+  }
+
+
+  function extendSession() {
+    var url = getAjaxGetUrl("dummy", null);
+    $.get(url);
+    initTimeout();
+    
+  }
+
+  $(document).ready(function(){
+    initTimeout();
+  });
+  
+
+
+</script>
+
+          
+          
+          <div id="menu-header" class="submenu-bar top menu-header">
+            
+              <div class="menu-header-item">
+                
+              </div>
+            
+          </div>
+        </div>
+
+        <div id="sidenav-menu-body" class="sidenav-menu-body clearfix">
+          
+          <div id="menu-body" class="submenu-bar top menu-body">
+            
+            
+              <div class="menu-top-new">
+                <a class="btn-medium waves-effect waves-light" id="menu-link-mw-001" href="portal.do?page=main&action=rwf&tabId=home&wfId=main_PTW0065200_menu&rwfHash=cbe584ceb223eb182c86557142c1e368&link=menu-link-mw-001" title="新着情報があります"><img alt="新着情報があります" src="/campusweb/static/pub/campus/6.0/image/icon/dialog-information-3.png"/>新着情報があります<span class="new badge"></span></a>
+              </div>
+            
+            
+            <div id="menu-tabs" class="menu-tabs clearfix">
+              <ul class="tabs m-tabs tabs-fixed-width">
+                <li id="menu-tabs-menu" class="tab">
+                  <a class="waves-effect waves-light" href="#menu-all" title="メニュー">
+                    <img alt="メニュー" src="/campusweb/static/pub/campus/6.0/image/icon/format-list-ordered.png"/>
+                    <i class="fas fa-bars"></i>
+                    メニュー</a>
+                </li>
+<!-- 
+                <li id="menu-tabs-ranking" class="tab">
+                  <a class="waves-effect waves-light" href="#menu-ranking" title="ランキング">
+                    <img alt="ランキング" src="/campusweb/static/pub/campus/6.0/image/icon/medal-gold.png"/>
+                    <i class="fas fa-crown"></i>
+                    ランキング</a>
+                </li>
+                <li id="menu-tabs-history" class="tab">
+                  <a class="waves-effect waves-light" href="#menu-history" title="履歴">
+                    <img alt="履歴" src="/campusweb/static/pub/campus/6.0/image/icon/clock-red.png"/>
+                    <i class="fas fa-history"></i>
+                    履歴</a>
+                </li>
+-->
+              </ul>
+            </div>
+            
+            <div id="menu-contents" class="menu-contents">
+                <div id="menu-all" class="menu-content menu-all clearfix">
+                  
+                  <div class="header"><img alt="メニュー" src="/campusweb/static/pub/campus/6.0/image/icon/format-list-ordered.png"/><i class="fas fa-bars"></i>メニュー
+<!--                     <a class="tool-btn open" class="btn-medium waves-effect waves-light" href="javascript:void(0);" onclick="openAllMenus(); return false;"><i class="material-icons">add_circle</i></a> -->
+<!--                     <a class="tool-btn close" class="btn-medium waves-effect waves-light" href="javascript:void(0);" onclick="closeAllMenus(); return false;"><i class="material-icons">remove_circle</i></a> -->
+                  </div>
+                  
+                  <ul id="menu-all-list" class="menu-all-list">
+                    
+
+                    
+                    
+                    
+                    
+                      
+                          
+                          
+                          
+                          
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                          
+                        
+                          
+                          
+                          
+                          
+                          
+                          
+                          
+                          
+                          
+                            <li id="menu-tab-home" class="menu-tab ">
+                              <a class="tab-link next btn-medium waves-effect waves-light " id="menu-link-mt-home" href="portal.do?page=main&tabId=home&link=mt18063" title="HOME">
+
+                              <i class="fas fa-school" ></i>
+                              <span class="tabnm">HOME</span> </a>
+                            </li>
+                          
+                          
+                          
+                          
+                          
+                          
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                          
+                          
+                          
+                          
+                          
+                          
+                          
+                      
+                    
+                      
+                          
+                          
+                          
+                          
+                          
+                            
+                              
+                            
+                          
+                            
+                              
+                            
+                          
+                            
+                              
+                            
+                          
+                            
+                              
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                          
+                              
+                          
+                        
+                          
+                          
+                          
+                          
+                          
+                          
+                          
+                          
+                          
+                          
+                            <li id="menu-tab-pt" class="menu-tab menu-tab-dir1">
+                              <a class="tab-link btn-medium waves-effect waves-light " id="menu-link-mt-pt" href="javascript:void(0);" title="ポータル"><i class="fas fa-tv" ></i>
+
+                              <span class="tabnm">ポータル</span><span class="arrow"></span> </a>
+                              <div class="menu-tab-dir1-div ">
+                          
+                          
+                          
+                          
+                          
+                          
+                            
+                              
+                              
+                              
+                              
+                                  <ul id="menu-tab-ul-pt" class="menu-sub-list">
+                                  
+                                  <li id="menu-tab-header-msg-pt" class="menu-tab-header">
+                                  <a class="next btn-medium waves-effect waves-light" href="portal.do?page=main&tabId=pt&link=menu-link-mt-top-pt" id="menu-link-mt-top-pt" title="ポータル TOPページ">
+
+
+                                    <span class="title">TOPページ</span><span class="title-hint">お知らせはこちら</span> </a>
+                                  </li>
+
+
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                                  
+                                  
+                                  
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                      
+                                      
+                                      
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-portlet"><a class="next btn-medium waves-effect waves-light" id="menu-link-mp-164833" target="" href="portal.do?page=main&action=rwf&tabId=pt&wfId=main_PTW0065200_menu&rwfHash=cbe584ceb223eb182c86557142c1e368&link=menu-link-mp-164833" title="新着情報" data-func="PTW0065200"><i class="fas fa-info" ></i><span class="menunm">新着情報</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                            
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                      
+                                      
+                                      
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-portlet"><a class="next btn-medium waves-effect waves-light" id="menu-link-mp-164834" target="" href="portal.do?page=main&action=rwf&tabId=pt&wfId=main_PTW0065300_menu&rwfHash=cbe584ceb223eb182c86557142c1e368&link=menu-link-mp-164834" title="新着掲示" data-func="PTW0065300"><i class="fas fa-info-circle" ></i><span class="menunm">新着掲示</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                            
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                                  
+                                  
+                                      
+                                      
+                                      
+                                      
+                                      
+                                      <li id="menu-tab-dir2-1" class="menu-tab-dir2 ">
+                                        <a class="dir-link btn-medium waves-effect waves-light " href="javascript:void(0);" title="ダウンロードセンター"><span>
+
+                                        <i class="fas fa-folder-open" ></i>
+                                        <span class="foldernm">ダウンロードセンター</span></span><span class="arrow"></span></a>
+                                        <div class="menu-tab-dir2-div " style="">
+                                          <ul id="menu-tab-moresubul-1" class="">
+                                  
+                                  
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-func"><a class="next btn-medium waves-effect waves-light" id="menu-link-mf-164838" target="" href="campussquare.do?_flowId=SDW0001000-flow&link=menu-link-mf-164838" title="ダウンロードセンター" data-func="SDW0001000"><i class="fas fa-wrench" ></i><span class="menunm">ダウンロードセンター</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                            
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                                  
+                                      
+                                      <li class="menu-close"><a class="btn-medium waves-effect waves-light" href="javascript:void(0);" title="close"><i class="material-icons">close</i>close</a></li>
+                                      </ul></div></li>
+                                  
+                                  
+                                      
+                                      
+                                      
+                                      
+                                      
+                                      <li id="menu-tab-dir2-2" class="menu-tab-dir2 ">
+                                        <a class="dir-link btn-medium waves-effect waves-light " href="javascript:void(0);" title="管理メニュー"><span>
+
+                                        <i class="fas fa-folder-open" ></i>
+                                        <span class="foldernm">管理メニュー</span></span><span class="arrow"></span></a>
+                                        <div class="menu-tab-dir2-div " style="">
+                                          <ul id="menu-tab-moresubul-2" class="">
+                                  
+                                  
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-func"><a class="next btn-medium waves-effect waves-light" id="menu-link-mf-164844" target="" href="campussquare.do?_flowId=PTW0001100-flow&link=menu-link-mf-164844" title="リンク登録" data-func="PTW0001100"><i class="fas fa-pen" ></i><span class="menunm">リンク登録</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                          
+                          
+                          
+                          
+                            <li class="menu-close"><a class="btn-medium waves-effect waves-light" href="javascript:void(0);" title="close"><i class="material-icons">close</i>close</a></li>
+                            </ul></div></li>
+                          
+                          
+                          
+                          
+                            <li class="menu-close"><a class="btn-medium waves-effect waves-light" title="close" href="javascript:void(0);"><i class="material-icons">close</i>close</a></li>
+                            </ul></div></li>
+                          
+                      
+                    
+                      
+                          
+                          
+                          
+                          
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                              
+                            
+                          
+                            
+                              
+                            
+                          
+                            
+                              
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                          
+                              
+                          
+                        
+                          
+                          
+                          
+                          
+                          
+                          
+                          
+                          
+                          
+                          
+                            <li id="menu-tab-kj" class="menu-tab menu-tab-dir1">
+                              <a class="tab-link btn-medium waves-effect waves-light " id="menu-link-mt-kj" href="javascript:void(0);" title="掲示・アンケート"><i class="fas fa-info-circle" ></i>
+
+                              <span class="tabnm">掲示・アンケート</span><span class="arrow"></span> </a>
+                              <div class="menu-tab-dir1-div ">
+                          
+                          
+                          
+                          
+                          
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                              
+                              
+                              
+                              
+                                  <ul id="menu-tab-ul-kj" class="menu-sub-list">
+                                  
+                                  <li id="menu-tab-header-msg-kj" class="menu-tab-header">
+                                  <a class="next btn-medium waves-effect waves-light" href="portal.do?page=main&tabId=kj&link=menu-link-mt-top-kj" id="menu-link-mt-top-kj" title="掲示・アンケート TOPページ">
+
+
+                                    <span class="title">TOPページ</span><span class="title-hint">お知らせはこちら</span> </a>
+                                  </li>
+
+
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                                  
+                                  
+                                      
+                                      
+                                      
+                                      
+                                      
+                                      <li id="menu-tab-dir2-3" class="menu-tab-dir2 ">
+                                        <a class="dir-link btn-medium waves-effect waves-light " href="javascript:void(0);" title="掲示板"><span>
+
+                                        <i class="fas fa-folder-open" ></i>
+                                        <span class="foldernm">掲示板</span></span><span class="arrow"></span></a>
+                                        <div class="menu-tab-dir2-div " style="">
+                                          <ul id="menu-tab-moresubul-3" class="">
+                                  
+                                  
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                      
+                                      
+                                      
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-portlet"><a class="next btn-medium waves-effect waves-light" id="menu-link-mp-164853" target="" href="portal.do?page=main&action=rwf&tabId=kj&wfId=main_PTW0065300_menu&rwfHash=cbe584ceb223eb182c86557142c1e368&link=menu-link-mp-164853" title="新着掲示" data-func="PTW0065300"><i class="fas fa-info-circle" ></i><span class="menunm">新着掲示</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                            
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-func"><a class="next btn-medium waves-effect waves-light" id="menu-link-mf-164854" target="" href="campussquare.do?_flowId=KJW0001100-flow&link=menu-link-mf-164854" title="掲示板" data-func="KJW0001100"><i class="fas fa-search" ></i><span class="menunm">掲示板</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                            
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                                  
+                                      
+                                      <li class="menu-close"><a class="btn-medium waves-effect waves-light" href="javascript:void(0);" title="close"><i class="material-icons">close</i>close</a></li>
+                                      </ul></div></li>
+                                  
+                                  
+                                      
+                                      
+                                      
+                                      
+                                      
+                                        
+                                        
+                                      
+                                      <li id="menu-tab-dir2-4" class="menu-tab-dir2 open">
+                                        <a class="dir-link btn-medium waves-effect waves-light open" href="javascript:void(0);" title="アンケート"><span>
+
+                                        <i class="fas fa-folder-open" ></i>
+                                        <span class="foldernm">アンケート</span></span><span class="arrow"></span></a>
+                                        <div class="menu-tab-dir2-div open" style="display: block;">
+                                          <ul id="menu-tab-moresubul-4" class="">
+                                  
+                                  
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-func"><a class="next btn-medium waves-effect waves-light" id="menu-link-mf-164861" target="" href="campussquare.do?_flowId=ENW0001100-flow&link=menu-link-mf-164861" title="アンケート回答・集計結果照会" data-func="ENW0001100"><i class="fas fa-search" ></i><span class="menunm">アンケート回答・集計結果照会</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                          
+                          
+                          
+                          
+                            <li class="menu-close"><a class="btn-medium waves-effect waves-light" href="javascript:void(0);" title="close"><i class="material-icons">close</i>close</a></li>
+                            </ul></div></li>
+                          
+                          
+                          
+                          
+                            <li class="menu-close"><a class="btn-medium waves-effect waves-light" title="close" href="javascript:void(0);"><i class="material-icons">close</i>close</a></li>
+                            </ul></div></li>
+                          
+                      
+                    
+                      
+                          
+                          
+                          
+                          
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                              
+                            
+                          
+                            
+                              
+                            
+                          
+                            
+                              
+                            
+                          
+                            
+                              
+                            
+                          
+                            
+                              
+                            
+                          
+                            
+                              
+                            
+                          
+                            
+                              
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                          
+                              
+                          
+                        
+                          
+                          
+                          
+                          
+                          
+                          
+                          
+                          
+                          
+                          
+                            <li id="menu-tab-gk" class="menu-tab menu-tab-dir1">
+                              <a class="tab-link btn-medium waves-effect waves-light " id="menu-link-mt-gk" href="javascript:void(0);" title="学生生活"><i class="fas fa-street-view" ></i>
+
+                              <span class="tabnm">学生生活</span><span class="arrow"></span> </a>
+                              <div class="menu-tab-dir1-div ">
+                          
+                          
+                          
+                          
+                          
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                              
+                              
+                              
+                              
+                                  <ul id="menu-tab-ul-gk" class="menu-sub-list">
+                                  
+                                  <li id="menu-tab-header-msg-gk" class="menu-tab-header">
+                                  <a class="next btn-medium waves-effect waves-light" href="portal.do?page=main&tabId=gk&link=menu-link-mt-top-gk" id="menu-link-mt-top-gk" title="学生生活 TOPページ">
+
+
+                                    <span class="title">TOPページ</span><span class="title-hint">お知らせはこちら</span> </a>
+                                  </li>
+
+
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                                  
+                                  
+                                  
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-func"><a class="next btn-medium waves-effect waves-light" id="menu-link-mf-164865" target="" href="campussquare.do?_flowId=CHW0001000-flow&link=menu-link-mf-164865" title="学生ポートフォリオ" data-func="CHW0001000"><i class="fas fa-address-card" ></i><span class="menunm">学生ポートフォリオ</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                            
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-func"><a class="next btn-medium waves-effect waves-light" id="menu-link-mf-164867" target="" href="campussquare.do?_flowId=CHW0001300-flow&link=menu-link-mf-164867" title="学生住所変更" data-func="CHW0001300"><i class="fas fa-home" ></i><span class="menunm">学生住所変更</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                            
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-func"><a class="next btn-medium waves-effect waves-light" id="menu-link-mf-164868" target="" href="campussquare.do?_flowId=PTW0001300-flow&link=menu-link-mf-164868" title="通知配信設定" data-func="PTW0001300"><i class="fas fa-wrench" ></i><span class="menunm">通知配信設定</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                            
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                                  
+                                  
+                                      
+                                      
+                                      
+                                      
+                                      
+                                      <li id="menu-tab-dir2-5" class="menu-tab-dir2 ">
+                                        <a class="dir-link btn-medium waves-effect waves-light " href="javascript:void(0);" title="各種申請"><span>
+
+                                        <i class="fas fa-folder-open" ></i>
+                                        <span class="foldernm">各種申請</span></span><span class="arrow"></span></a>
+                                        <div class="menu-tab-dir2-div " style="">
+                                          <ul id="menu-tab-moresubul-5" class="">
+                                  
+                                  
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-func"><a class="next btn-medium waves-effect waves-light" id="menu-link-mf-164871" target="" href="campussquare.do?_flowId=ESW0001100-flow&link=menu-link-mf-164871" title="各種申請" data-func="ESW0001100"><i class="fas fa-wrench" ></i><span class="menunm">各種申請</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                            
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                                  
+                                      
+                                      <li class="menu-close"><a class="btn-medium waves-effect waves-light" href="javascript:void(0);" title="close"><i class="material-icons">close</i>close</a></li>
+                                      </ul></div></li>
+                                  
+                                  
+                                      
+                                      
+                                      
+                                      
+                                      
+                                      <li id="menu-tab-dir2-6" class="menu-tab-dir2 ">
+                                        <a class="dir-link btn-medium waves-effect waves-light " href="javascript:void(0);" title="安否確認"><span>
+
+                                        <i class="fas fa-folder-open" ></i>
+                                        <span class="foldernm">安否確認</span></span><span class="arrow"></span></a>
+                                        <div class="menu-tab-dir2-div " style="">
+                                          <ul id="menu-tab-moresubul-6" class="">
+                                  
+                                  
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-func"><a class="next btn-medium waves-effect waves-light" id="menu-link-mf-164877" target="" href="campussquare.do?_flowId=ANW0001900-flow&link=menu-link-mf-164877" title="安否確認メールアドレス登録" data-func="ANW0001900"><i class="fas fa-exclamation-triangle" ></i><span class="menunm">安否確認メールアドレス登録</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                            
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                                  
+                                      
+                                      <li class="menu-close"><a class="btn-medium waves-effect waves-light" href="javascript:void(0);" title="close"><i class="material-icons">close</i>close</a></li>
+                                      </ul></div></li>
+                                  
+                                  
+                                      
+                                      
+                                      
+                                      
+                                      
+                                      <li id="menu-tab-dir2-7" class="menu-tab-dir2 ">
+                                        <a class="dir-link btn-medium waves-effect waves-light " href="javascript:void(0);" title="介護等体験"><span>
+
+                                        <i class="fas fa-folder-open" ></i>
+                                        <span class="foldernm">介護等体験</span></span><span class="arrow"></span></a>
+                                        <div class="menu-tab-dir2-div " style="">
+                                          <ul id="menu-tab-moresubul-7" class="">
+                                  
+                                  
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-func"><a class="next btn-medium waves-effect waves-light" id="menu-link-mf-164878" target="" href="campussquare.do?_flowId=NCW0001000-flow&link=menu-link-mf-164878" title="介護等体験不可日登録" data-func="NCW0001000"><i class="fas fa-pen" ></i><span class="menunm">介護等体験不可日登録</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                            
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-func"><a class="next btn-medium waves-effect waves-light" id="menu-link-mf-164879" target="" href="campussquare.do?_flowId=NCW0001100-flow&link=menu-link-mf-164879" title="介護等体験日程確認" data-func="NCW0001100"><i class="fas fa-search" ></i><span class="menunm">介護等体験日程確認</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                          
+                          
+                          
+                          
+                            <li class="menu-close"><a class="btn-medium waves-effect waves-light" href="javascript:void(0);" title="close"><i class="material-icons">close</i>close</a></li>
+                            </ul></div></li>
+                          
+                          
+                          
+                          
+                            <li class="menu-close"><a class="btn-medium waves-effect waves-light" title="close" href="javascript:void(0);"><i class="material-icons">close</i>close</a></li>
+                            </ul></div></li>
+                          
+                      
+                    
+                      
+                          
+                          
+                          
+                          
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                              
+                            
+                          
+                            
+                              
+                            
+                          
+                            
+                              
+                            
+                          
+                            
+                              
+                            
+                          
+                            
+                              
+                            
+                          
+                            
+                              
+                            
+                          
+                            
+                              
+                            
+                          
+                            
+                              
+                            
+                          
+                            
+                          
+                            
+                              
+                            
+                          
+                            
+                              
+                            
+                          
+                            
+                              
+                            
+                          
+                            
+                              
+                            
+                          
+                            
+                              
+                            
+                          
+                            
+                              
+                            
+                          
+                            
+                              
+                            
+                          
+                            
+                              
+                            
+                          
+                            
+                              
+                            
+                          
+                            
+                          
+                          
+                              
+                          
+                        
+                          
+                          
+                          
+                          
+                          
+                          
+                          
+                          
+                          
+                          
+                            <li id="menu-tab-kyomu" class="menu-tab menu-tab-dir1">
+                              <a class="tab-link btn-medium waves-effect waves-light " id="menu-link-mt-kyomu" href="javascript:void(0);" title="教務／授業関連"><i class="fas fa-paste" ></i>
+
+                              <span class="tabnm">教務／授業関連</span><span class="arrow"></span> </a>
+                              <div class="menu-tab-dir1-div ">
+                          
+                          
+                          
+                          
+                          
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                              
+                              
+                              
+                              
+                                  <ul id="menu-tab-ul-kyomu" class="menu-sub-list">
+                                  
+                                  <li id="menu-tab-header-msg-kyomu" class="menu-tab-header">
+                                  <a class="next btn-medium waves-effect waves-light" href="portal.do?page=main&tabId=kyomu&link=menu-link-mt-top-kyomu" id="menu-link-mt-top-kyomu" title="教務／授業関連 TOPページ">
+
+
+                                    <span class="title">TOPページ</span><span class="title-hint">お知らせはこちら</span> </a>
+                                  </li>
+
+
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                                  
+                                  
+                                      
+                                      
+                                      
+                                      
+                                      
+                                      <li id="menu-tab-dir2-8" class="menu-tab-dir2 ">
+                                        <a class="dir-link btn-medium waves-effect waves-light " href="javascript:void(0);" title="シラバス"><span>
+
+                                        <i class="fas fa-folder-open" ></i>
+                                        <span class="foldernm">シラバス</span></span><span class="arrow"></span></a>
+                                        <div class="menu-tab-dir2-div " style="">
+                                          <ul id="menu-tab-moresubul-8" class="">
+                                  
+                                  
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-func"><a class="next btn-medium waves-effect waves-light" id="menu-link-mf-164899" target="" href="campussquare.do?_flowId=SBW3701300-flow&link=menu-link-mf-164899" title="シラバス参照" data-func="SBW3701300"><i class="fas fa-search" ></i><span class="menunm">シラバス参照</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                            
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                                  
+                                      
+                                      <li class="menu-close"><a class="btn-medium waves-effect waves-light" href="javascript:void(0);" title="close"><i class="material-icons">close</i>close</a></li>
+                                      </ul></div></li>
+                                  
+                                  
+                                      
+                                      
+                                      
+                                      
+                                      
+                                      <li id="menu-tab-dir2-9" class="menu-tab-dir2 ">
+                                        <a class="dir-link btn-medium waves-effect waves-light " href="javascript:void(0);" title="履修"><span>
+
+                                        <i class="fas fa-folder-open" ></i>
+                                        <span class="foldernm">履修</span></span><span class="arrow"></span></a>
+                                        <div class="menu-tab-dir2-div " style="">
+                                          <ul id="menu-tab-moresubul-9" class="">
+                                  
+                                  
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-func"><a class="next btn-medium waves-effect waves-light" id="menu-link-mf-164913" target="" href="campussquare.do?_flowId=RSW0001300-flow&link=menu-link-mf-164913" title="抽選科目申請" data-func="RSW0001300"><i class="fas fa-pen" ></i><span class="menunm">抽選科目申請</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                            
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-func"><a class="next btn-medium waves-effect waves-light" id="menu-link-mf-164914" target="" href="campussquare.do?_flowId=RSW0001400-flow&link=menu-link-mf-164914" title="抽選科目申請照会" data-func="RSW0001400"><i class="fas fa-pen" ></i><span class="menunm">抽選科目申請照会</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                            
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-func"><a class="next btn-medium waves-effect waves-light" id="menu-link-mf-164915" target="" href="campussquare.do?_flowId=RSW0001000-flow&link=menu-link-mf-164915" title="履修登録・登録状況照会" data-func="RSW0001000"><i class="fas fa-pen" ></i><span class="menunm">履修登録・登録状況照会</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                            
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-func"><a class="next btn-medium waves-effect waves-light" id="menu-link-mf-164916" target="" href="campussquare.do?_flowId=HTW0001000-flow&link=menu-link-mf-164916" title="自己判定" data-func="HTW0001000"><i class="fas fa-search" ></i><span class="menunm">自己判定</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                            
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-func"><a class="next btn-medium waves-effect waves-light" id="menu-link-mf-164917" target="" href="campussquare.do?_flowId=HTW0001100-flow&link=menu-link-mf-164917" title="資格自己判定" data-func="HTW0001100"><i class="fas fa-search" ></i><span class="menunm">資格自己判定</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                            
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-func"><a class="next btn-medium waves-effect waves-light" id="menu-link-mf-164920" target="" href="campussquare.do?_flowId=RSW9401000-flow&link=menu-link-mf-164920" title="次年度継続希望登録" data-func="RSW9401000"><i class="fas fa-icon/sp.gif" ></i><span class="menunm">次年度継続希望登録</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                            
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                                  
+                                      
+                                      <li class="menu-close"><a class="btn-medium waves-effect waves-light" href="javascript:void(0);" title="close"><i class="material-icons">close</i>close</a></li>
+                                      </ul></div></li>
+                                  
+                                  
+                                      
+                                      
+                                      
+                                      
+                                      
+                                      <li id="menu-tab-dir2-10" class="menu-tab-dir2 ">
+                                        <a class="dir-link btn-medium waves-effect waves-light " href="javascript:void(0);" title="休講・補講・教室変更"><span>
+
+                                        <i class="fas fa-folder-open" ></i>
+                                        <span class="foldernm">休講・補講・教室変更</span></span><span class="arrow"></span></a>
+                                        <div class="menu-tab-dir2-div " style="">
+                                          <ul id="menu-tab-moresubul-10" class="">
+                                  
+                                  
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-func"><a class="next btn-medium waves-effect waves-light" id="menu-link-mf-164922" target="" href="campussquare.do?_flowId=PTW0001200-flow&link=menu-link-mf-164922" title="スケジュール管理" data-func="PTW0001200"><i class="fas fa-calendar-alt" ></i><span class="menunm">スケジュール管理</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                            
+                          
+                            
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-func"><a class="next btn-medium waves-effect waves-light" id="menu-link-mf-164926" target="" href="campussquare.do?_flowId=KHW0001100-flow&link=menu-link-mf-164926" title="休講補講参照" data-func="KHW0001100"><i class="fas fa-search" ></i><span class="menunm">休講補講参照</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                            
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-func"><a class="next btn-medium waves-effect waves-light" id="menu-link-mf-164929" target="" href="campussquare.do?_flowId=KHW0001200-flow&link=menu-link-mf-164929" title="施設利用登録" data-func="KHW0001200"><i class="fas fa-pen" ></i><span class="menunm">施設利用登録</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                            
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-func"><a class="next btn-medium waves-effect waves-light" id="menu-link-mf-164930" target="" href="campussquare.do?_flowId=KHW0001300-flow&link=menu-link-mf-164930" title="施設利用状況参照" data-func="KHW0001300"><i class="fas fa-search" ></i><span class="menunm">施設利用状況参照</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                            
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                                  
+                                      
+                                      <li class="menu-close"><a class="btn-medium waves-effect waves-light" href="javascript:void(0);" title="close"><i class="material-icons">close</i>close</a></li>
+                                      </ul></div></li>
+                                  
+                                  
+                                      
+                                      
+                                      
+                                      
+                                      
+                                      <li id="menu-tab-dir2-11" class="menu-tab-dir2 ">
+                                        <a class="dir-link btn-medium waves-effect waves-light " href="javascript:void(0);" title="学科試験"><span>
+
+                                        <i class="fas fa-folder-open" ></i>
+                                        <span class="foldernm">学科試験</span></span><span class="arrow"></span></a>
+                                        <div class="menu-tab-dir2-div " style="">
+                                          <ul id="menu-tab-moresubul-11" class="">
+                                  
+                                  
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-func"><a class="next btn-medium waves-effect waves-light" id="menu-link-mf-164938" target="" href="campussquare.do?_flowId=TEW0001200-flow&link=menu-link-mf-164938" title="試験時間割・レポート情報照会（学生用）" data-func="TEW0001200"><i class="fas fa-search" ></i><span class="menunm">試験時間割・レポート情報照会（学生用）</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                            
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                                  
+                                      
+                                      <li class="menu-close"><a class="btn-medium waves-effect waves-light" href="javascript:void(0);" title="close"><i class="material-icons">close</i>close</a></li>
+                                      </ul></div></li>
+                                  
+                                  
+                                      
+                                      
+                                      
+                                      
+                                      
+                                      <li id="menu-tab-dir2-12" class="menu-tab-dir2 ">
+                                        <a class="dir-link btn-medium waves-effect waves-light " href="javascript:void(0);" title="術科試験"><span>
+
+                                        <i class="fas fa-folder-open" ></i>
+                                        <span class="foldernm">術科試験</span></span><span class="arrow"></span></a>
+                                        <div class="menu-tab-dir2-div " style="">
+                                          <ul id="menu-tab-moresubul-12" class="">
+                                  
+                                  
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-func"><a class="next btn-medium waves-effect waves-light" id="menu-link-mf-164939" target="" href="campussquare.do?_flowId=TEW9401000-flow&link=menu-link-mf-164939" title="術科試験順番表参照" data-func="TEW9401000"><i class="fas fa-search" ></i><span class="menunm">術科試験順番表参照</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                            
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-func"><a class="next btn-medium waves-effect waves-light" id="menu-link-mf-164940" target="" href="campussquare.do?_flowId=TEW9401100-flow&link=menu-link-mf-164940" title="レパートリーシート登録" data-func="TEW9401100"><i class="fas fa-pen" ></i><span class="menunm">レパートリーシート登録</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                            
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                                  
+                                      
+                                      <li class="menu-close"><a class="btn-medium waves-effect waves-light" href="javascript:void(0);" title="close"><i class="material-icons">close</i>close</a></li>
+                                      </ul></div></li>
+                                  
+                                  
+                                      
+                                      
+                                      
+                                      
+                                      
+                                      <li id="menu-tab-dir2-13" class="menu-tab-dir2 ">
+                                        <a class="dir-link btn-medium waves-effect waves-light " href="javascript:void(0);" title="教職履修カルテ"><span>
+
+                                        <i class="fas fa-folder-open" ></i>
+                                        <span class="foldernm">教職履修カルテ</span></span><span class="arrow"></span></a>
+                                        <div class="menu-tab-dir2-div " style="">
+                                          <ul id="menu-tab-moresubul-13" class="">
+                                  
+                                  
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-func"><a class="next btn-medium waves-effect waves-light" id="menu-link-mf-164944" target="" href="campussquare.do?_flowId=RCW0001000-flow&link=menu-link-mf-164944" title="取得予定免許・資格申請" data-func="RCW0001000"><i class="fas fa-pen" ></i><span class="menunm">取得予定免許・資格申請</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                            
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-func"><a class="next btn-medium waves-effect waves-light" id="menu-link-mf-164945" target="" href="campussquare.do?_flowId=RCW0001300-flow&link=menu-link-mf-164945" title="履修カルテ入力" data-func="RCW0001300"><i class="fas fa-pen" ></i><span class="menunm">履修カルテ入力</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                            
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                                  
+                                      
+                                      <li class="menu-close"><a class="btn-medium waves-effect waves-light" href="javascript:void(0);" title="close"><i class="material-icons">close</i>close</a></li>
+                                      </ul></div></li>
+                                  
+                                  
+                                      
+                                      
+                                      
+                                      
+                                      
+                                      <li id="menu-tab-dir2-14" class="menu-tab-dir2 ">
+                                        <a class="dir-link btn-medium waves-effect waves-light " href="javascript:void(0);" title="成績"><span>
+
+                                        <i class="fas fa-folder-open" ></i>
+                                        <span class="foldernm">成績</span></span><span class="arrow"></span></a>
+                                        <div class="menu-tab-dir2-div " style="">
+                                          <ul id="menu-tab-moresubul-14" class="">
+                                  
+                                  
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-func"><a class="next btn-medium waves-effect waves-light" id="menu-link-mf-164952" target="" href="campussquare.do?_flowId=SIW0001300-flow&link=menu-link-mf-164952" title="単位修得状況照会" data-func="SIW0001300"><i class="fas fa-search" ></i><span class="menunm">単位修得状況照会</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                            
+                          
+                          
+                          
+                          
+                          
+                            <li class="menu-close"><a class="btn-medium waves-effect waves-light" href="javascript:void(0);" title="close"><i class="material-icons">close</i>close</a></li>
+                            </ul></div></li>
+                          
+                          
+                          
+                          
+                            <li class="menu-close"><a class="btn-medium waves-effect waves-light" title="close" href="javascript:void(0);"><i class="material-icons">close</i>close</a></li>
+                            </ul></div></li>
+                          
+                      
+                    
+                      
+                          
+                          
+                          
+                          
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                              
+                            
+                          
+                          
+                              
+                          
+                        
+                          
+                          
+                          
+                          
+                          
+                          
+                          
+                          
+                          
+                          
+                            <li id="menu-tab-re" class="menu-tab menu-tab-dir1">
+                              <a class="tab-link btn-medium waves-effect waves-light " id="menu-link-mt-re" href="javascript:void(0);" title="キャリア支援"><i class="fas fa-user-tie" ></i>
+
+                              <span class="tabnm">キャリア支援</span><span class="arrow"></span> </a>
+                              <div class="menu-tab-dir1-div ">
+                          
+                          
+                          
+                          
+                          
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                          
+                            
+                              
+                              
+                              
+                              
+                                  <ul id="menu-tab-ul-re" class="menu-sub-list">
+                                  
+                                  <li id="menu-tab-header-msg-re" class="menu-tab-header">
+                                  <a class="next btn-medium waves-effect waves-light" href="portal.do?page=main&tabId=re&link=menu-link-mt-top-re" id="menu-link-mt-top-re" title="キャリア支援 TOPページ">
+
+
+                                    <span class="title">TOPページ</span><span class="title-hint">お知らせはこちら</span> </a>
+                                  </li>
+
+
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                                  
+                                  
+                                  
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                               
+                              
+                              
+                              
+                              
+                              
+                                
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                  
+                                    
+                                  
+                                  
+                                  <li class="menu-func"><a class="next btn-medium waves-effect waves-light" id="menu-link-mf-164963" target="" href="campussquare.do?_flowId=REW9401000-flow&link=menu-link-mf-164963" title="求人NAVIログイン" data-func="REW9401000"><i class="fas fa-file-word" ></i><span class="menunm">求人NAVIログイン</span></a></li>
+                                
+                                
+                                
+                              
+                            
+                          
+                          
+                          
+                          
+                          
+                          
+                          
+                          
+                            <li class="menu-close"><a class="btn-medium waves-effect waves-light" title="close" href="javascript:void(0);"><i class="material-icons">close</i>close</a></li>
+                            </ul></div></li>
+                          
+                      
+                    
+                    
+                    </ul>
+                </div>
+                
+<!-- 
+                
+                <div id="menu-ranking" class="menu-content menu-ranking clearfix">
+                  <div class="header"><img alt="ランキング" src="/campusweb/static/pub/campus/6.0/image/icon/medal-gold.png"/><i class="fas fa-crown"></i></div>
+                  <ul id="menu-ranking-list" class="menu-ranking-list">
+                    
+                  </ul>
+                </div>
+  
+                
+                <div id="menu-history" class="menu-content menu-history clearfix">
+                  <div class="header"><img alt="履歴" src="/campusweb/static/pub/campus/6.0/image/icon/clock-red.png"/><i class="fas fa-history"></i>あなたのアクセス履歴<br><span class="row2">（過去1年以内の最新30件）</span></div>
+                  <ul id="menu-history-list" class="menu-history-list">
+                    
+                  </ul>
+                </div>
+                
+              </div>
+            </div>
+          </div>
+ -->    
+          <div id="sidenav-menu-footer" class="sidenav-menu-footer clearfix">
+            
+            <div id="menu-footer" class="submenu-bar top menu-footer">
+              
+                <div class="menu-footer-item">
+                  <!--
+<div class="ja">
+<b>メニューフッターのテストです。</b><br>
+ココには、WEBページ設定で設定したHTMLを表示されます。
+</div>
+<div class="en">
+<b> Test the menu footer. </b> <br>
+Here, the HTML set in the WEB page settings will be displayed.
+</div>
+--!>
+                </div>
+              
+
+            </div>
+          </div>
+      </div>
+    </aside>
+    <!-- 左サイドバーメニュー終わり -->
+  
+    
+    
+    
+    
+    <!-- メインコンテンツ #main-wrapper -->
+    <div id="main-wrapper-loading">
+      <div id="main-wrapper-loading-msg"><i class="fas fa-spinner fa-spin"></i>Loading, Please Wait</div>
+      <div id="main-wrapper-loading-err">
+        画面の表示に失敗しました
+        <br><br><br>
+        <a class="btn waves-effect waves-light mr2" href="javascript:void(0);" onclick="history.back();return false;" title="BACK"><i class="fas fa-reply"></i>BACK</a>
+        <a class="btn waves-effect waves-light" href="portal.do?page=main" title="HOME"><i class="fas fa-home"></i>HOME</a>
+      </div>
+    </div>
+    <div id="main-wrapper" class="main-wrapper clearfix">
+      
+      <!-- コンテンツ row -->
+      <div class="row no-margin no-padding clearfix">
+        
+        <!-- コンテンツ col s12 -->
+        <div class="col s12 no-margin no-padding clearfix" style="overflow: hidden !important">
+          
+          
+          
+            <div id="func-page-header" class="col s12 no-margin no-padding func-page-header">
+              
+                <div class="func-page-header-item">
+                  
+                </div>
+              
+            </div>
+          
+          
+          <!-- コンテンツ #main-func-body -->
+          <article id="main-func-body" class="main-func-body">
+
+
+
+        
+        <p>
+            <table width="100%" class=keiji-block>
+                <tr><td>
+                    
+                    
+                        お知らせ掲示板／掲示情報一覧
+                    
+                </td></tr>
+            </table>
+        </p>
+        <p>
+            <b>●詳細を参照するには「表題」をクリックしてください。</b>
+        </p>
+        
+        
+            
+            <p>
+            <form name="sortForm" method="post" action="/campusweb/campussquare.do">
+                表示順:
+                
+                
+                <label for="sortSelect" hidden>表示順</label>
+                <select name="sort" id="sortSelect">
+                    <option value="1" selected="selected">掲載日時</option>
+                    <option value="2" >ジャンル</option>
+                    <option value="3" >表題</option>
+                    <option value="4" >所属</option>
+                    <option value="5" >氏名</option>
+                </select>
+                <input type="hidden" name="_eventId" value="sort">
+                <input type="submit" value="変更"><br>
+                <input type="hidden" name="_flowExecutionKey" value="_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447">
+            </form>
+            
+            
+            
+            <p>
+            <b>1件目</b> から <b>36件目</b>の検索結果を表示しています（全部で 36件あります）<br/>
+<br/>
+検索結果ページ：　　&lt;&lt;&nbsp;前へ　1　　次へ&nbsp;&gt;&gt;<br/>
+<br/>
+<table border="1" cellspacing="0" cellpadding="3" class="normal" width="100%">
+<thead>
+<tr>
+<th class="keiji-input" width="8%">
+ジャンル</th>
+<th class="keiji-input" width="28%">
+表題</th>
+<th class="keiji-input" width="5%">
+返信<br>未読</th>
+<th class="keiji-input" width="17%">
+掲示期間</th>
+<th class="keiji-input" width="17%">
+掲載日時</th>
+</tr>
+</thead>
+<tbody>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=431">2027年度ディプロマ・コース選抜試験の説明会</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/06/08 12:51から<br>
+                    2026/07/13 17:30まで
+                </td>
+<td>
+
+                    2026/06/08 13:08:29 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=430">【芸術祭・訂正のお知らせ】2026年度ゾリステンオーディション募集要項について</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/06/05 10:37から<br>
+                    2026/07/05 10:37まで
+                </td>
+<td>
+
+                    2026/06/05 10:39:19 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=429">前期学科試験予定表について</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/06/05 14:00から<br>
+                    2026/07/04 13:51まで
+                </td>
+<td>
+
+                    2026/06/04 13:55:19 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=428">【6/24、7/15開催】キャリアイベント「自己分析をしてみよう」</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/06/04 10:05から<br>
+                    2026/06/24 18:10まで
+                </td>
+<td>
+
+                    2026/06/04 10:07:26 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=425">【重要】台風6号接近に伴う6月3日（水）の対応について </a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/06/02 17:03から<br>
+                    2026/07/02 17:03まで
+                </td>
+<td>
+
+                    2026/06/02 17:06:27 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=424">【追加募集】本年度大学院オペラ公演《コジ・ファン・トゥッテ》の合唱出演者</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/06/01 16:15から<br>
+                    2026/06/22 17:00まで
+                </td>
+<td>
+
+                    2026/06/01 16:08:12 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=422">2026年度保育士試験対策講座の実施について</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/05/29 16:53から<br>
+                    2026/06/29 16:53まで
+                </td>
+<td>
+
+                    2026/05/29 16:58:27 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=421">【芸術祭】2026年度ゾリステン・ソリストオーディションのお知らせ</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/06/01 11:13から<br>
+                    2026/06/30 23:13まで
+                </td>
+<td>
+
+                    2026/05/29 16:47:54 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=418">（訂正）【学生募集】ミュージカル公演スタッフアルバイトについて</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/05/26 10:02から<br>
+                    2026/07/17 23:59まで
+                </td>
+<td>
+
+                    2026/05/26 10:13:48 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=416">【6/17開催‼】選べる7つのお仕事「綜合キャリアオプション　会社説明会」</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/05/25 09:50から<br>
+                    2026/06/25 09:50まで
+                </td>
+<td>
+
+                    2026/05/25 09:52:03 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=415">2026年度保育士試験受験料の補助制度について</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/05/22 18:39から<br>
+                    2026/06/22 18:39まで
+                </td>
+<td>
+
+                    2026/05/22 18:47:17 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=414">大学院入試説明会について</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/05/27 11:00から<br>
+                    2026/07/13 18:30まで
+                </td>
+<td>
+
+                    2026/05/22 11:27:19 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=412">【いよいよ迫る！】5/31(日)ミッシャ・マイスキープログラム in くにおん vol.1</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/05/20 12:10から<br>
+                    2026/06/20 11:38まで
+                </td>
+<td>
+
+                    2026/05/20 11:42:57 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=410">【3年生全員面談についてのお知らせ】</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/05/18 17:29から<br>
+                    2026/07/31 17:29まで
+                </td>
+<td>
+
+                    2026/05/18 17:31:06 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=409">大学院修士課程内部推薦入学試験制度のお知らせ</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/05/26 10:00から<br>
+                    2026/07/22 23:59まで
+                </td>
+<td>
+
+                    2026/05/18 16:10:51 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=408">【資格・検定】カワイピアノグレード6級 学内認定の申込受付について</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/05/14 15:23から<br>
+                    2026/06/14 15:23まで
+                </td>
+<td>
+
+                    2026/05/14 15:27:41 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=406">【キャリアイベント】6/1開催「舞台の裏側を支える仕事」セミナー</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/05/13 17:08から<br>
+                    2026/06/13 17:08まで
+                </td>
+<td>
+
+                    2026/05/13 17:23:00 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=405">【キャリアイベント】5/20開催「自分にとって『価値ある企業』の見つけ方・探し方」</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/05/13 16:36から<br>
+                    2026/06/13 16:36まで
+                </td>
+<td>
+
+                    2026/05/13 16:47:08 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=402">2027年度 福岡市立の中学校・高等学校で教育実習を行いたい学生へ</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/05/12 13:19から<br>
+                    2026/07/01 13:19まで
+                </td>
+<td>
+
+                    2026/05/12 13:21:16 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=397">くにおんポータル　臨時メンテナンス（5/11）</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/05/11 10:35から<br>
+                    2026/06/08 14:44まで
+                </td>
+<td>
+
+                    2026/05/08 14:47:15 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=396">はしか（麻しん）が流行中！</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/05/08 14:37から<br>
+                    2026/06/08 14:37まで
+                </td>
+<td>
+
+                    2026/05/08 14:01:11 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=383">【キャリアイベント】5/11開催・短期集中！今からでも間に合う就活術</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/04/28 13:19から<br>
+                    2027/05/28 13:19まで
+                </td>
+<td>
+
+                    2026/04/28 13:25:13 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=382">【キャリア支援】求人情報・キャリアイベント等のお知らせ方法について</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/04/27 13:32から<br>
+                    2027/03/27 13:32まで
+                </td>
+<td>
+
+                    2026/04/27 13:35:02 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=379">２年生及び2028年度教育実習希望者 教育実習説明会について</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/04/24 09:43から<br>
+                    2026/07/08 18:00まで
+                </td>
+<td>
+
+                    2026/04/24 09:45:50 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=370">銀杏寮の食堂の貸出について</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/04/22 14:57から<br>
+                    2027/03/22 14:57まで
+                </td>
+<td>
+
+                    2026/04/22 15:11:16 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=367">2026年度 オフィスアワー一覧／非常勤講師のメールアドレスについて</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/04/21 08:51から<br>
+                    2027/03/31 23:59まで
+                </td>
+<td>
+
+                    2026/04/21 09:01:54 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=354">プリペアドピアノ練習室（5-314）の貸出について</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/04/10 09:00から<br>
+                    2027/03/30 12:00まで
+                </td>
+<td>
+
+                    2026/04/08 17:02:40 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=319">オリエンテーション配布資料の訂正について</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/03/31 10:08から<br>
+                    2027/03/31 09:00まで
+                </td>
+<td>
+
+                    2026/03/31 10:20:47 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=291">2026年度学内施設の貸出について（学生支援課）</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/03/19 09:43から<br>
+                    2027/03/31 09:43まで
+                </td>
+<td>
+
+                    2026/03/19 10:07:42 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=283">【学生支援課よりお知らせ】学生用個人ロッカーの新規貸出について</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/04/01 09:00から<br>
+                    2026/11/29 23:59まで
+                </td>
+<td>
+
+                    2026/03/12 15:44:54 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+履修登録関連</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=3&genrecd=461&seqNo=10">【催促】2026年度 副科レッスン（選択・選択必修）の事前履修登録について</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/02/06 12:00から<br>
+                    2027/03/30 12:00まで
+                </td>
+<td>
+
+                    2026/02/06 10:26:57 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+コース関連</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=459&seqNo=4">2025年度専門課程コースおよびアドヴァンスト・コース修了者発表</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2026/02/13 14:00から<br>
+                    2026/12/13 14:00まで
+                </td>
+<td>
+
+                    2026/02/04 17:25:44 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=120">【お知らせ】大学指定の履歴書データ（Word版）について</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2025/10/28 20:00から<br>
+                    2026/10/01 09:00まで
+                </td>
+<td>
+
+                    2025/10/28 20:00:42 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=54">卒業者発表・4年生成績開示・卒業式について</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2025/10/01 10:00から<br>
+                    2026/09/19 11:49まで
+                </td>
+<td>
+
+                    2025/09/19 11:51:01 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=36">就職関連システム【求人NAVI】について（個人面談・キャリアイベント参加など）</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2025/09/09 15:28から<br>
+                    2026/12/31 23:59まで
+                </td>
+<td>
+
+                    2025/09/09 15:36:30 
+                
+                </td>
+</tr>
+<tr onmouseout="TRMouseOut(this)" onmouseover="TRMouseOver(this)">
+<td>
+全学掲示板</td>
+<td>
+
+                    <a href="campussquare.do?_flowExecutionKey=_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447&_eventId=confirm&keijitype=4&genrecd=429&seqNo=7">S.P.C.個人練習室利用について</a>
+                </td>
+<td align="center">
+
+                    
+                        
+                        -
+                    
+                </td>
+<td>
+
+                    
+                    2025/09/08 08:00から<br>
+                    2027/03/31 10:31まで
+                </td>
+<td>
+
+                    2025/09/02 10:33:06 
+                
+                </td>
+</tr>
+</tbody>
+</table>
+<br/>
+<b>1件目</b> から <b>36件目</b>の検索結果を表示しています（全部で 36件あります）<br/>
+<br/>
+
+            <p>
+            <form name="PagingForm" method="post" action="/campusweb/campussquare.do">
+                <input type="hidden" name="_flowExecutionKey" value="_c3BF01342-ACC3-D5AF-FF9C-74C31581F717_kFA773457-B867-9F49-17D9-8C9A74A56447">
+                
+                <label for="selectDisplayCount" hidden>表示件数</label>
+                表示件数：<select name="_displayCount" id="selectDisplayCount">
+<option value="5">5</option>
+<option value="10">10</option>
+<option value="20">20</option>
+<option value="50">50</option>
+<option value="100" selected>100</option>
+<option value="200">200</option>
+</select>
+件
+                <input type="submit" value="表示" name="_eventId_paging">
+            </form>
+
+        
+        
+        
+
+
+
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+
+
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+  
+
+
+
+
+
+
+          </article>
+          <!-- コンテンツ #main-func-body 終わり -->
+          
+          
+          
+            <div id="func-page-footer" class="col s12 no-margin no-padding func-page-footer">
+              
+            </div>
+          
+          
+        </div>
+        <!-- コンテンツ col s12 終わり -->
+        
+      </div>
+      <!-- コンテンツ row 終わり -->
+      
+      
+      
+      
+      <!-- フッターコンテンツ row  -->
+      <!--
+      <div class="row">
+        <div class="col s12">
+        </div>
+      </div>
+      -->
+      <!-- フッターコンテンツ row 終わり  -->
+      
+      
+    </div>
+    <!-- メインコンテンツ #main-wrapper 終わり -->
+    
+    
+    
+<!-- フッターナビ row  -->
+<!--
+<div id="footer-nav" class="row">
+</div>
+-->
+<!-- フッターナビ row 終わり  -->
+
+
+
+
+
+</div>  <!-- .container -->
+</main>
+<!-- メイン #page-main 終わり -->
+
+
+
+<div id="dummy-portlet-3s" class="display-none fixsize-3s"></div>
+<div id="dummy-portlet-2s" class="display-none fixsize-2s"></div>
+<div id="dummy-portlet-s" class="display-none fixsize-s"></div>
+<div id="dummy-portlet-m" class="display-none fixsize-m"></div>
+<div id="dummy-portlet-l" class="display-none fixsize-l"></div>
+
+
+<!-- ページフッター -->
+<footer id="page-footer" class="page-footer cmps theme footer login-active ja KJW0001100 KJReferList clearfix">
+<div class="container clearfix">
+
+
+
+</div>
+</footer>
+<!-- ページフッター終わり -->
+
+
+
+    </body>
+</html>
