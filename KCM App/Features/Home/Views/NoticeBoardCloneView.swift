@@ -17,7 +17,7 @@ struct NoticeBoardCloneView: View {
         return f
     }()
 
-    private let categories = ["すべて", "お気に入り", "全学掲示板", "コース関連", "履修登録関連", "術科試験関連", "個人掲示板", "授業掲示板"]
+    private let categories = ["すべて", "お気に入り", "授業掲示板", "個人掲示板", "全学掲示板", "コース関連", "履修登録関連", "術科試験関連"]
 
     private var filteredNotices: [NoticeCard] {
         let filtered = viewModel.announcements.filter { notice in
