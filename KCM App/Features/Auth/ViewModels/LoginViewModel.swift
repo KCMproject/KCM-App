@@ -60,7 +60,6 @@ final class LoginViewModel: ObservableObject {
     func clearSession() async {
         await portalClient.logout()
         isLoggedIn = false
-        print("🔑 [Debug] セッションをクリアしました。次のリクエストで再ログインが必要です。")
         AppBannerCenter.shared.show("セッションをクリアしました")
     }
 
@@ -100,8 +99,7 @@ final class LoginViewModel: ObservableObject {
             DispatchQueue.main.async {
                 self.isLoading = false
                 switch result {
-                case .success(let session):
-                    print("Login success: \(session)")
+                case .success:
                     self.studentID = studentID
                     self.password = password
                     self.isLoggedIn = true
@@ -115,7 +113,6 @@ final class LoginViewModel: ObservableObject {
                     if automatic {
                         // 自動ログイン失敗時はキャッシュ表示を維持し、静かに失敗
                         self.shouldShowCachedPortal = true
-                        print("⚠️ 自動ログイン失敗: \(error.errorDescription ?? "不明なエラー")")
                     } else {
                         self.errorMessage = error.errorDescription
                     }

@@ -88,10 +88,9 @@ final class PortalClientImpl: PortalClientProtocol {
             let cookies = HTTPCookie.cookies(withResponseHeaderFields: fields, for: url)
             for cookie in cookies {
                 HTTPCookieStorage.shared.setCookie(cookie)
-                print("🍪 Cookie保存: \(cookie.name)=\(cookie.value.prefix(20))... domain=\(cookie.domain)")
             }
         }
-        
+
         guard let responseString = String(data: data, encoding: .utf8) else {
             throw CampusSquareLoginError.authenticationFailed("レスポンス解析失敗")
         }
@@ -104,8 +103,7 @@ final class PortalClientImpl: PortalClientProtocol {
         // 実際のセッション識別子をCookieから取得
         let sessionId = self.networkClient.sessionIdentifier() ?? UUID().uuidString
         let expiresIn = self.networkClient.earliestExpirationInMinutes() ?? 20
-        print("📡 ログイン成功: SessionID=\(sessionId), 有効期限: \(expiresIn)分")
-        
+
         let session = CampusSquareSession(
             sessionId: sessionId,
             loggedInAt: Date(),
@@ -119,19 +117,15 @@ final class PortalClientImpl: PortalClientProtocol {
     
     private func attemptRelogin() async throws -> Bool {
         guard let credentials = SavedCredentialsStore.shared.load() else {
-            print("🔑 [Portal] 再ログイン不可: 保存された資格情報がありません")
             return false
         }
-        print("🔑 [Portal] セッション切れ。保存された資格情報で再ログインを試行します...")
         do {
-            let session = try await performLogin(credentials: CampusSquareCredentials(
+            _ = try await performLogin(credentials: CampusSquareCredentials(
                 userName: credentials.studentID,
                 password: credentials.password
             ))
-            print("🔑 [Portal] 自動再ログイン成功。SessionID=\(session.sessionId)")
             return true
         } catch {
-            print("❌ [Portal] 自動再ログイン失敗: \(error.localizedDescription)")
             return false
         }
     }
@@ -141,12 +135,10 @@ final class PortalClientImpl: PortalClientProtocol {
         do {
             return try await operation()
         } catch CampusSquareLoginError.sessionExpired {
-            print("🔑 [Portal] セッション切れを検出。自動再ログインを試行します...")
             let reloginSuccess = try await attemptRelogin()
             guard reloginSuccess else {
                 throw CampusSquareLoginError.sessionExpired
             }
-            print("🔑 [Portal] 再ログイン成功。元のリクエストを再試行します。")
             return try await operation()
         }
     }
@@ -155,7 +147,6 @@ final class PortalClientImpl: PortalClientProtocol {
         currentSession = nil
         rwfHash = ""
         networkClient.deleteCookies()
-        print("🔒 ログアウト完了: Cookieとセッションをクリアしました")
     }
 
     func validateSession() async throws -> Bool {
@@ -188,7 +179,7 @@ final class PortalClientImpl: PortalClientProtocol {
         try validatePortalPage(mainHtml)
 
         guard let bulletinPath = CampusSquareParser.extractHref(from: mainHtml, withId: "menu-link-mf-164854") else {
-            throw NSError(domain: "PortalClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "掲示板リンクが見つかりません"])
+            throw CampusSquareLoginError.portalError("掲示板リンクが見つかりません")
         }
         
         let bulletinURL = absolutePortalURLString(from: bulletinPath)
@@ -210,7 +201,7 @@ final class PortalClientImpl: PortalClientProtocol {
             return searchNotices
         }
 
-        throw NSError(domain: "PortalClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "掲示板を読み込めませんでした"])
+        throw CampusSquareLoginError.portalError("掲示板を読み込めませんでした")
     }
 
     func fetchAnnouncements(completion: @escaping (Result<[NoticeCard], Error>) -> Void) {
@@ -251,12 +242,12 @@ final class PortalClientImpl: PortalClientProtocol {
         if let freshDetail = try await resolveFreshNoticeDetailURL(for: notice, mainURL: mainURL) {
             let freshHtml = try await networkClient.fetchHTML(from: freshDetail.url, referer: freshDetail.referer)
             guard isNoticeDetailPage(freshHtml, for: notice) else {
-                throw NSError(domain: "PortalClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "掲示板詳細を取得できませんでした"])
+                throw CampusSquareLoginError.portalError("掲示板詳細を取得できませんでした")
             }
             return CampusSquareParser.parseNoticeAttachments(from: freshHtml, baseURL: networkClient.baseURL)
         }
 
-        throw NSError(domain: "PortalClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "掲示板詳細URLを更新できませんでした"])
+        throw CampusSquareLoginError.portalError("掲示板詳細URLを更新できませんでした")
     }
 
     /// 時間割を取得する (async)
@@ -271,52 +262,46 @@ final class PortalClientImpl: PortalClientProtocol {
     }
     
     private func _fetchTimetable(monthOffsets: [Int]) async throws -> [Course] {
-        print("🌐 [Portal] fetchTimetable 開始: メインページ取得中...")
         let mainURL = "\(networkClient.baseURL)\(portalURL)?page=main"
         let mainHtml = try await networkClient.fetchHTML(from: mainURL)
-        print("✅ [Portal] メインページ取得成功 (サイズ: \(mainHtml.count))")
 
         // セッションが切れていないか確認
         if mainHtml.contains("ログイン") && (mainHtml.contains("password") || mainHtml.contains("userName")) {
-            print("❌ [Portal] セッション切れ。ログイン画面に戻っています。")
             throw CampusSquareLoginError.sessionExpired
         }
 
         let uniqueOffsets = Array(Set(monthOffsets)).sorted()
         let maxConcurrent = 5
-        var results: [Course] = []
 
-        await withTaskGroup(of: [Course].self) { group in
+        return await withTaskGroup(of: [Course].self) { group in
             var pending = 0
+            var courseArrays: [[Course]] = []
+
             for offset in uniqueOffsets {
                 group.addTask {
                     do {
                         let html = try await self.fetchScheduleHTML(monthOffset: offset, referer: mainURL)
-                        if !html.contains("schedule-calender") {
-                            print("⚠️ [Portal] 警告: スケジュールグリッドが見つかりません。offset=\(offset)")
-                        }
                         return await CampusSquareParser.parseSchedule(from: html)
                     } catch {
-                        print("❌ [Portal] offset=\(offset) の取得に失敗: \(error.localizedDescription)")
                         return []
                     }
                 }
                 pending += 1
                 // 最大並列数に達したら、1つ完了するまで待機
                 if pending >= maxConcurrent {
-                    let courses = await group.next() ?? []
-                    results.append(contentsOf: courses)
+                    if let courses = await group.next() {
+                        courseArrays.append(courses)
+                    }
                     pending -= 1
                 }
             }
             // 残りを全て収集
             for await courses in group {
-                results.append(contentsOf: courses)
+                courseArrays.append(courses)
             }
-        }
 
-        print("🏁 [Portal] パース完了: \(results.count) 件のコースを返します")
-        return results
+            return courseArrays.flatMap { $0 }
+        }
     }
 
     func fetchTimetable(completion: @escaping (Result<[Course], Error>) -> Void) {
@@ -357,7 +342,6 @@ final class PortalClientImpl: PortalClientProtocol {
     }
 
     private func _fetchWeeklyTimetableHTML(semester: TimetableSemester) async throws -> String {
-        print("🌐 [Portal] fetchWeeklyTimetableHTML(\(semester.displayName)) 開始")
         let mainURL = "\(networkClient.baseURL)\(portalURL)?page=main"
         let mainHtml = try await networkClient.fetchHTML(from: mainURL)
 
@@ -365,8 +349,7 @@ final class PortalClientImpl: PortalClientProtocol {
         try validatePortalPage(mainHtml)
 
         guard let rswPath = CampusSquareParser.extractHref(from: mainHtml, withId: "menu-link-mf-164915") else {
-            print("❌ [Portal] 履修登録リンク(menu-link-mf-164915)が見つかりません。")
-            throw NSError(domain: "PortalClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "履修登録リンクが見つかりません"])
+            throw CampusSquareLoginError.portalError("履修登録リンクが見つかりません")
         }
 
         let rswURL = absolutePortalURLString(from: rswPath)
@@ -378,10 +361,8 @@ final class PortalClientImpl: PortalClientProtocol {
             html = initialHtml
         } else if let semesterPath = CampusSquareParser.extractTimetableSemesterHref(from: initialHtml, semester: semester) {
             let semesterURL = absolutePortalURLString(from: semesterPath)
-            print("🔁 [Portal] \(semester.displayName) に切替: \(semesterURL)")
             html = try await networkClient.fetchHTML(from: semesterURL, referer: rswURL)
         } else {
-            print("⚠️ [Portal] \(semester.displayName) 切替リンクが見つからないため初期HTMLを利用します")
             html = initialHtml
         }
 
@@ -411,7 +392,7 @@ final class PortalClientImpl: PortalClientProtocol {
         try await executeWithAutoRelogin {
             let html = try await self._fetchWeeklyTimetableHTML(semester: .current)
             guard let result = CampusSquareParser.parseUserName(from: html) else {
-                throw NSError(domain: "PortalClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "ユーザー名が見つかりませんでした"])
+                throw CampusSquareLoginError.portalError("ユーザー名が見つかりませんでした")
             }
             return result
         }
@@ -422,20 +403,15 @@ final class PortalClientImpl: PortalClientProtocol {
 
         // Step 1: 学生ポートフォリオページを開き、_flowExecutionKeyをURLから取得
         let portfolioURL = "\(networkClient.baseURL)/campussquare.do?_flowId=CHW0001000-flow"
-        print("📄 [PDF] Step1: 学生ポートフォリオを取得: \(portfolioURL)")
         let (portfolioData, portfolioResponse) = try await networkClient.fetchHTMLWithResponse(from: portfolioURL, referer: mainURL)
         let key1 = try extractFlowExecutionKey(from: portfolioData, responseURL: portfolioResponse.url)
-        print("📄 [PDF] _flowExecutionKey(1) = \(key1)")
 
         // Step 2: 成績修得状況ページへ遷移
         let seisekiURL = "\(networkClient.baseURL)/campussquare.do?_flowExecutionKey=\(key1.urlEncoded)&_eventId=check&nextEvent=seiseki"
-        print("📄 [PDF] Step2: 成績修得状況を取得: \(seisekiURL)")
         let (seisekiData, seisekiResponse) = try await networkClient.fetchHTMLWithResponse(from: seisekiURL, referer: portfolioURL)
         let key2 = try extractFlowExecutionKey(from: seisekiData, responseURL: seisekiResponse.url)
-        print("📄 [PDF] _flowExecutionKey(2) = \(key2)")
 
         // Step 3: PDFをPOSTでダウンロード
-        print("📄 [PDF] Step3: PDFをダウンロード")
         let pdfData = try await postFormRaw(
             fields: [
                 ("_flowExecutionKey", key2),
@@ -443,10 +419,9 @@ final class PortalClientImpl: PortalClientProtocol {
             ],
             referer: seisekiURL
         )
-        print("📄 [PDF] ダウンロード完了: \(pdfData.count) bytes")
 
         guard !pdfData.isEmpty else {
-            throw NSError(domain: "PortalClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "PDFデータが空です"])
+            throw CampusSquareLoginError.portalError("PDFデータが空です")
         }
 
         return pdfData
@@ -734,7 +709,7 @@ private extension PortalClientImpl {
 
     func submitPortalForm(fields: [(String, String)], referer: String) async throws -> String {
         guard let url = URL(string: "\(networkClient.baseURL)/campussquare.do") else {
-            throw NSError(domain: "PortalClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "掲示板検索URLを生成できません"])
+            throw CampusSquareLoginError.portalError("掲示板検索URLを生成できません")
         }
 
         var request = networkClient.makeRequest(url: url, method: "POST", referer: referer)
@@ -745,7 +720,7 @@ private extension PortalClientImpl {
 
         let (data, _) = try await networkClient.send(request)
         guard let html = String(data: data, encoding: .utf8) else {
-            throw NSError(domain: "PortalClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "掲示板検索結果の解析に失敗しました"])
+            throw CampusSquareLoginError.portalError("掲示板検索結果の解析に失敗しました")
         }
         return html
     }
@@ -767,7 +742,7 @@ private extension PortalClientImpl {
         let calendar = Calendar(identifier: .gregorian)
         let baseDate = calendar.startOfDay(for: Date())
         guard let targetDate = calendar.date(byAdding: .month, value: monthOffset, to: baseDate) else {
-            throw NSError(domain: "PortalClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "スケジュール月の計算に失敗しました"])
+            throw CampusSquareLoginError.portalError("スケジュール月の計算に失敗しました")
         }
 
         let formatter = DateFormatter()
@@ -775,7 +750,6 @@ private extension PortalClientImpl {
         let initDate = formatter.string(from: targetDate)
         let path = "campussquare.do?_flowId=PTW0001200-flow&initDate=\(initDate)"
         let url = absolutePortalURLString(from: path)
-        print("🔗 [Portal] スケジュール月取得 offset=\(monthOffset): \(url)")
         return try await networkClient.fetchHTML(from: url, referer: referer)
     }
 
@@ -791,7 +765,7 @@ private extension PortalClientImpl {
 
         // 2. HTML内の<input hidden>から抽出
         guard let html = String(data: data, encoding: .utf8) else {
-            throw NSError(domain: "PortalClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "HTMLのデコードに失敗しました"])
+            throw CampusSquareLoginError.portalError("HTMLのデコードに失敗しました")
         }
 
         let inputPattern = "name=\"_flowExecutionKey\"\\s+value=\"([^\"]+)\""
@@ -806,14 +780,14 @@ private extension PortalClientImpl {
         guard let regex = try? NSRegularExpression(pattern: hrefPattern),
               let match = regex.firstMatch(in: html, range: NSRange(location: 0, length: html.utf16.count)),
               let range = Range(match.range(at: 1), in: html) else {
-            throw NSError(domain: "PortalClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "_flowExecutionKeyが見つかりません"])
+            throw CampusSquareLoginError.portalError("_flowExecutionKeyが見つかりません")
         }
         return String(html[range])
     }
 
     func postFormRaw(fields: [(String, String)], referer: String) async throws -> Data {
         guard let url = URL(string: "\(networkClient.baseURL)/campussquare.do") else {
-            throw NSError(domain: "PortalClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "URLを生成できません"])
+            throw CampusSquareLoginError.portalError("URLを生成できません")
         }
 
         var request = networkClient.makeRequest(url: url, method: "POST", referer: referer)
@@ -826,7 +800,7 @@ private extension PortalClientImpl {
 
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
-            throw NSError(domain: "PortalClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "PDFダウンロードに失敗しました"])
+            throw CampusSquareLoginError.portalError("PDFダウンロードに失敗しました")
         }
 
         return data

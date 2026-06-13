@@ -126,29 +126,25 @@ enum CampusSquareParser {
     /// 時間割のパース (RSW0001000 - 履修登録画面)
     /// 指定された10項目の手順を忠実に再現
     static func parseWeeklyTimetableFromRSW(from html: String) -> [Course] {
-        print("🕵️ [Parser] parseWeeklyTimetableFromRSW 開始")
         var results: [Course] = []
-        
+
         // 1. 【対象テーブル】: table.rishu-koma を抽出
         guard let tableHtml = findTagWithClass("table", className: "rishu-koma", in: html) else {
-            print("❌ [Parser] table.rishu-koma が見つかりません")
             return []
         }
-        
+
         // 2. 【行の取得】: tbody > tr をすべて取得 (直下要素のみ)
         let tbodyInner = extractInnerOfFirstTag(tag: "tbody", from: tableHtml) ?? extractInnerOfFirstTag(tag: "table", from: tableHtml) ?? ""
         let trs = extractDirectChildTags(tag: "tr", in: tbodyInner)
-        print("🕵️ [Parser] \(trs.count) 行の tr を検出")
-        
+
         guard trs.count >= 1 else { return [] }
-        
+
         // 3. 【曜日ヘッダー】: 1行目の tr の、2つ目以降の直下 td
         let headerTds = extractDirectChildTags(tag: "td", in: trs[0])
         var dayHeaders: [String] = []
         for i in 1..<headerTds.count {
             dayHeaders.append(stripHtmlTags(from: headerTds[i]))
         }
-        print("🕵️ [Parser] 曜日ヘッダー: \(dayHeaders)")
 
         // 4. 【時限ループ】: 2行目以降の tr を処理
         for rowIndex in 1..<trs.count {
@@ -215,8 +211,7 @@ enum CampusSquareParser {
                             room = ""
                         }
                     }
-                    
-                    print("📖 [Parser] RSW確定: \(weekday)曜\(jigenName) (Row:\(rowIndex-1), Col:\(dayIdx)) -> \(title) (@\(room))")
+
                     results.append(Course(
                         id: UUID(),
                         weekday: weekday,
@@ -240,9 +235,7 @@ enum CampusSquareParser {
 
     /// 集中講義テーブルのパース (rishu-etc)
     static func parseIntensiveCoursesFromRSW(from html: String) -> [IntensiveCourseCard] {
-        print("🕵️ [Parser] parseIntensiveCoursesFromRSW 開始")
         guard let tableHtml = findTagWithClass("table", className: "rishu-etc", in: html) else {
-            print("❌ [Parser] table.rishu-etc が見つかりません")
             return []
         }
 
@@ -292,13 +285,11 @@ enum CampusSquareParser {
             ))
         }
 
-        print("🕵️ [Parser] 集中講義 \(results.count) 件を抽出")
         return results
     }
 
     /// スケジュール管理（カレンダー形式）のパース
     static func parseSchedule(from html: String) -> [Course] {
-        print("🕵️ [Parser] parseSchedule 開始")
         var results: [Course] = []
         let cellPattern = "<td[^>]*class\\s*=\\s*['\"][^'\"]*(?:today|day|sat|sun|kyujitsu|tokubetsukikan)[^'\"]*['\"][^>]*>(.*?)</td>"
         guard let cellRegex = try? NSRegularExpression(pattern: cellPattern, options: [.dotMatchesLineSeparators, .caseInsensitive]) else { return [] }

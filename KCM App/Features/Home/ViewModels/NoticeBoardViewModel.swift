@@ -84,7 +84,6 @@ final class NoticeBoardViewModel: ObservableObject {
         do {
             return try await portalClient.resolveNoticeDetailURL(for: notice)
         } catch {
-            print("❌ [NoticeBoardViewModel] URL解決失敗: \(error.localizedDescription)")
             return nil
         }
     }

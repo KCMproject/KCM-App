@@ -30,6 +30,9 @@ enum CampusSquareLoginError: Error, LocalizedError {
     /// セッションエラー
     case sessionExpired
 
+    /// ポータル処理全般のエラー
+    case portalError(String)
+
     var errorDescription: String? {
         switch self {
         case .networkError(let error):
@@ -44,6 +47,8 @@ enum CampusSquareLoginError: Error, LocalizedError {
             return "接続がタイムアウトしました"
         case .sessionExpired:
             return "セッションの有効期限が切れました"
+        case .portalError(let message):
+            return message
         }
     }
 }

@@ -44,15 +44,15 @@ final class PortalNetworkClient {
     /// HTMLとレスポンスURLを一緒に取得（リダイレクト後のURLを捕捉するため）
     func fetchHTMLWithResponse(from urlString: String, referer: String? = nil) async throws -> (Data, HTTPURLResponse) {
         guard let url = URL(string: urlString) else {
-            throw NSError(domain: "PortalNetworkClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid URL: \(urlString)"])
+            throw CampusSquareLoginError.portalError("Invalid URL: \(urlString)")
         }
         let request = makeRequest(url: url, referer: referer)
         let (data, response) = try await send(request)
         guard let httpResponse = response as? HTTPURLResponse else {
-            throw NSError(domain: "PortalNetworkClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "非HTTPレスポンスを受信しました"])
+            throw CampusSquareLoginError.portalError("非HTTPレスポンスを受信しました")
         }
         guard (200...299).contains(httpResponse.statusCode) else {
-            throw NSError(domain: "PortalNetworkClient", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "HTTP \(httpResponse.statusCode)"])
+            throw CampusSquareLoginError.serverError(statusCode: httpResponse.statusCode, message: "HTTP \(httpResponse.statusCode)")
         }
         return (data, httpResponse)
     }
@@ -60,18 +60,18 @@ final class PortalNetworkClient {
     /// 文字列としてHTMLを取得
     func fetchHTML(from urlString: String, referer: String? = nil) async throws -> String {
         guard let url = URL(string: urlString) else {
-            throw NSError(domain: "PortalNetworkClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid URL: \(urlString)"])
+            throw CampusSquareLoginError.portalError("Invalid URL: \(urlString)")
         }
         let request = makeRequest(url: url, referer: referer)
         let (data, response) = try await send(request)
         guard let httpResponse = response as? HTTPURLResponse else {
-            throw NSError(domain: "PortalNetworkClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "非HTTPレスポンスを受信しました"])
+            throw CampusSquareLoginError.portalError("非HTTPレスポンスを受信しました")
         }
         guard (200...299).contains(httpResponse.statusCode) else {
-            throw NSError(domain: "PortalNetworkClient", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "HTTP \(httpResponse.statusCode)"])
+            throw CampusSquareLoginError.serverError(statusCode: httpResponse.statusCode, message: "HTTP \(httpResponse.statusCode)")
         }
         guard let html = String(data: data, encoding: .utf8) else {
-            throw NSError(domain: "PortalNetworkClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to decode HTML"])
+            throw CampusSquareLoginError.portalError("Failed to decode HTML")
         }
         return html
     }

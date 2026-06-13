@@ -229,7 +229,6 @@ struct CampusWebView: UIViewRepresentable {
         syncCookies {
             guard !context.coordinator.hasLoadedURL(url) else { return }
             context.coordinator.setRequestedURL(url)
-            print("🌐 [CampusWebView] Loading URL: \(url.absoluteString)")
             var request = URLRequest(url: url)
             request.setValue("https://cs.kunitachi.ac.jp/campusweb/campussquare.do?page=main", forHTTPHeaderField: "Referer")
             webView.load(request)
@@ -285,12 +284,10 @@ struct CampusWebView: UIViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: any Error) {
-            print("❌ [CampusWebView] didFail: \(error.localizedDescription)")
             onLoadingChange?(false)
         }
 
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: any Error) {
-            print("❌ [CampusWebView] didFailProvisionalNavigation: \(error.localizedDescription)")
             onLoadingChange?(false)
         }
 
@@ -299,14 +296,17 @@ struct CampusWebView: UIViewRepresentable {
             guard let autoSearchText, !autoSearchText.isEmpty, !didAutoSearch else { return }
             didAutoSearch = true
 
-            let escapedText = autoSearchText
-                .replacingOccurrences(of: "\\", with: "\\\\")
-                .replacingOccurrences(of: "'", with: "\\'")
-                .replacingOccurrences(of: "\n", with: " ")
+            let escapedText: String
+            if let data = try? JSONSerialization.data(withJSONObject: autoSearchText, options: []),
+               let json = String(data: data, encoding: .utf8) {
+                escapedText = json
+            } else {
+                escapedText = "\"\""
+            }
 
             let script = """
             (function() {
-                var value = '\(escapedText)';
+                var value = \(escapedText);
                 var input = document.querySelector('#kaikoKamokunm, input[name="kaikoKamokunm"]');
                 if (!input) { return false; }
                 input.value = value;
