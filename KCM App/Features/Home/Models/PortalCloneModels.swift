@@ -54,6 +54,16 @@ struct Period {
     let number: Int
     let start: String
     let end: String
+
+    /// 大学の標準的な授業時間（1〜6限）
+    static let standardPeriods: [Period] = [
+        .init(number: 1, start: "09:00", end: "10:30"),
+        .init(number: 2, start: "10:40", end: "12:10"),
+        .init(number: 3, start: "13:00", end: "14:30"),
+        .init(number: 4, start: "14:40", end: "16:10"),
+        .init(number: 5, start: "16:20", end: "17:50"),
+        .init(number: 6, start: "18:00", end: "19:30")
+    ]
 }
 
 struct WeekdayColumn {

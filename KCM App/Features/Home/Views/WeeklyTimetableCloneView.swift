@@ -3,24 +3,15 @@ import UIKit
 
 struct WeeklyTimetableCloneView: View {
     @ObservedObject private var viewModel = TimetableViewModel.shared
-    @State private var classroomURLs: [String: String] = [:]
-    @State private var editingClassroomKey: String?
-    @State private var tempClassroomURL = ""
+    @StateObject private var classroomURLManager = ClassroomURLManager()
     @State private var webDestination: CampusWebDestination?
     @State private var showingScheduleSheet = false
     @State private var selectedCourseID: UUID?
     @State private var selectedCourseTitle = ""
-    
+
     let onToggle: () -> Void
 
-    private let periods: [Period] = [
-        .init(number: 1, start: "09:00", end: "10:30"),
-        .init(number: 2, start: "10:40", end: "12:10"),
-        .init(number: 3, start: "13:00", end: "14:30"),
-        .init(number: 4, start: "14:40", end: "16:10"),
-        .init(number: 5, start: "16:20", end: "17:50"),
-        .init(number: 6, start: "18:00", end: "19:30")
-    ]
+    private let periods = Period.standardPeriods
 
     private var dayLabels: [String] {
         viewModel.hasSaturdayClass ? WeekdayLabels.weekdays : Array(WeekdayLabels.weekdays.prefix(5))
@@ -41,41 +32,8 @@ struct WeeklyTimetableCloneView: View {
         "\(weekdayIndex)_\(period)_\(item.title ?? "")"
     }
 
-    private func loadClassroomURLs() {
-        classroomURLs = PortalCacheStore.shared.loadClassroomURLs()
-    }
-
-    private func saveClassroomURLs() {
-        PortalCacheStore.shared.saveClassroomURLs(classroomURLs)
-    }
-
     private func requestClassroomURLEdit(for key: String) {
-        tempClassroomURL = classroomURLs[key] ?? ""
-        DispatchQueue.main.async {
-            editingClassroomKey = key
-        }
-    }
-
-    private func saveClassroomURL() {
-        guard let key = editingClassroomKey else { return }
-        let trimmedURL = tempClassroomURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmedURL.isEmpty {
-            classroomURLs.removeValue(forKey: key)
-        } else {
-            classroomURLs[key] = trimmedURL
-        }
-        saveClassroomURLs()
-    }
-
-    private func clearClassroomURL() {
-        guard let key = editingClassroomKey else { return }
-        classroomURLs.removeValue(forKey: key)
-        saveClassroomURLs()
-    }
-
-    private func openURL(_ urlString: String) {
-        guard let url = URL(string: urlString) else { return }
-        UIApplication.shared.open(url)
+        classroomURLManager.startEditing(key: key)
     }
 
     private func openSyllabusSearch(for title: String) {
@@ -90,12 +48,9 @@ struct WeeklyTimetableCloneView: View {
 
     private var isShowingClassroomAlert: Binding<Bool> {
         Binding(
-            get: { editingClassroomKey != nil },
+            get: { classroomURLManager.isEditing },
             set: { isPresented in
-                if !isPresented {
-                    editingClassroomKey = nil
-                    tempClassroomURL = ""
-                }
+                classroomURLManager.isEditing = isPresented
             }
         )
     }
@@ -192,8 +147,8 @@ struct WeeklyTimetableCloneView: View {
                                         isToday: isToday,
                                         period: period.number,
                                         weekdayIndex: columnIndex,
-                                        classroomURL: classroomURLs[cellKey],
-                                        onOpenClassroomURL: openURL,
+                                        classroomURL: classroomURLManager.urls[cellKey],
+                                        onOpenClassroomURL: classroomURLManager.open,
                                         onOpenSyllabusSearch: openSyllabusSearch,
                                         onEditClassroomURL: {
                                             requestClassroomURLEdit(for: cellKey)
@@ -231,17 +186,23 @@ struct WeeklyTimetableCloneView: View {
                                 .padding(.top, 16)
 
                                 ForEach(viewModel.intensiveCourses) { course in
-                                    IntensiveCourseRow(course: course, onEdit: {
-                                        selectedCourseID = course.id
-                                        selectedCourseTitle = course.title
-                                        showingScheduleSheet = true
-                                    }, onOpenSyllabusSearch: openSyllabusSearch,
-                                    onEditClassroomURL: {
-                                        let key = "\(course.title)_\(course.period)"
-                                        requestClassroomURLEdit(for: key)
-                                    }, onOpenClassroomURL: { url in
-                                        openURL(url)
-                                    })
+                                    let courseKey = "\(course.title)_\(course.period)"
+                                    IntensiveCourseRow(
+                                        course: course,
+                                        classroomURL: classroomURLManager.urls[courseKey],
+                                        onEdit: {
+                                            selectedCourseID = course.id
+                                            selectedCourseTitle = course.title
+                                            showingScheduleSheet = true
+                                        },
+                                        onOpenSyllabusSearch: openSyllabusSearch,
+                                        onEditClassroomURL: {
+                                            requestClassroomURLEdit(for: courseKey)
+                                        },
+                                        onOpenClassroomURL: { url in
+                                            classroomURLManager.open(url)
+                                        }
+                                    )
                                 }
                             }
                             .padding(.bottom, 24)
@@ -276,15 +237,17 @@ struct WeeklyTimetableCloneView: View {
             .background(Color.white)
         }
         .alert("クラスルームURLを設定", isPresented: isShowingClassroomAlert) {
-            TextField("URLを入力", text: $tempClassroomURL)
+            TextField("URLを入力", text: $classroomURLManager.temporaryURL)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
-            Button("キャンセル", role: .cancel) {}
+            Button("キャンセル", role: .cancel) {
+                classroomURLManager.cancel()
+            }
             Button("保存") {
-                saveClassroomURL()
+                classroomURLManager.commit()
             }
             Button("クリア", role: .destructive) {
-                clearClassroomURL()
+                classroomURLManager.clear()
             }
         } message: {
             Text("Google Classroom・Zoom等のURLを入力してください. ClassroomのURLはアプリではなくブラウザから取得できます。")
@@ -303,7 +266,7 @@ struct WeeklyTimetableCloneView: View {
         }
         .onAppear {
             viewModel.loadCachedData()
-            loadClassroomURLs()
+            classroomURLManager.load()
         }
     }
 }
@@ -425,6 +388,7 @@ private struct TimetableCell: View {
 // MARK: - 集中講義カード
 private struct IntensiveCourseRow: View {
   let course: IntensiveCourseCard
+  let classroomURL: String?
   let onEdit: () -> Void
   let onOpenSyllabusSearch: (String) -> Void
   let onEditClassroomURL: () -> Void
@@ -513,7 +477,7 @@ private struct IntensiveCourseRow: View {
             .padding(.vertical, 10)
             .padding(.horizontal, 12)
         }
-        if let url = PortalCacheStore.shared.loadClassroomURLs()["\(course.title)_\(course.period)"] {
+        if let url = classroomURL {
           Divider()
           Button { showingActionMenu = false; onOpenClassroomURL(url) } label: {
             Label("クラスルームを表示", systemImage: "video")
@@ -539,114 +503,6 @@ private struct IntensiveCourseRow: View {
   private func formatDateRange(_ range: DateRange) -> String {
     if range.startDate == range.endDate { return range.startDate }
     return "\(range.startDate) 〜 \(range.endDate)"
-  }
-}
-
-// MARK: - レッスン等カード
-
-private struct LessonRow: View {
-  let lesson: LessonCard
-
-  @State private var classroomURLs: [String: String] = [:]
-  @State private var showingURLAlert = false
-  @State private var tempURL = ""
-  @State private var showingActionMenu = false
-
-  private var cellKey: String {
-    "\(lesson.title)_\(lesson.schedule)"
-  }
-
-  private func loadClassroomURLs() {
-    classroomURLs = PortalCacheStore.shared.loadClassroomURLs()
-  }
-
-  private func saveClassroomURLs() {
-    PortalCacheStore.shared.saveClassroomURLs(classroomURLs)
-  }
-
-  private func classroomURL() -> String? {
-    classroomURLs[cellKey]
-  }
-
-  private func setClassroomURL(url: String?) {
-    if let url = url, !url.isEmpty {
-      classroomURLs[cellKey] = url
-    } else {
-      classroomURLs.removeValue(forKey: cellKey)
-    }
-    saveClassroomURLs()
-  }
-
-  private func openURL(_ urlString: String) {
-    if let url = URL(string: urlString) {
-      UIApplication.shared.open(url)
-    }
-  }
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 6) {
-      Text(lesson.title)
-        .font(.system(size: 14, weight: .semibold))
-        .foregroundStyle(AppTheme.textPrimary)
-      Text(lesson.schedule)
-        .font(.system(size: 12))
-        .foregroundStyle(AppTheme.textBlue)
-      Text("\(lesson.location) \(lesson.instructor)")
-        .font(.system(size: 12))
-        .foregroundStyle(AppTheme.textMuted)
-    }
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .padding(.horizontal, 16)
-    .padding(.vertical, 14)
-    .background(Color.white)
-    .overlay(
-      RoundedRectangle(cornerRadius: 16, style: .continuous)
-        .stroke(AppTheme.lightBlueBorder, lineWidth: 1)
-    )
-    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-    .contentShape(Rectangle())
-    .onTapGesture {
-      showingActionMenu = true
-    }
-    .popover(isPresented: $showingActionMenu, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
-      VStack(spacing: 0) {
-        if let classroomURL = classroomURL() {
-          Button { showingActionMenu = false; openURL(classroomURL) } label: {
-            Label("クラスルームを表示", systemImage: "video")
-              .frame(maxWidth: .infinity, alignment: .leading)
-              .padding(.vertical, 10)
-              .padding(.horizontal, 12)
-          }
-          Divider()
-        }
-        Button { showingActionMenu = false; tempURL = classroomURL() ?? ""; showingURLAlert = true } label: {
-          Label("クラスルームを設定", systemImage: "link.badge.plus")
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 10)
-            .padding(.horizontal, 12)
-        }
-      }
-      .padding(.vertical, 6)
-      .frame(minWidth: 220)
-      .presentationCompactAdaptation(.popover)
-    }
-    .alert("クラスルームURLを設定", isPresented: $showingURLAlert) {
-      TextField("URLを入力", text: $tempURL)
-        .textInputAutocapitalization(.never)
-        .autocorrectionDisabled()
-      Button("キャンセル", role: .cancel) {}
-      Button("保存") {
-        setClassroomURL(url: tempURL)
-      }
-      Button("クリア", role: .destructive) {
-        setClassroomURL(url: nil)
-      }
-    } message: {
-        Text("Google Classroom・Zoom等のURLを入力してください. ClassroomのURLはアプリではなくブラウザから取得できます。")
-    }
-    .onAppear {
-      loadClassroomURLs()
-    }
   }
 }
 
