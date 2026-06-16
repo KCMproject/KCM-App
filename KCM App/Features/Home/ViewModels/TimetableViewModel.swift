@@ -38,7 +38,6 @@ final class TimetableViewModel: ObservableObject {
         let cachedCourses = cacheStore.loadCourses()
         let cachedWeeklyCourses = cacheStore.loadWeeklyCourses(for: selectedSemester)
         let cachedIntensive = cacheStore.loadIntensiveCourses(for: selectedSemester)
-        print("📊 [TimetableViewModel] loadCachedData: courses=\(cachedCourses.count), weekly=\(cachedWeeklyCourses.count), intensive=\(cachedIntensive.count)")
         if !cachedCourses.isEmpty {
             applyCourses(cachedCourses)
         }
@@ -108,7 +107,6 @@ final class TimetableViewModel: ObservableObject {
                 let scheduleMonthKeys = Set(scheduleMonthOffsets.map { scheduleMonthKey(monthOffset: $0) })
                 let fetchedCourses = try await portalClient.fetchTimetable(monthOffsets: scheduleMonthOffsets)
                 fetchedScheduleCourses = fetchedCourses
-                print("📊 [TimetableViewModel] 今日の予定取得完了: \(fetchedCourses.count)件")
 
                 let mergedCourses = cacheStore.mergeAndSaveCourses(fetchedCourses, replacingMonthKeys: scheduleMonthKeys)
                 didUpdate = didUpdate || mergedCourses != courses
@@ -121,12 +119,10 @@ final class TimetableViewModel: ObservableObject {
 
             if scope.includesWeekly {
                 let (fetchedWeeklyCourses, weeklyHtml) = try await portalClient.fetchWeeklyTimetableWithHTML(semester: selectedSemester)
-                print("📊 [TimetableViewModel] 週間時間割取得完了: \(fetchedWeeklyCourses.count)件")
 
                 var newWeeklySchedule = buildGrid(from: fetchedWeeklyCourses)
                 if newWeeklySchedule.allSatisfy({ row in row.allSatisfy({ $0.title == nil }) }) {
                     let fallbackCourses = fetchedScheduleCourses.isEmpty ? courses : fetchedScheduleCourses
-                    print("⚠️ [TimetableViewModel] 履修登録データが空のため、スケジュール管理データからグリッドを構築します")
                     newWeeklySchedule = buildGrid(from: fallbackCourses)
                 }
 
@@ -152,7 +148,6 @@ final class TimetableViewModel: ObservableObject {
             isLoading = false
             return didUpdate
         } catch {
-            print("❌ [TimetableViewModel] 更新エラー: \(error.localizedDescription)")
             if courses.isEmpty && intensiveCourses.isEmpty && weeklySchedule.allSatisfy({ $0.allSatisfy({ $0.title == nil }) }) {
                 self.errorMessage = "時間割を取得できませんでした。時間をおいて再度お試しください。"
             }
@@ -240,7 +235,6 @@ final class TimetableViewModel: ObservableObject {
     }
 
     private func buildGrid(from rswCourses: [Course]) -> [[ClassCell]] {
-        print("🛠 [TimetableViewModel] グリッド構築開始 (\(rswCourses.count)件)")
         var grid = Array(repeating: Array(repeating: ClassCell.empty, count: 6), count: 6)
         let weekdayMap = ["月": 0, "火": 1, "水": 2, "木": 3, "金": 4, "土": 5]
 
@@ -250,55 +244,34 @@ final class TimetableViewModel: ObservableObject {
             // 曜日インデックスを取得 (prefix(1) を使うことで "月曜日" から "月" を抽出)
             let rawDay = course.weekday.trimmingCharacters(in: .whitespaces)
             let dayKey = String(rawDay.prefix(1))
-            guard let dayIdx = weekdayMap[dayKey] else {
-                print("⚠️ [TimetableViewModel] 曜日のマッピングに失敗: '\(rawDay)' -> key: '\(dayKey)'")
-                continue
-            }
-            
+            guard let dayIdx = weekdayMap[dayKey] else { continue }
+
             // 時限インデックスを取得 (数字部分のみ抽出。カンマ区切り等に対応)
             // 例: "1,2限" -> ["1", "2"]
             let pStr = course.period.replacingOccurrences(of: "[^0-9,]", with: "", options: .regularExpression)
             let periods = pStr.components(separatedBy: ",").compactMap { Int($0) }
-            
-            if periods.isEmpty {
-                print("⚠️ [TimetableViewModel] 時限の抽出に失敗: '\(course.period)' -> pStr: '\(pStr)'")
-                continue
-            }
+
+            if periods.isEmpty { continue }
 
             for p in periods where (1...6).contains(p) {
-                print("✅ [TimetableViewModel] マッピング成功: \(dayKey)曜\(p)限 -> \(course.title)")
                 grid[p - 1][dayIdx] = .filled(course.title, course.room)
             }
         }
-        
-        // 土曜日のチェック
-        let hasSat = grid.contains { $0.indices.contains(5) && $0[5].title != nil }
-        print("📊 [TimetableViewModel] グリッド構築完了。土曜日の授業: \(hasSat ? "あり" : "なし")")
-        
+
         return grid
     }
 
     /// 既存の手動日程を保持しつつ、パース結果とマージ
     /// parsedに含まれない既存科目も残す（履修登録から外れた科目等の手動日程を保護）
     private func mergeIntensiveCourses(existing: [IntensiveCourseCard], parsed: [IntensiveCourseCard]) -> [IntensiveCourseCard] {
-        print("🔍 [Merge] existing count: \(existing.count), parsed count: \(parsed.count)")
-        for e in existing {
-            print("🔍 [Merge] existing: \(e.title), dateRanges: \(e.dateRanges.count), id: \(e.id)")
-        }
-        for p in parsed {
-            print("🔍 [Merge] parsed: \(p.title), dateRanges: \(p.dateRanges.count)")
-        }
-        
         let existingByTitle = Dictionary(grouping: existing, by: \.title)
         var mergedByTitle: [String: IntensiveCourseCard] = [:]
 
         for parsedCourse in parsed {
             guard let existingCourse = existingByTitle[parsedCourse.title]?.first else {
-                print("⚠️ [Merge] No match for parsed: \(parsedCourse.title), using parsed (empty dateRanges)")
                 mergedByTitle[parsedCourse.title] = parsedCourse
                 continue
             }
-            print("✅ [Merge] Matched: \(parsedCourse.title), existing dateRanges: \(existingCourse.dateRanges.count)")
             var merged = parsedCourse
             merged.id = existingCourse.id
             if !existingCourse.dateRanges.isEmpty {
@@ -314,16 +287,10 @@ final class TimetableViewModel: ObservableObject {
         }
 
         for existingCourse in existing where mergedByTitle[existingCourse.title] == nil {
-            print("🔒 [Merge] Keeping existing not in parsed: \(existingCourse.title)")
             mergedByTitle[existingCourse.title] = existingCourse
         }
 
-        let result = Array(mergedByTitle.values).sorted { $0.title < $1.title }
-        print("🔍 [Merge] result count: \(result.count)")
-        for r in result {
-            print("🔍 [Merge] result: \(r.title), dateRanges: \(r.dateRanges.count)")
-        }
-        return result
+        return Array(mergedByTitle.values).sorted { $0.title < $1.title }
     }
 
     private func applyCourses(_ fetchedCourses: [Course]) {

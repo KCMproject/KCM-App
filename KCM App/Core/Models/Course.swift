@@ -38,9 +38,41 @@ struct Course: Identifiable, Hashable, Codable {
     let startTime: String?
     let endTime: String?
     let dateString: String? // YYYY-MM-DD形式
-    var scheduleNoteCategory: String? = nil
+    let scheduleNoteCategory: String?
 
     var isScheduleNote: Bool {
         scheduleNoteCategory != nil
+    }
+
+    init(
+        id: UUID,
+        weekday: String,
+        period: String,
+        title: String,
+        room: String,
+        status: String,
+        instructor: String,
+        nextClassInfo: String,
+        materials: [String],
+        assignments: [String],
+        startTime: String?,
+        endTime: String?,
+        dateString: String?,
+        scheduleNoteCategory: String? = nil
+    ) {
+        self.id = id
+        self.weekday = weekday
+        self.period = period
+        self.title = title
+        self.room = room
+        self.status = status
+        self.instructor = instructor
+        self.nextClassInfo = nextClassInfo
+        self.materials = materials
+        self.assignments = assignments
+        self.startTime = startTime
+        self.endTime = endTime
+        self.dateString = dateString
+        self.scheduleNoteCategory = scheduleNoteCategory
     }
 }

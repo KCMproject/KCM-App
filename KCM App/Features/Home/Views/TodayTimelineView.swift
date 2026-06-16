@@ -14,9 +14,7 @@ struct TodayTimelineView: View {
     @State private var transitionDirection: TransitionDirection = .none
     @State private var selectedActionEvent: DayEvent?
     @State private var webDestination: CampusWebDestination?
-    @State private var showingClassroomURLAlert = false
-    @State private var tempClassroomURL = ""
-    @State private var classroomURLs: [String: String] = [:]
+    @StateObject private var classroomURLManager = ClassroomURLManager()
     @AppStorage(AppSettings.tapToSwitchDayEnabled) private var tapToSwitchDayEnabled = true
     let onToggle: () -> Void
 
@@ -39,14 +37,7 @@ struct TodayTimelineView: View {
         formatter.dateFormat = "yyyy-MM-dd"
         let dateString = formatter.string(from: date)
         
-        let periods: [Period] = [
-            .init(number: 1, start: "09:00", end: "10:30"),
-            .init(number: 2, start: "10:40", end: "12:10"),
-            .init(number: 3, start: "13:00", end: "14:30"),
-            .init(number: 4, start: "14:40", end: "16:10"),
-            .init(number: 5, start: "16:20", end: "17:50"),
-            .init(number: 6, start: "18:00", end: "19:30")
-        ]
+        let periods = Period.standardPeriods
         
         var results: [DayEvent] = []
         
@@ -169,33 +160,27 @@ struct TodayTimelineView: View {
         .onAppear {
             syncWeekPage(with: selectedDate)
             viewModel.loadCachedData()
+            classroomURLManager.load()
         }
         .sheet(item: $webDestination) { destination in
             CampusWebSheet(destination: destination, presentedDestination: $webDestination)
         }
-        .alert("クラスルームURLを設定", isPresented: $showingClassroomURLAlert) {
-            TextField("URLを入力", text: $tempClassroomURL)
+        .alert("クラスルームURLを設定", isPresented: $classroomURLManager.isEditing) {
+            TextField("URLを入力", text: $classroomURLManager.temporaryURL)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
-            Button("キャンセル", role: .cancel) {}
+            Button("キャンセル", role: .cancel) {
+                classroomURLManager.cancel()
+            }
             Button("保存") {
-                if let event = selectedActionEvent {
-                    setClassroomURL(for: event, url: tempClassroomURL)
-                }
+                classroomURLManager.commit()
             }
             Button("クリア", role: .destructive) {
-                if let event = selectedActionEvent {
-                    setClassroomURL(for: event, url: nil)
-                }
+                classroomURLManager.clear()
             }
         } message: {
             Text("Google Classroom・Zoom等のURLを入力してください. ClassroomのURLはアプリではなくブラウザから取得できます。")
         }
-    }
-
-    private func openURL(_ urlString: String) {
-        guard let url = URL(string: urlString) else { return }
-        UIApplication.shared.open(url)
     }
 
     private func openSyllabusSearch(for event: DayEvent) {
@@ -205,23 +190,12 @@ struct TodayTimelineView: View {
     }
 
     private func classroomURL(for event: DayEvent) -> String? {
-        if classroomURLs.isEmpty {
-            classroomURLs = PortalCacheStore.shared.loadClassroomURLs()
-        }
-        if let key = event.classroomKey, let url = classroomURLs[key] {
-            return url
-        }
-        return classroomURLs[event.id]
+        classroomURLManager.url(for: event.classroomKey ?? event.id)
     }
 
-    private func setClassroomURL(for event: DayEvent, url: String?) {
-        let key = event.classroomKey ?? event.id
-        if let url = url, !url.isEmpty {
-            classroomURLs[key] = url
-        } else {
-            classroomURLs.removeValue(forKey: key)
-        }
-        PortalCacheStore.shared.saveClassroomURLs(classroomURLs)
+    private func startEditingClassroomURL(for event: DayEvent) {
+        selectedActionEvent = event
+        classroomURLManager.startEditing(key: event.classroomKey ?? event.id, currentURL: classroomURL(for: event))
     }
 
     private func timelinePage(for date: Date) -> some View {
@@ -559,13 +533,11 @@ struct TodayTimelineView: View {
                             },
                             onShowClassroom: { event in
                                 if let url = classroomURL(for: event) {
-                                    openURL(url)
+                                    classroomURLManager.open(url)
                                 }
                             },
                             onEditClassroom: { event in
-                                selectedActionEvent = event
-                                tempClassroomURL = classroomURL(for: event) ?? ""
-                                showingClassroomURLAlert = true
+                                startEditingClassroomURL(for: event)
                             },
                             onScheduleAdjust: { _ in
                                 onToggle()
