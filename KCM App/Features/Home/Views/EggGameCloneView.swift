@@ -112,13 +112,13 @@ struct EggGameCloneView: View {
                     .onAppear {
                         gameSize = geometry.size
                         loadGameState()
+                        startGameLoop()
                     }
                     .onChange(of: geometry.size) { _, newSize in
                         gameSize = newSize
                     }
             }
         }
-        .onAppear(perform: startGameLoop)
         .onDisappear {
             stopGameLoop()
             saveGameState()
@@ -492,50 +492,44 @@ struct EggGameCloneView: View {
     }
 
     private func updateWalkers() {
-        let width = gameSize.width
-        let height = gameSize.height
+        let w = max(gameSize.width, 300)
+        let h = max(gameSize.height, 300)
 
         walkers = walkers.map { walker in
-            var newWalker = walker
-            newWalker.x += newWalker.vx
-            newWalker.y += newWalker.vy
+            var n = walker
+            n.x += n.vx
+            n.y += n.vy
 
-            // Boundary checks
-            if newWalker.x < 0 {
-                newWalker.x = 0
-                newWalker.vx = abs(newWalker.vx)
-                newWalker.flipped = false
+            if n.x < 0 {
+                n.x = 0
+                n.vx = abs(n.vx)
+                n.flipped = false
+            } else if n.x > w - charSize {
+                n.x = w - charSize
+                n.vx = -abs(n.vx)
+                n.flipped = true
             }
-            if newWalker.x > width - charSize {
-                newWalker.x = width - charSize
-                newWalker.vx = -abs(newWalker.vx)
-                newWalker.flipped = true
-            }
-            if newWalker.y < 0 {
-                newWalker.y = 0
-                newWalker.vy = abs(newWalker.vy)
-            }
-            if newWalker.y > height - charSize {
-                newWalker.y = height - charSize
-                newWalker.vy = -abs(newWalker.vy)
+            if n.y < 0 {
+                n.y = 0
+                n.vy = abs(n.vy)
+            } else if n.y > h - charSize {
+                n.y = h - charSize
+                n.vy = -abs(n.vy)
             }
 
-            // Random direction changes
-            newWalker.vx += CGFloat.random(in: -0.04...0.04)
-            newWalker.vy += CGFloat.random(in: -0.04...0.04)
+            n.vx += CGFloat.random(in: -0.1...0.1)
+            n.vy += CGFloat.random(in: -0.1...0.1)
 
-            // Speed limits
-            let speed = hypot(newWalker.vx, newWalker.vy)
-            if speed > 1.2 {
-                newWalker.vx = newWalker.vx / speed * 1.2
-                newWalker.vy = newWalker.vy / speed * 1.2
-            }
-            if speed < 0.2 && speed > 0 {
-                newWalker.vx = newWalker.vx / speed * 0.2
-                newWalker.vy = newWalker.vy / speed * 0.2
+            let speed = hypot(n.vx, n.vy)
+            if speed > 2.0 {
+                n.vx = n.vx / speed * 2.0
+                n.vy = n.vy / speed * 2.0
+            } else if speed < 0.5 && speed > 0 {
+                n.vx = n.vx / speed * 0.5
+                n.vy = n.vy / speed * 0.5
             }
 
-            return newWalker
+            return n
         }
     }
 
@@ -637,13 +631,14 @@ struct EggGameCloneView: View {
     }
 
     private func makeWalker(char: CharDef, areaWidth: CGFloat) -> WalkingChar {
-        let height = gameSize.height
+        let h = max(gameSize.height, 300)
+        let w = max(areaWidth, 300)
         let angle = CGFloat.random(in: 0...(2 * .pi))
-        let speed = CGFloat.random(in: 0.4...0.9)
+        let speed = CGFloat.random(in: 0.6...1.2)
         return WalkingChar(
             char: char,
-            x: CGFloat.random(in: 0...(max(areaWidth - charSize, 0))),
-            y: CGFloat.random(in: 0...(max(height - charSize, 0))),
+            x: CGFloat.random(in: 0...(max(w - charSize, 0))),
+            y: CGFloat.random(in: 0...(max(h - charSize, 0))),
             vx: cos(angle) * speed,
             vy: sin(angle) * speed,
             flipped: Bool.random(),
