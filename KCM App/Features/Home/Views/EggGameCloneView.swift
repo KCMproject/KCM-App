@@ -35,7 +35,7 @@ private let chars: [CharDef] = {
 }()
 
 private let totalWeight = chars.reduce(0) { $0 + $1.weight }
-private let tapsPerSpawn = 10_000
+private let tapsPerSpawn = 1_000
 
 private func pickChar() -> CharDef {
     var r = Double.random(in: 0..<totalWeight)
