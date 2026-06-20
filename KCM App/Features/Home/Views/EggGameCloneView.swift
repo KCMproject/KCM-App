@@ -63,6 +63,7 @@ struct WalkingChar: Identifiable {
 // MARK: - View
 
 struct EggGameCloneView: View {
+    @Binding var isLocked: Bool
     @State private var tapCount = 0
     @State private var walkers: [WalkingChar] = []
     @State private var collection: [String: Int] = [:]
@@ -173,6 +174,22 @@ struct EggGameCloneView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
                 .padding(.leading, 12)
                 .padding(.bottom, 12)
+
+            // Lock toggle
+            Button {
+                isLocked.toggle()
+            } label: {
+                Image(systemName: isLocked ? "lock.fill" : "lock.open.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(isLocked ? AppTheme.accent : AppTheme.textMuted)
+                    .frame(width: 36, height: 36)
+                    .background(Circle().fill(Color.white.opacity(0.9)))
+                    .shadow(color: .black.opacity(0.1), radius: 3, x: 0, y: 1)
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+            .padding(.top, 8)
+            .padding(.trailing, 8)
         }
     }
 
@@ -861,5 +878,5 @@ extension Color {
 // MARK: - Preview
 
 #Preview {
-    EggGameCloneView()
+    EggGameCloneView(isLocked: .constant(false))
 }

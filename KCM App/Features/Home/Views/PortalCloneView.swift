@@ -4,6 +4,7 @@ struct PortalCloneView: View {
     @State private var selectedTab: Int = 0
     @State private var lastSelectedTabID: String = "today"
     @State private var todayViewKey = UUID()
+    @State private var isGameTabLocked = false
     @AppStorage(AppSettings.tabBarConfiguration) private var tabBarData: Data = Data()
     @AppStorage(AppSettings.gameTabEnabled) private var gameTabEnabled = true
     let onLogout: () -> Void
@@ -44,13 +45,14 @@ struct PortalCloneView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-SwipeableView(
+            SwipeableView(
                 selectedTab: selectedTab,
                 tabCount: tabConfig.count,
                 contentProvider: { index in
                     AnyView(contentView(for: tabConfig[index]))
                 },
-                onSwipeToTab: { index in switchTab(to: index) }
+                onSwipeToTab: { index in switchTab(to: index) },
+                isSwipeEnabled: !isGameTabLocked || tabConfig[selectedTab].id != "game"
             )
 
             customTabBar
@@ -109,7 +111,7 @@ SwipeableView(
         case "board":
             NoticeBoardCloneView()
         case "game":
-            EggGameCloneView()
+            EggGameCloneView(isLocked: $isGameTabLocked)
         case "account":
             AccountProfileCloneView(onLogout: onLogout) { newOrder in
                 let encoded = try? JSONEncoder().encode(newOrder)

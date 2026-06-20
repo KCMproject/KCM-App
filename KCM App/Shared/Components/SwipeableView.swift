@@ -6,17 +6,20 @@ struct SwipeableView: UIViewControllerRepresentable {
     let tabCount: Int
     let contentProvider: (Int) -> AnyView
     let onSwipeToTab: ((Int) -> Void)?
+    var isSwipeEnabled: Bool = true
 
     init(
         selectedTab: Int,
         tabCount: Int,
         contentProvider: @escaping (Int) -> AnyView,
-        onSwipeToTab: ((Int) -> Void)?
+        onSwipeToTab: ((Int) -> Void)?,
+        isSwipeEnabled: Bool = true
     ) {
         self.selectedTab = selectedTab
         self.tabCount = tabCount
         self.contentProvider = contentProvider
         self.onSwipeToTab = onSwipeToTab
+        self.isSwipeEnabled = isSwipeEnabled
     }
 
     func makeUIViewController(context: Context) -> SwipeableContainerController {
@@ -25,6 +28,7 @@ struct SwipeableView: UIViewControllerRepresentable {
         controller.contentProvider = contentProvider
         controller.onSwipeToTab = onSwipeToTab
         controller.pendingInitialTab = selectedTab
+        controller.isSwipeEnabled = isSwipeEnabled
         return controller
     }
 
@@ -32,6 +36,7 @@ struct SwipeableView: UIViewControllerRepresentable {
         uiViewController.tabCount = tabCount
         uiViewController.contentProvider = contentProvider
         uiViewController.onSwipeToTab = onSwipeToTab
+        uiViewController.isSwipeEnabled = isSwipeEnabled
 
         if uiViewController.isDragging {
             uiViewController.currentTabIndex = selectedTab
@@ -49,6 +54,7 @@ class SwipeableContainerController: UIViewController {
     var currentTabIndex: Int = 0
     var contentProvider: (Int) -> AnyView = { _ in AnyView(EmptyView()) }
     var isDragging = false
+    var isSwipeEnabled = true
     var pendingInitialTab: Int?
 
     private var currentHC: UIHostingController<AnyView>?
@@ -271,6 +277,7 @@ class SwipeableContainerController: UIViewController {
 
 extension SwipeableContainerController: UIGestureRecognizerDelegate {
     func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        guard isSwipeEnabled else { return false }
         let velocity = panGesture.velocity(in: view)
         return abs(velocity.x) > abs(velocity.y) * 1.5
     }
