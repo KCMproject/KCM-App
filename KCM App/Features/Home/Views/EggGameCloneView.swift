@@ -3,9 +3,9 @@ import SwiftUI
 // MARK: - Debug Constants
 
 /// 本番に戻す際はここを false にしてください
-private let isDebugMode = true
+private let isDebugMode = false
 /// 1タップで加算されるタップ数（デバッグ用）
-private let tapsPerTap = 100_000
+private let tapsPerTap = 1
 /// デバッグ時は全キャラ出現率を均等にする
 private let debugWeight: Double = 20
 
@@ -35,7 +35,7 @@ private let chars: [CharDef] = {
 }()
 
 private let totalWeight = chars.reduce(0) { $0 + $1.weight }
-private let tapsPerSpawn = 1_000_000
+private let tapsPerSpawn = 10_000
 
 private func pickChar() -> CharDef {
     var r = Double.random(in: 0..<totalWeight)
@@ -75,10 +75,8 @@ struct EggGameCloneView: View {
     @State private var gameSize: CGSize = .zero
     @State private var shellSplitProgress: CGFloat = 0
     @State private var revealProgress: CGFloat = 0
-    @State private var lastWalkerSaveTime: Date = .distantPast
 
     private let charSize: CGFloat = 52
-    private let walkerSaveThrottleInterval: TimeInterval = 2.0
 
     struct TapRipple: Identifiable {
         let id = UUID()
@@ -480,31 +478,23 @@ struct EggGameCloneView: View {
         guard let state = GameStateStore.shared.load() else { return }
         tapCount = state.tapCount
         collection = state.collection
-        walkers = state.walkers.compactMap { restoreWalker(from: $0) }
+        regenerateWalkersFromCollection()
     }
 
     private func saveGameState() {
-        GameStateStore.shared.save(tapCount: tapCount, collection: collection, walkers: walkers)
+        GameStateStore.shared.save(tapCount: tapCount, collection: collection)
     }
 
-    private func throttledSave() {
-        let now = Date()
-        guard now.timeIntervalSince(lastWalkerSaveTime) >= walkerSaveThrottleInterval else { return }
-        saveGameState()
-        lastWalkerSaveTime = now
-    }
-
-    private func restoreWalker(from persisted: PersistedWalker) -> WalkingChar? {
-        guard let char = chars.first(where: { $0.id == persisted.charID }) else { return nil }
-        return WalkingChar(
-            char: char,
-            x: persisted.x,
-            y: persisted.y,
-            vx: persisted.vx,
-            vy: persisted.vy,
-            flipped: persisted.flipped,
-            scale: persisted.scale
-        )
+    private func regenerateWalkersFromCollection() {
+        let areaWidth = gameSize.width
+        var newWalkers: [WalkingChar] = []
+        for (charID, count) in collection {
+            guard let char = chars.first(where: { $0.id == charID }) else { continue }
+            for _ in 0..<count {
+                newWalkers.append(makeWalker(char: char, areaWidth: areaWidth))
+            }
+        }
+        walkers = newWalkers
     }
 
     private func updateWalkers() {
@@ -553,9 +543,6 @@ struct EggGameCloneView: View {
 
             return newWalker
         }
-
-        // 歩行中の位置を間引いて永続化
-        throttledSave()
     }
 
     // MARK: Tap Handling

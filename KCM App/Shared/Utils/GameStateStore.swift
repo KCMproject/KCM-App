@@ -5,23 +5,12 @@ import Foundation
 struct PersistedGameState: Codable {
     var tapCount: Int
     var collection: [String: Int]
-    var walkers: [PersistedWalker]
-}
-
-struct PersistedWalker: Codable {
-    let charID: String
-    var x: CGFloat
-    var y: CGFloat
-    var vx: CGFloat
-    var vy: CGFloat
-    var flipped: Bool
-    var scale: CGFloat
 }
 
 // MARK: - Game State Store
 
 /// ゲームの進行状況を永続化するストア
-/// タップ回数、コレクション、歩行中のキャラクターを保存する
+/// タップ回数とコレクションを保存する（歩行者はコレクションから再生成）
 final class GameStateStore {
     static let shared = GameStateStore()
 
@@ -50,24 +39,8 @@ final class GameStateStore {
         return try? JSONDecoder().decode(PersistedGameState.self, from: data)
     }
 
-    func save(tapCount: Int, collection: [String: Int], walkers: [WalkingChar]) {
-        let persistedWalkers = walkers.map { walker in
-            PersistedWalker(
-                charID: walker.char.id,
-                x: walker.x,
-                y: walker.y,
-                vx: walker.vx,
-                vy: walker.vy,
-                flipped: walker.flipped,
-                scale: walker.scale
-            )
-        }
-        let state = PersistedGameState(
-            tapCount: tapCount,
-            collection: collection,
-            walkers: persistedWalkers
-        )
-
+    func save(tapCount: Int, collection: [String: Int]) {
+        let state = PersistedGameState(tapCount: tapCount, collection: collection)
         guard let data = try? JSONEncoder().encode(state) else { return }
         try? data.write(to: fileURL, options: .atomic)
     }
