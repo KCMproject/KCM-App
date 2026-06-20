@@ -110,7 +110,7 @@ final class LoginViewModel: ObservableObject {
                     self.studentID = studentID
                     self.password = password
                     self.isLoggedIn = true
-                    self.shouldShowCachedPortal = true
+                    self.shouldShowCachedPortal = self.shouldShowCachedPortal || PortalDataCoordinator.shared.hasCachedContent
                     self.persistCredentialsIfNeeded()
                     self.isReady = false
 
