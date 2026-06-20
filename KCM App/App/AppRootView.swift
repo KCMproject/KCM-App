@@ -7,7 +7,7 @@ struct AppRootView: View {
 
     var body: some View {
         Group {
-            if loginViewModel.isLoggedIn || loginViewModel.shouldShowCachedPortal {
+            if (loginViewModel.isLoggedIn && loginViewModel.isReady) || loginViewModel.shouldShowCachedPortal {
                 PortalCloneView(onLogout: {
                     Task {
                         await loginViewModel.logout()
