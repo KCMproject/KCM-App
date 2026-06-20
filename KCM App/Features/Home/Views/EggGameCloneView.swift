@@ -1,5 +1,14 @@
 import SwiftUI
 
+// MARK: - Debug Constants
+
+/// 本番に戻す際はここを false にしてください
+private let isDebugMode = true
+/// 1タップで加算されるタップ数（デバッグ用）
+private let tapsPerTap = 100_000
+/// デバッグ時は全キャラ出現率を均等にする
+private let debugWeight: Double = 20
+
 // MARK: - Character Definitions
 
 struct CharDef: Identifiable, Hashable {
@@ -12,13 +21,18 @@ struct CharDef: Identifiable, Hashable {
     let glowColor: Color
 }
 
-private let chars: [CharDef] = [
-    CharDef(id: "normal", name: "ノーマル", rarity: "NORMAL", rarityColor: .gray, imageName: "char_normal", weight: 80, glowColor: .clear),
-    CharDef(id: "sunglass", name: "クールくん", rarity: "RARE", rarityColor: .blue, imageName: "char_sunglass", weight: 7, glowColor: .blue.opacity(0.3)),
-    CharDef(id: "aloha", name: "アロハくん", rarity: "RARE", rarityColor: .green, imageName: "char_aloha", weight: 6.99, glowColor: .green.opacity(0.3)),
-    CharDef(id: "red", name: "赤シャツくん", rarity: "SUPER RARE", rarityColor: .red, imageName: "char_red", weight: 6, glowColor: .red.opacity(0.3)),
-    CharDef(id: "gold", name: "ゴールド", rarity: "LEGENDARY", rarityColor: .yellow, imageName: "char_gold", weight: 0.01, glowColor: .yellow.opacity(0.5))
-]
+private let chars: [CharDef] = {
+    let baseChars: [CharDef] = [
+        CharDef(id: "normal", name: "ノーマル", rarity: "NORMAL", rarityColor: .gray, imageName: "char_normal", weight: 80, glowColor: .clear),
+        CharDef(id: "sunglass", name: "クールくん", rarity: "RARE", rarityColor: .blue, imageName: "char_sunglass", weight: 7, glowColor: .blue.opacity(0.3)),
+        CharDef(id: "aloha", name: "アロハくん", rarity: "RARE", rarityColor: .green, imageName: "char_aloha", weight: 6.99, glowColor: .green.opacity(0.3)),
+        CharDef(id: "red", name: "赤シャツくん", rarity: "SUPER RARE", rarityColor: .red, imageName: "char_red", weight: 6, glowColor: .red.opacity(0.3)),
+        CharDef(id: "gold", name: "ゴールド", rarity: "LEGENDARY", rarityColor: .yellow, imageName: "char_gold", weight: 0.01, glowColor: .yellow.opacity(0.5))
+    ]
+
+    guard isDebugMode else { return baseChars }
+    return baseChars.map { CharDef(id: $0.id, name: $0.name, rarity: $0.rarity, rarityColor: $0.rarityColor, imageName: $0.imageName, weight: debugWeight, glowColor: $0.glowColor) }
+}()
 
 private let totalWeight = chars.reduce(0) { $0 + $1.weight }
 private let tapsPerSpawn = 1_000_000
@@ -51,7 +65,8 @@ struct EggGameCloneView: View {
     @State private var tapCount = 0
     @State private var walkers: [WalkingChar] = []
     @State private var collection: [String: Int] = [:]
-    @State private var isEggShaking = false
+    @State private var eggScale: CGFloat = 1.0
+    @State private var tapRipples: [TapRipple] = []
     @State private var hatchPhase: HatchPhase = .none
     @State private var hatchChar: CharDef?
     @State private var lastPopped: CharDef?
@@ -60,8 +75,15 @@ struct EggGameCloneView: View {
     @State private var gameSize: CGSize = .zero
     @State private var shellSplitProgress: CGFloat = 0
     @State private var revealProgress: CGFloat = 0
+    @State private var lastWalkerSaveTime: Date = .distantPast
 
     private let charSize: CGFloat = 52
+    private let walkerSaveThrottleInterval: TimeInterval = 2.0
+
+    struct TapRipple: Identifiable {
+        let id = UUID()
+        let createdAt = Date()
+    }
 
     enum HatchPhase {
         case none
@@ -93,6 +115,7 @@ struct EggGameCloneView: View {
                     gameArea(geometry: geometry)
                         .onAppear {
                             gameSize = geometry.size
+                            loadGameState()
                         }
                         .onChange(of: geometry.size) { _, newSize in
                             gameSize = newSize
@@ -101,7 +124,19 @@ struct EggGameCloneView: View {
             }
         }
         .onAppear(perform: startGameLoop)
-        .onDisappear(perform: stopGameLoop)
+        .onDisappear {
+            stopGameLoop()
+            saveGameState()
+        }
+        .onChange(of: tapCount) { _, _ in
+            saveGameState()
+        }
+        .onChange(of: collection) { _, _ in
+            saveGameState()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
+            saveGameState()
+        }
     }
 
     // MARK: Header
@@ -240,26 +275,42 @@ struct EggGameCloneView: View {
     // MARK: Egg Button
 
     private var eggButton: some View {
-        Button(action: handleEggTap) {
-            ZStack {
-                switch hatchPhase {
-                case .none:
-                    eggShape(crackLevel: crackLevel)
-                        .modifier(ShakeEffect(shake: isEggShaking))
+        ZStack {
+            // Tap ripples
+            ForEach(tapRipples) { ripple in
+                Circle()
+                    .stroke(AppTheme.accent.opacity(0.4), lineWidth: 2)
+                    .frame(width: 60, height: 60)
+                    .scaleEffect(1.0 + CGFloat(Date().timeIntervalSince(ripple.createdAt)) * 4.0)
+                    .opacity(1.0 - CGFloat(Date().timeIntervalSince(ripple.createdAt)) * 3.0)
+            }
 
-                case .shaking:
-                    eggShape(crackLevel: 4)
-                        .modifier(ShakeEffect(shake: true))
+            eggVisual
+                .scaleEffect(eggScale)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            handleEggTap()
+        }
+    }
 
-                case .splitting:
-                    splittingEgg
+    private var eggVisual: some View {
+        ZStack {
+            switch hatchPhase {
+            case .none:
+                eggShape(crackLevel: crackLevel)
 
-                case .revealing:
-                    revealingEgg
-                }
+            case .shaking:
+                eggShape(crackLevel: 4)
+                    .modifier(ShakeEffect(shake: true))
+
+            case .splitting:
+                splittingEgg
+
+            case .revealing:
+                revealingEgg
             }
         }
-        .buttonStyle(.plain)
     }
 
     // MARK: Splitting Egg Animation
@@ -423,6 +474,39 @@ struct EggGameCloneView: View {
         gameTimer = nil
     }
 
+    // MARK: - Persistence
+
+    private func loadGameState() {
+        guard let state = GameStateStore.shared.load() else { return }
+        tapCount = state.tapCount
+        collection = state.collection
+        walkers = state.walkers.compactMap { restoreWalker(from: $0) }
+    }
+
+    private func saveGameState() {
+        GameStateStore.shared.save(tapCount: tapCount, collection: collection, walkers: walkers)
+    }
+
+    private func throttledSave() {
+        let now = Date()
+        guard now.timeIntervalSince(lastWalkerSaveTime) >= walkerSaveThrottleInterval else { return }
+        saveGameState()
+        lastWalkerSaveTime = now
+    }
+
+    private func restoreWalker(from persisted: PersistedWalker) -> WalkingChar? {
+        guard let char = chars.first(where: { $0.id == persisted.charID }) else { return nil }
+        return WalkingChar(
+            char: char,
+            x: persisted.x,
+            y: persisted.y,
+            vx: persisted.vx,
+            vy: persisted.vy,
+            flipped: persisted.flipped,
+            scale: persisted.scale
+        )
+    }
+
     private func updateWalkers() {
         let width = gameSize.width
         let height = gameSize.height
@@ -469,6 +553,9 @@ struct EggGameCloneView: View {
 
             return newWalker
         }
+
+        // 歩行中の位置を間引いて永続化
+        throttledSave()
     }
 
     // MARK: Tap Handling
@@ -480,16 +567,21 @@ struct EggGameCloneView: View {
         let impact = UIImpactFeedbackGenerator(style: .light)
         impact.impactOccurred()
 
-        // Egg shake
-        withAnimation(.easeInOut(duration: 0.08).repeatCount(2, autoreverses: true)) {
-            isEggShaking = true
+        // Visual feedback: quick scale down + up
+        eggScale = 0.9
+        withAnimation(.easeOut(duration: 0.08)) {
+            eggScale = 1.0
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            isEggShaking = false
+
+        // Tap ripple effect
+        let ripple = TapRipple()
+        tapRipples.append(ripple)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            tapRipples.removeAll { $0.id == ripple.id }
         }
 
         let previousCycle = tapCount / tapsPerSpawn
-        tapCount += 1
+        tapCount += tapsPerTap
         let newCycle = tapCount / tapsPerSpawn
 
         if newCycle > previousCycle {

@@ -5,7 +5,7 @@ struct PortalCloneView: View {
     @State private var lastSelectedTabID: String = "today"
     @State private var todayViewKey = UUID()
     @AppStorage(AppSettings.tabBarConfiguration) private var tabBarData: Data = Data()
-    @AppStorage(AppSettings.gameTabEnabled) private var gameTabEnabled = false
+    @AppStorage(AppSettings.gameTabEnabled) private var gameTabEnabled = true
     let onLogout: () -> Void
 
     private struct TabDef: Codable, Hashable {

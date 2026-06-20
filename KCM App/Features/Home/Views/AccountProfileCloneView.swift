@@ -13,7 +13,7 @@ struct AccountProfileCloneView: View {
     let onTabOrderChanged: ([TabOrderItem]) -> Void
 
     @AppStorage(AppSettings.tabBarConfiguration) private var tabBarData: Data = Data()
-    @AppStorage(AppSettings.gameTabEnabled) private var gameTabEnabled = false
+    @AppStorage(AppSettings.gameTabEnabled) private var gameTabEnabled = true
     @State private var tabOrder: [TabOrderItem] = []
     @StateObject private var loginViewModel = LoginViewModel.shared
     @State private var showingPasswordManager = false
