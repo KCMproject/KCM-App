@@ -104,21 +104,23 @@ struct EggGameCloneView: View {
     }
 
     var body: some View {
-        ZStack {
-            AppTheme.pageBackground.ignoresSafeArea()
+        GeometryReader { geometry in
+            ZStack {
+                AppTheme.pageBackground
 
-            GeometryReader { geometry in
                 gameArea(geometry: geometry)
-                    .onAppear {
-                        gameSize = geometry.size
-                        loadGameState()
-                        startGameLoop()
-                    }
-                    .onChange(of: geometry.size) { _, newSize in
-                        gameSize = newSize
-                    }
+            }
+            .clipped()
+            .onAppear {
+                gameSize = geometry.size
+                loadGameState()
+                startGameLoop()
+            }
+            .onChange(of: geometry.size) { _, newSize in
+                gameSize = newSize
             }
         }
+        .background(AppTheme.pageBackground.ignoresSafeArea())
         .onDisappear {
             stopGameLoop()
             saveGameState()
@@ -472,7 +474,9 @@ struct EggGameCloneView: View {
         guard let state = GameStateStore.shared.load() else { return }
         tapCount = state.tapCount
         collection = state.collection
-        regenerateWalkersFromCollection()
+        if walkers.isEmpty {
+            regenerateWalkersFromCollection()
+        }
     }
 
     private func saveGameState() {
