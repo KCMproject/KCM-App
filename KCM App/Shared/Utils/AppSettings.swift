@@ -8,6 +8,7 @@ enum AppSettings {
     static let pushNotificationsEnabled = "pushNotificationsEnabled"
     static let reminderEnabled = "reminderEnabled"
     static let tabBarConfiguration = "tabBarConfiguration"
+    static let gameTabEnabled = "gameTabEnabled"
     static let passwordAutofillEnabled = "passwordAutofillEnabled"
     static let lastViewedSemester = "lastViewedSemester"
     static let termsAgreed = "termsAgreed"

@@ -2,8 +2,10 @@ import SwiftUI
 
 struct PortalCloneView: View {
     @State private var selectedTab: Int = 0
+    @State private var lastSelectedTabID: String = "today"
     @State private var todayViewKey = UUID()
     @AppStorage(AppSettings.tabBarConfiguration) private var tabBarData: Data = Data()
+    @AppStorage(AppSettings.gameTabEnabled) private var gameTabEnabled = false
     let onLogout: () -> Void
 
     private struct TabDef: Codable, Hashable {
@@ -12,18 +14,30 @@ struct PortalCloneView: View {
         let icon: String
     }
 
+    /// 並び替え可能なタブ（順序設定の対象）
     private let defaultTabs: [TabDef] = [
         .init(id: "today", title: "今日", icon: "calendar"),
         .init(id: "timetable", title: "時間割", icon: "calendar.badge.clock"),
-        .init(id: "board", title: "掲示板", icon: "tray.full"),
-        .init(id: "account", title: "アカウント", icon: "person.crop.circle")
+        .init(id: "board", title: "掲示板", icon: "tray.full")
     ]
 
+    private let gameTab = TabDef(id: "game", title: "ゲーム", icon: "gamecontroller")
+    private let accountTab = TabDef(id: "account", title: "アカウント", icon: "person.crop.circle")
+
     private var tabConfig: [TabDef] {
+        let reorderableTabs: [TabDef]
         if let decoded = try? JSONDecoder().decode([TabDef].self, from: tabBarData), !decoded.isEmpty {
-            return normalizedTabConfig(decoded)
+            reorderableTabs = normalizedTabConfig(decoded)
+        } else {
+            reorderableTabs = normalizedTabConfig(defaultTabs)
         }
-        return normalizedTabConfig(defaultTabs)
+
+        var tabs = reorderableTabs
+        if gameTabEnabled {
+            tabs.append(gameTab)
+        }
+        tabs.append(accountTab)
+        return tabs
     }
 
     @State private var hasRefreshedOneYear = false
@@ -48,12 +62,30 @@ SwipeableView(
                     await PortalDataCoordinator.shared.refreshScheduleForOneYear(showUpdateBanner: true)
                 }
             }
+            if selectedTab < tabConfig.count {
+                lastSelectedTabID = tabConfig[selectedTab].id
+            }
+        }
+        .onChange(of: gameTabEnabled) { _, _ in
+            adjustSelectedTabAfterTabConfigChange()
+        }
+        .onChange(of: tabBarData) { _, _ in
+            adjustSelectedTabAfterTabConfigChange()
+        }
+    }
+
+    private func adjustSelectedTabAfterTabConfigChange() {
+        if let index = tabConfig.firstIndex(where: { $0.id == lastSelectedTabID }) {
+            selectedTab = index
+        } else {
+            selectedTab = min(selectedTab, max(0, tabConfig.count - 1))
         }
     }
 
     private func switchTab(to index: Int) {
         guard index >= 0, index < tabConfig.count, index != selectedTab else { return }
         selectedTab = index
+        lastSelectedTabID = tabConfig[index].id
     }
 
     @ViewBuilder
@@ -76,6 +108,8 @@ SwipeableView(
             }
         case "board":
             NoticeBoardCloneView()
+        case "game":
+            EggGameCloneView()
         case "account":
             AccountProfileCloneView(onLogout: onLogout) { newOrder in
                 let encoded = try? JSONEncoder().encode(newOrder)
@@ -122,14 +156,17 @@ SwipeableView(
     }
 
     private func normalizedTabConfig(_ items: [TabDef]) -> [TabDef] {
-        let accountTab = defaultTabs.first { $0.id == "account" }
-        let filtered = items.filter { $0.id != "account" }
+        // 並び替え対象外のタブ（game / account）は常に除外し、
+        // 不足している並び替え対象タブを補完する
+        let validIDs = Set(defaultTabs.map(\.id))
+        var result = items.filter { validIDs.contains($0.id) }
 
-        if let accountTab {
-            return filtered + [accountTab]
+        // デフォルトタブが抜けていれば追加
+        for tab in defaultTabs where !result.contains(where: { $0.id == tab.id }) {
+            result.append(tab)
         }
 
-        return filtered
+        return result
     }
 }
 
