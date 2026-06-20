@@ -57,7 +57,6 @@ struct WalkingChar: Identifiable {
     var vy: CGFloat
     var flipped: Bool
     var scale: CGFloat
-    var bounce: CGFloat = 1.0
 }
 
 // MARK: - View
@@ -218,10 +217,8 @@ struct EggGameCloneView: View {
                 .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
         }
         .position(x: walker.x + charSize / 2, y: walker.y + charSize / 2)
-        .scaleEffect(
-            x: walker.scale * walker.bounce * (walker.flipped ? -1 : 1),
-            y: walker.scale * (2.0 - walker.bounce)
-        )
+        .scaleEffect(walker.scale)
+        .scaleEffect(x: walker.flipped ? -1 : 1, y: 1)
         .zIndex(walker.char.id == "gold" ? 10 : 5)
     }
 
@@ -504,18 +501,15 @@ struct EggGameCloneView: View {
             newWalker.y += newWalker.vy
 
             // Boundary checks
-            var hitWall = false
             if newWalker.x < 0 {
                 newWalker.x = 0
                 newWalker.vx = abs(newWalker.vx)
                 newWalker.flipped = false
-                hitWall = true
             }
             if newWalker.x > width - charSize {
                 newWalker.x = width - charSize
                 newWalker.vx = -abs(newWalker.vx)
                 newWalker.flipped = true
-                hitWall = true
             }
             if newWalker.y < 0 {
                 newWalker.y = 0
@@ -525,12 +519,6 @@ struct EggGameCloneView: View {
                 newWalker.y = height - charSize
                 newWalker.vy = -abs(newWalker.vy)
             }
-
-            // Wall bounce animation
-            if hitWall {
-                newWalker.bounce = 0.75
-            }
-            newWalker.bounce += (1.0 - newWalker.bounce) * 0.12
 
             // Random direction changes
             newWalker.vx += CGFloat.random(in: -0.04...0.04)
