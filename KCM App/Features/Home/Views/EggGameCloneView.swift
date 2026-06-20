@@ -831,16 +831,16 @@ struct ShakeEffect: ViewModifier {
 struct EggProgressStyle: ProgressViewStyle {
     func makeBody(configuration: Configuration) -> some View {
         GeometryReader { geometry in
-            ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 5)
-                    .fill(AppTheme.accent.opacity(0.15))
-                    .frame(height: 10)
-
-                RoundedRectangle(cornerRadius: 5)
-                    .fill(AppTheme.accent)
-                    .frame(width: CGFloat(configuration.fractionCompleted ?? 0) * geometry.size.width, height: 10)
-                    .animation(.linear(duration: 0.1), value: configuration.fractionCompleted)
-            }
+            RoundedRectangle(cornerRadius: 5)
+                .fill(AppTheme.accent.opacity(0.15))
+                .frame(height: 10)
+                .overlay(alignment: .leading) {
+                    Rectangle()
+                        .fill(AppTheme.accent)
+                        .frame(width: CGFloat(configuration.fractionCompleted ?? 0) * geometry.size.width)
+                        .animation(.linear(duration: 0.1), value: configuration.fractionCompleted)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 5))
         }
         .frame(height: 10)
     }
