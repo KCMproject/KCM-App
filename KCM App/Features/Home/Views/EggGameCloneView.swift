@@ -175,11 +175,11 @@ struct EggGameCloneView: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: state.charSize, height: state.charSize)
+                .scaleEffect(x: walker.flipped ? -1 : 1, y: 1)
                 .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
         }
         .position(x: walker.x + state.charSize / 2, y: walker.y + state.charSize / 2)
         .scaleEffect(walker.scale)
-        .scaleEffect(x: walker.flipped ? -1 : 1, y: 1)
         .zIndex(walker.char.id == "gold" ? 10 : 5)
     }
 
