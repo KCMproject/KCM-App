@@ -3,11 +3,11 @@ import SwiftUI
 // MARK: - Debug Constants
 
 /// 本番に戻す際はここを false にしてください
-private let isDebugMode = false
+let isDebugMode = false
 /// 1タップで加算されるタップ数（デバッグ用）
-private let tapsPerTap = 1
+let tapsPerTap = 1
 /// デバッグ時は全キャラ出現率を均等にする
-private let debugWeight: Double = 20
+let debugWeight: Double = 20
 
 // MARK: - Character Definitions
 
@@ -21,7 +21,7 @@ struct CharDef: Identifiable, Hashable {
     let glowColor: Color
 }
 
-private let chars: [CharDef] = {
+let chars: [CharDef] = {
     let baseChars: [CharDef] = [
         CharDef(id: "normal", name: "ノーマル", rarity: "NORMAL", rarityColor: .gray, imageName: "char_normal", weight: 80, glowColor: .clear),
         CharDef(id: "sunglass", name: "クールくん", rarity: "RARE", rarityColor: .blue, imageName: "char_sunglass", weight: 7, glowColor: .blue.opacity(0.3)),
@@ -34,10 +34,10 @@ private let chars: [CharDef] = {
     return baseChars.map { CharDef(id: $0.id, name: $0.name, rarity: $0.rarity, rarityColor: $0.rarityColor, imageName: $0.imageName, weight: debugWeight, glowColor: $0.glowColor) }
 }()
 
-private let totalWeight = chars.reduce(0) { $0 + $1.weight }
-private let tapsPerSpawn = 1_000
+let totalWeight = chars.reduce(0) { $0 + $1.weight }
+let tapsPerSpawn = 1_000
 
-private func pickChar() -> CharDef {
+func pickChar() -> CharDef {
     var r = Double.random(in: 0..<totalWeight)
     for char in chars {
         r -= char.weight
@@ -63,45 +63,7 @@ struct WalkingChar: Identifiable {
 
 struct EggGameCloneView: View {
     @Binding var isLocked: Bool
-    @State private var tapCount = 0
-    @State private var walkers: [WalkingChar] = []
-    @State private var collection: [String: Int] = [:]
-    @State private var eggScale: CGFloat = 1.0
-    @State private var tapRipples: [TapRipple] = []
-    @State private var hatchPhase: HatchPhase = .none
-    @State private var hatchChar: CharDef?
-    @State private var lastPopped: CharDef?
-    @State private var showPopAnnouncement = false
-    @State private var gameTimer: Timer?
-    @State private var gameSize: CGSize = .zero
-    @State private var shellSplitProgress: CGFloat = 0
-    @State private var revealProgress: CGFloat = 0
-
-    private let charSize: CGFloat = 52
-
-    struct TapRipple: Identifiable {
-        let id = UUID()
-        let createdAt = Date()
-    }
-
-    enum HatchPhase {
-        case none
-        case shaking
-        case splitting
-        case revealing
-    }
-
-    private var progress: Double {
-        Double(tapCount % tapsPerSpawn) / Double(tapsPerSpawn)
-    }
-
-    private var crackLevel: Int {
-        [0.25, 0.5, 0.75, 1.0].filter { progress >= $0 }.count
-    }
-
-    private var currentCycle: Int {
-        tapCount / tapsPerSpawn
-    }
+    @ObservedObject private var state = EggGameState.shared
 
     var body: some View {
         GeometryReader { geometry in
@@ -113,27 +75,27 @@ struct EggGameCloneView: View {
             .frame(width: geometry.size.width, height: geometry.size.height)
             .clipped()
             .onAppear {
-                gameSize = geometry.size
-                loadGameState()
-                startGameLoop()
+                state.gameSize = geometry.size
+                state.loadGameState()
+                state.startGameLoop()
             }
             .onChange(of: geometry.size) { _, newSize in
-                gameSize = newSize
+                state.gameSize = newSize
             }
         }
         .background(AppTheme.pageBackground.ignoresSafeArea())
         .onDisappear {
-            stopGameLoop()
-            saveGameState()
+            state.stopGameLoop()
+            state.saveGameState()
         }
-        .onChange(of: tapCount) { _, _ in
-            saveGameState()
+        .onChange(of: state.tapCount) { _, _ in
+            state.saveGameState()
         }
-        .onChange(of: collection) { _, _ in
-            saveGameState()
+        .onChange(of: state.collection) { _, _ in
+            state.saveGameState()
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
-            saveGameState()
+            state.saveGameState()
         }
     }
 
@@ -141,21 +103,18 @@ struct EggGameCloneView: View {
 
     private func gameArea(geometry: GeometryProxy) -> some View {
         ZStack {
-            // Walking characters
-            ForEach(walkers) { walker in
+            ForEach(state.walkers) { walker in
                 characterView(walker)
             }
 
-            // Pop announcement
-            if showPopAnnouncement, let lastPopped {
+            if state.showPopAnnouncement, let lastPopped = state.lastPopped {
                 popAnnouncement(char: lastPopped)
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
 
-            // Center egg + UI
             VStack(spacing: 16) {
-                if currentCycle > 0 {
-                    Text("\(currentCycle) 回割った！")
+                if state.currentCycle > 0 {
+                    Text("\(state.currentCycle) 回割った！")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundStyle(AppTheme.textBlue)
                 }
@@ -163,21 +122,19 @@ struct EggGameCloneView: View {
                 eggButton
                     .frame(width: 120, height: 140)
 
-                if hatchPhase == .none {
-                    ProgressView(value: Double(tapCount % tapsPerSpawn), total: Double(tapsPerSpawn))
+                if state.hatchPhase == .none {
+                    ProgressView(value: Double(state.tapCount % tapsPerSpawn), total: Double(tapsPerSpawn))
                         .progressViewStyle(EggProgressStyle())
                         .frame(width: 180)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            // Collection list
             collectionList
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
                 .padding(.leading, 12)
                 .padding(.bottom, 12)
 
-            // Lock toggle
             Button {
                 isLocked.toggle()
             } label: {
@@ -217,10 +174,10 @@ struct EggGameCloneView: View {
             Image(walker.char.imageName)
                 .resizable()
                 .scaledToFit()
-                .frame(width: charSize, height: charSize)
+                .frame(width: state.charSize, height: state.charSize)
                 .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
         }
-        .position(x: walker.x + charSize / 2, y: walker.y + charSize / 2)
+        .position(x: walker.x + state.charSize / 2, y: walker.y + state.charSize / 2)
         .scaleEffect(walker.scale)
         .scaleEffect(x: walker.flipped ? -1 : 1, y: 1)
         .zIndex(walker.char.id == "gold" ? 10 : 5)
@@ -272,8 +229,7 @@ struct EggGameCloneView: View {
 
     private var eggButton: some View {
         ZStack {
-            // Tap ripples
-            ForEach(tapRipples) { ripple in
+            ForEach(state.tapRipples) { ripple in
                 Circle()
                     .stroke(AppTheme.accent.opacity(0.4), lineWidth: 2)
                     .frame(width: 60, height: 60)
@@ -282,19 +238,19 @@ struct EggGameCloneView: View {
             }
 
             eggVisual
-                .scaleEffect(eggScale)
+                .scaleEffect(state.eggScale)
         }
         .contentShape(Rectangle())
         .onTapGesture {
-            handleEggTap()
+            state.handleEggTap()
         }
     }
 
     private var eggVisual: some View {
         ZStack {
-            switch hatchPhase {
+            switch state.hatchPhase {
             case .none:
-                eggShape(crackLevel: crackLevel)
+                eggShape(crackLevel: state.crackLevel)
 
             case .shaking:
                 eggShape(crackLevel: 4)
@@ -313,26 +269,22 @@ struct EggGameCloneView: View {
 
     private var splittingEgg: some View {
         ZStack {
-            // Flash
             Circle()
-                .fill(hatchChar?.id == "gold" ? Color.yellow.opacity(0.6) : Color.white.opacity(0.8))
+                .fill(state.hatchChar?.id == "gold" ? Color.yellow.opacity(0.6) : Color.white.opacity(0.8))
                 .frame(width: 160, height: 160)
-                .scaleEffect(1.5 - shellSplitProgress * 0.5)
-                .opacity(1 - shellSplitProgress)
+                .scaleEffect(1.5 - state.shellSplitProgress * 0.5)
+                .opacity(1 - state.shellSplitProgress)
 
-            // Left shell half
             eggHalf(isLeft: true)
-                .offset(x: -55 * shellSplitProgress, y: -60 * shellSplitProgress)
-                .rotationEffect(.degrees(-45 * shellSplitProgress))
-                .opacity(1 - shellSplitProgress)
+                .offset(x: -55 * state.shellSplitProgress, y: -60 * state.shellSplitProgress)
+                .rotationEffect(.degrees(-45 * state.shellSplitProgress))
+                .opacity(1 - state.shellSplitProgress)
 
-            // Right shell half
             eggHalf(isLeft: false)
-                .offset(x: 55 * shellSplitProgress, y: -60 * shellSplitProgress)
-                .rotationEffect(.degrees(45 * shellSplitProgress))
-                .opacity(1 - shellSplitProgress)
+                .offset(x: 55 * state.shellSplitProgress, y: -60 * state.shellSplitProgress)
+                .rotationEffect(.degrees(45 * state.shellSplitProgress))
+                .opacity(1 - state.shellSplitProgress)
 
-            // Sparkles
             ForEach(0..<12) { i in
                 sparkle(at: i)
             }
@@ -341,12 +293,11 @@ struct EggGameCloneView: View {
 
     private var revealingEgg: some View {
         ZStack {
-            // Glow ring
             Circle()
                 .fill(
                     RadialGradient(
                         colors: [
-                            (hatchChar?.glowColor ?? AppTheme.accent.opacity(0.5)),
+                            (state.hatchChar?.glowColor ?? AppTheme.accent.opacity(0.5)),
                             .clear
                         ],
                         center: .center,
@@ -355,22 +306,20 @@ struct EggGameCloneView: View {
                     )
                 )
                 .frame(width: 160, height: 160)
-                .scaleEffect(0.5 + revealProgress * 2)
-                .opacity(1 - revealProgress)
+                .scaleEffect(0.5 + state.revealProgress * 2)
+                .opacity(1 - state.revealProgress)
 
-            // Character
-            if let hatchChar {
+            if let hatchChar = state.hatchChar {
                 Image(hatchChar.imageName)
                     .resizable()
                     .scaledToFit()
                     .frame(width: 96, height: 96)
                     .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
-                    .scaleEffect(0.3 + revealProgress * 0.9)
-                    .offset(y: 20 - revealProgress * 28)
-                    .opacity(revealProgress)
+                    .scaleEffect(0.3 + state.revealProgress * 0.9)
+                    .offset(y: 20 - state.revealProgress * 28)
+                    .opacity(state.revealProgress)
             }
 
-            // Trailing stars
             ForEach(0..<6) { i in
                 starTrail(at: i)
             }
@@ -380,31 +329,31 @@ struct EggGameCloneView: View {
     private func sparkle(at index: Int) -> some View {
         let angle = Double(index) * (2 * .pi / 12)
         let distance: CGFloat = 50 + CGFloat(index % 3) * 15
-        let colors: [Color] = hatchChar?.id == "gold" ? [.yellow, .orange] : [.blue.opacity(0.7), .yellow.opacity(0.7)]
+        let colors: [Color] = state.hatchChar?.id == "gold" ? [.yellow, .orange] : [.blue.opacity(0.7), .yellow.opacity(0.7)]
 
         return Circle()
             .fill(colors[index % 2])
             .frame(width: 8, height: 8)
             .offset(
-                x: cos(angle) * distance * shellSplitProgress,
-                y: sin(angle) * distance * shellSplitProgress
+                x: cos(angle) * distance * state.shellSplitProgress,
+                y: sin(angle) * distance * state.shellSplitProgress
             )
-            .opacity(1 - shellSplitProgress)
-            .scaleEffect(1 - shellSplitProgress * 0.5)
+            .opacity(1 - state.shellSplitProgress)
+            .scaleEffect(1 - state.shellSplitProgress * 0.5)
     }
 
     private func starTrail(at index: Int) -> some View {
         let angle = Double(index) * (2 * .pi / 6)
-        let distance: CGFloat = 30 + revealProgress * 40
+        let distance: CGFloat = 30 + state.revealProgress * 40
 
-        return Text(hatchChar?.id == "gold" ? "✨" : "⭐")
+        return Text(state.hatchChar?.id == "gold" ? "✨" : "⭐")
             .font(.system(size: 16))
             .offset(
                 x: cos(angle) * distance,
                 y: sin(angle) * distance
             )
-            .opacity(1 - revealProgress)
-            .scaleEffect(1 - revealProgress * 0.7)
+            .opacity(1 - state.revealProgress)
+            .scaleEffect(1 - state.revealProgress * 0.7)
     }
 
     // MARK: Collection List
@@ -422,7 +371,7 @@ struct EggGameCloneView: View {
     }
 
     private func collectionRow(char: CharDef) -> some View {
-        let count = collection[char.id, default: 0]
+        let count = state.collection[char.id, default: 0]
         let obtained = count > 0
 
         return HStack(spacing: 6) {
@@ -453,202 +402,6 @@ struct EggGameCloneView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .stroke(char.id == "gold" && obtained ? Color.yellow.opacity(0.6) : Color.clear, lineWidth: 1.5)
-        )
-    }
-
-    // MARK: Game Loop
-
-    private func startGameLoop() {
-        guard gameTimer == nil else { return }
-        gameTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { _ in
-            updateWalkers()
-        }
-    }
-
-    private func stopGameLoop() {
-        gameTimer?.invalidate()
-        gameTimer = nil
-    }
-
-    // MARK: - Persistence
-
-    private func loadGameState() {
-        guard let state = GameStateStore.shared.load() else { return }
-        tapCount = state.tapCount
-        collection = state.collection
-        if walkers.isEmpty {
-            regenerateWalkersFromCollection()
-        }
-    }
-
-    private func saveGameState() {
-        GameStateStore.shared.save(tapCount: tapCount, collection: collection)
-    }
-
-    private func regenerateWalkersFromCollection() {
-        let areaWidth = gameSize.width
-        var newWalkers: [WalkingChar] = []
-        for (charID, count) in collection {
-            guard let char = chars.first(where: { $0.id == charID }) else { continue }
-            for _ in 0..<count {
-                newWalkers.append(makeWalker(char: char, areaWidth: areaWidth))
-            }
-        }
-        walkers = newWalkers
-    }
-
-    private func updateWalkers() {
-        let w = max(gameSize.width, UIScreen.main.bounds.width)
-        let h = max(gameSize.height, UIScreen.main.bounds.height)
-
-        walkers = walkers.map { walker in
-            var n = walker
-            n.x += n.vx
-            n.y += n.vy
-
-            if n.x < 0 {
-                n.x = 0
-                n.vx = abs(n.vx)
-                n.flipped = false
-            } else if n.x > w - charSize {
-                n.x = w - charSize
-                n.vx = -abs(n.vx)
-                n.flipped = true
-            }
-            if n.y < 0 {
-                n.y = 0
-                n.vy = abs(n.vy)
-            } else if n.y > h - charSize {
-                n.y = h - charSize
-                n.vy = -abs(n.vy)
-            }
-
-            n.vx += CGFloat.random(in: -0.1...0.1)
-            n.vy += CGFloat.random(in: -0.1...0.1)
-
-            let speed = hypot(n.vx, n.vy)
-            if speed > 2.0 {
-                n.vx = n.vx / speed * 2.0
-                n.vy = n.vy / speed * 2.0
-            } else if speed < 0.5 && speed > 0 {
-                n.vx = n.vx / speed * 0.5
-                n.vy = n.vy / speed * 0.5
-            }
-
-            return n
-        }
-    }
-
-    // MARK: Tap Handling
-
-    private func handleEggTap() {
-        guard hatchPhase == .none else { return }
-
-        // Haptic feedback
-        let impact = UIImpactFeedbackGenerator(style: .light)
-        impact.impactOccurred()
-
-        // Visual feedback: quick scale down + up
-        eggScale = 0.9
-        withAnimation(.easeOut(duration: 0.08)) {
-            eggScale = 1.0
-        }
-
-        // Tap ripple effect
-        let ripple = TapRipple()
-        tapRipples.append(ripple)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-            tapRipples.removeAll { $0.id == ripple.id }
-        }
-
-        let previousCycle = tapCount / tapsPerSpawn
-        tapCount += tapsPerTap
-        let newCycle = tapCount / tapsPerSpawn
-
-        if newCycle > previousCycle {
-            let char = pickChar()
-            triggerHatch(char)
-        }
-    }
-
-    private func triggerHatch(_ char: CharDef) {
-        hatchChar = char
-
-        // Phase 1: Shaking (0.5s)
-        withAnimation {
-            hatchPhase = .shaking
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            // Phase 2: Splitting (0.7s)
-            withAnimation {
-                hatchPhase = .splitting
-            }
-            withAnimation(.easeOut(duration: 0.7)) {
-                shellSplitProgress = 1.0
-            }
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-            // Phase 3: Revealing (0.9s)
-            withAnimation {
-                hatchPhase = .revealing
-            }
-            withAnimation(.easeOut(duration: 0.9)) {
-                revealProgress = 1.0
-            }
-
-            // Add to walkers and collection
-            let areaWidth = gameSize.width
-            let newWalker = makeWalker(char: char, areaWidth: areaWidth)
-            walkers.append(newWalker)
-            collection[char.id, default: 0] += 1
-
-            lastPopped = char
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                showPopAnnouncement = true
-            }
-
-            // Stronger haptic for rare characters
-            if char.id == "gold" {
-                let notification = UINotificationFeedbackGenerator()
-                notification.notificationOccurred(.success)
-            } else if char.id == "red" {
-                let impact = UIImpactFeedbackGenerator(style: .medium)
-                impact.impactOccurred()
-            }
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-                withAnimation(.easeOut(duration: 0.3)) {
-                    showPopAnnouncement = false
-                }
-            }
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.1) {
-            // Reset
-            withAnimation {
-                hatchPhase = .none
-            }
-            hatchChar = nil
-            shellSplitProgress = 0
-            revealProgress = 0
-        }
-    }
-
-    private func makeWalker(char: CharDef, areaWidth: CGFloat) -> WalkingChar {
-        let w = max(gameSize.width, UIScreen.main.bounds.width)
-        let h = max(gameSize.height, UIScreen.main.bounds.height)
-        let angle = CGFloat.random(in: 0...(2 * .pi))
-        let speed = CGFloat.random(in: 0.6...1.2)
-        return WalkingChar(
-            char: char,
-            x: CGFloat.random(in: 0...(max(w - charSize, 0))),
-            y: CGFloat.random(in: 0...(max(h - charSize, 0))),
-            vx: cos(angle) * speed,
-            vy: sin(angle) * speed,
-            flipped: Bool.random(),
-            scale: char.id == "gold" ? 1.15 : 1.0
         )
     }
 }
