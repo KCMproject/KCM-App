@@ -43,8 +43,9 @@ struct SwipeableView: UIViewControllerRepresentable {
             return
         }
 
-        let animated = selectedTab != uiViewController.currentTabIndex
-        uiViewController.setContent(contentProvider(selectedTab), selectedIndex: selectedTab, animated: animated)
+        if selectedTab != uiViewController.currentTabIndex {
+            uiViewController.setContent(contentProvider(selectedTab), selectedIndex: selectedTab, animated: true)
+        }
     }
 }
 

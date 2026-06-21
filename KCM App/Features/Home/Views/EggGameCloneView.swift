@@ -110,6 +110,7 @@ struct EggGameCloneView: View {
 
                 gameArea(geometry: geometry)
             }
+            .frame(width: geometry.size.width, height: geometry.size.height)
             .clipped()
             .onAppear {
                 gameSize = geometry.size
@@ -192,6 +193,7 @@ struct EggGameCloneView: View {
             .padding(.top, 8)
             .padding(.trailing, 8)
         }
+        .frame(width: geometry.size.width, height: geometry.size.height)
     }
 
     // MARK: Character View
@@ -496,8 +498,8 @@ struct EggGameCloneView: View {
     }
 
     private func updateWalkers() {
-        let w = max(gameSize.width, 300)
-        let h = max(gameSize.height, 300)
+        let w = max(gameSize.width, UIScreen.main.bounds.width)
+        let h = max(gameSize.height, UIScreen.main.bounds.height)
 
         walkers = walkers.map { walker in
             var n = walker
@@ -635,8 +637,8 @@ struct EggGameCloneView: View {
     }
 
     private func makeWalker(char: CharDef, areaWidth: CGFloat) -> WalkingChar {
-        let h = max(gameSize.height, 300)
-        let w = max(areaWidth, 300)
+        let w = max(gameSize.width, UIScreen.main.bounds.width)
+        let h = max(gameSize.height, UIScreen.main.bounds.height)
         let angle = CGFloat.random(in: 0...(2 * .pi))
         let speed = CGFloat.random(in: 0.6...1.2)
         return WalkingChar(
