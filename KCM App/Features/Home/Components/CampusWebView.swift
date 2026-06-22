@@ -108,9 +108,9 @@ struct CampusWebView: UIViewRepresentable {
             didAutoSearch = true
 
             let escapedText: String
-            if let data = try? JSONSerialization.data(withJSONObject: autoSearchText, options: []),
+            if let data = try? JSONSerialization.data(withJSONObject: [autoSearchText], options: []),
                let json = String(data: data, encoding: .utf8) {
-                escapedText = json
+                escapedText = String(json.dropFirst().dropLast())
             } else {
                 escapedText = "\"\""
             }

@@ -39,7 +39,9 @@ struct WeeklyTimetableCloneView: View {
     private func openSyllabusSearch(for title: String) {
         UIPasteboard.general.string = title
         guard let url = URL(string: "https://cs.kunitachi.ac.jp/campusweb/campussquare.do?_flowId=SBW3701300-flow&link=menu-link-mf-164899") else { return }
-        webDestination = CampusWebDestination(url: url, title: "シラバス参照", autoSearchText: title)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            webDestination = CampusWebDestination(url: url, title: "シラバス参照", autoSearchText: title)
+        }
     }
 
     private var hasVisibleSchedule: Bool {
