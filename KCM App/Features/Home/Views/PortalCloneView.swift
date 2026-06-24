@@ -26,7 +26,7 @@ struct PortalCloneView: View {
         return normalizedTabConfig(defaultTabs)
     }
 
-    @State private var initialRefreshTask: Task<Void, Never>?
+    @State private var hasRefreshedOneYear = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -45,15 +45,12 @@ struct PortalCloneView: View {
             // まずキャッシュを即座に読み込んで表示する
             PortalDataCoordinator.shared.loadCachedData()
 
-            if initialRefreshTask == nil {
-                initialRefreshTask = Task {
+            if !hasRefreshedOneYear {
+                hasRefreshedOneYear = true
+                Task {
                     await PortalDataCoordinator.shared.refreshScheduleForOneYear(showUpdateBanner: true)
                 }
             }
-        }
-        .onDisappear {
-            initialRefreshTask?.cancel()
-            initialRefreshTask = nil
         }
     }
 

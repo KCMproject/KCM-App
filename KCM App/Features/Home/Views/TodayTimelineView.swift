@@ -114,13 +114,6 @@ struct TodayTimelineView: View {
                 ZStack {
                     timelinePage(for: selectedDate)
 
-                    if viewModel.isLoading && events(for: selectedDate).isEmpty && viewModel.errorMessage == nil {
-                        ProgressView("読み込み中...")
-                            .scaleEffect(1.2)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .background(Color.white.opacity(0.7))
-                    }
-
                     if let error = viewModel.errorMessage, !error.isEmpty, events(for: selectedDate).isEmpty {
                         VStack(spacing: 12) {
                             Image(systemName: "exclamationmark.triangle")
@@ -131,22 +124,6 @@ struct TodayTimelineView: View {
                                 .foregroundStyle(AppTheme.textMuted)
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, 40)
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Color.white.opacity(0.7))
-                    }
-
-                    if !viewModel.isLoading && viewModel.errorMessage == nil && events(for: selectedDate).isEmpty {
-                        VStack(spacing: 12) {
-                            Image(systemName: "calendar.badge.exclamationmark")
-                                .font(.system(size: 32))
-                                .foregroundStyle(AppTheme.textSoft)
-                            Text("予定がありません")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(AppTheme.textMuted)
-                            Text("下に引っ張って更新してください")
-                                .font(.system(size: 12))
-                                .foregroundStyle(AppTheme.textSoft)
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(Color.white.opacity(0.7))

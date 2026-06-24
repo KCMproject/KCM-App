@@ -241,10 +241,7 @@ class SwipeableContainerController: UIViewController {
                         self.adjacentHC?.view.transform = .identity
                     },
                     completion: { _ in
-                        currentView.transform = .identity
-                        self.currentTabIndex = completionIndex
-                        self.currentHC?.rootView = self.contentProvider(completionIndex)
-                        self.removeAdjacent()
+                        self.setContent(self.contentProvider(completionIndex), selectedIndex: completionIndex, animated: false)
                         self.isDragging = false
                         self.onSwipeToTab?(completionIndex)
                     }
