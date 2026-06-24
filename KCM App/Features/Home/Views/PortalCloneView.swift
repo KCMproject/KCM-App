@@ -42,6 +42,9 @@ SwipeableView(
             customTabBar
         }
         .onAppear {
+            // まずキャッシュを即座に読み込んで表示する
+            PortalDataCoordinator.shared.loadCachedData()
+
             if !hasRefreshedOneYear {
                 hasRefreshedOneYear = true
                 Task {

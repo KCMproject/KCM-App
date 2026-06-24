@@ -114,6 +114,13 @@ struct TodayTimelineView: View {
                 ZStack {
                     timelinePage(for: selectedDate)
 
+                    if viewModel.isLoading && events(for: selectedDate).isEmpty && viewModel.errorMessage == nil {
+                        ProgressView("読み込み中...")
+                            .scaleEffect(1.2)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(Color.white.opacity(0.7))
+                    }
+
                     if let error = viewModel.errorMessage, !error.isEmpty, events(for: selectedDate).isEmpty {
                         VStack(spacing: 12) {
                             Image(systemName: "exclamationmark.triangle")
