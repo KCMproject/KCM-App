@@ -38,6 +38,9 @@ struct SwipeableView: UIViewControllerRepresentable {
             return
         }
 
+        // 同じタブの場合はコンテンツを作り直さない
+        guard uiViewController.currentTabIndex != selectedTab else { return }
+
         let animated = selectedTab != uiViewController.currentTabIndex
         uiViewController.setContent(contentProvider(selectedTab), selectedIndex: selectedTab, animated: animated)
     }
@@ -72,33 +75,29 @@ class SwipeableContainerController: UIViewController {
     }
 
     func setContent(_ content: AnyView, selectedIndex: Int, animated: Bool) {
-        if let existing = currentHC {
-            if animated && selectedIndex != currentTabIndex {
-                let direction: CATransitionSubtype = selectedIndex > currentTabIndex ? .fromRight : .fromLeft
-                let transition = CATransition()
-                transition.type = .push
-                transition.subtype = direction
-                transition.duration = 0.28
-                transition.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-                existing.view.layer.add(transition, forKey: kCATransition)
-            }
-            existing.rootView = content
-        } else {
-            let hc = UIHostingController(rootView: content)
-            hc.view.backgroundColor = .clear
-            hc.view.translatesAutoresizingMaskIntoConstraints = false
-            addChild(hc)
-            view.addSubview(hc.view)
-            NSLayoutConstraint.activate([
-                hc.view.topAnchor.constraint(equalTo: view.topAnchor),
-                hc.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-                hc.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-                hc.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            ])
-            hc.didMove(toParent: self)
-            currentHC = hc
-        }
+        removeCurrent()
+
+        let hc = UIHostingController(rootView: content)
+        hc.view.backgroundColor = .clear
+        hc.view.translatesAutoresizingMaskIntoConstraints = false
+        addChild(hc)
+        view.addSubview(hc.view)
+        NSLayoutConstraint.activate([
+            hc.view.topAnchor.constraint(equalTo: view.topAnchor),
+            hc.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            hc.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            hc.view.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+        ])
+        hc.didMove(toParent: self)
+        currentHC = hc
         currentTabIndex = selectedIndex
+
+        if animated {
+            hc.view.alpha = 0
+            UIView.animate(withDuration: 0.25, delay: 0, options: .curveEaseOut) {
+                hc.view.alpha = 1
+            }
+        }
     }
 
     private func ensureAdjacent(at index: Int) {
@@ -111,12 +110,16 @@ class SwipeableContainerController: UIViewController {
         hc.view.backgroundColor = .clear
         hc.view.translatesAutoresizingMaskIntoConstraints = false
         addChild(hc)
-        view.insertSubview(hc.view, belowSubview: currentHC?.view ?? view)
+        if let currentView = currentHC?.view {
+            view.insertSubview(hc.view, belowSubview: currentView)
+        } else {
+            view.addSubview(hc.view)
+        }
         NSLayoutConstraint.activate([
             hc.view.topAnchor.constraint(equalTo: view.topAnchor),
             hc.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             hc.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            hc.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            hc.view.trailingAnchor.constraint(equalTo: view.trailingAnchor)
         ])
         hc.didMove(toParent: self)
         hc.view.layoutIfNeeded()
@@ -131,6 +134,14 @@ class SwipeableContainerController: UIViewController {
         hc.removeFromParent()
         adjacentHC = nil
         adjacentTabIndex = nil
+    }
+
+    private func removeCurrent() {
+        guard let hc = currentHC else { return }
+        hc.willMove(toParent: nil)
+        hc.view.removeFromSuperview()
+        hc.removeFromParent()
+        currentHC = nil
     }
 
     @objc func handlePan(_ gesture: UIPanGestureRecognizer) {

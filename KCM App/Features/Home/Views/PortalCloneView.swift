@@ -26,11 +26,11 @@ struct PortalCloneView: View {
         return normalizedTabConfig(defaultTabs)
     }
 
-    @State private var hasRefreshedOneYear = false
+    @State private var initialRefreshTask: Task<Void, Never>?
 
     var body: some View {
         VStack(spacing: 0) {
-SwipeableView(
+            SwipeableView(
                 selectedTab: selectedTab,
                 tabCount: tabConfig.count,
                 contentProvider: { index in
@@ -45,12 +45,15 @@ SwipeableView(
             // まずキャッシュを即座に読み込んで表示する
             PortalDataCoordinator.shared.loadCachedData()
 
-            if !hasRefreshedOneYear {
-                hasRefreshedOneYear = true
-                Task {
+            if initialRefreshTask == nil {
+                initialRefreshTask = Task {
                     await PortalDataCoordinator.shared.refreshScheduleForOneYear(showUpdateBanner: true)
                 }
             }
+        }
+        .onDisappear {
+            initialRefreshTask?.cancel()
+            initialRefreshTask = nil
         }
     }
 
