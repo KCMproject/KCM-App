@@ -13,6 +13,7 @@ struct AccountProfileCloneView: View {
     let onTabOrderChanged: ([TabOrderItem]) -> Void
 
     @AppStorage(AppSettings.tabBarConfiguration) private var tabBarData: Data = Data()
+    @AppStorage(AppSettings.gameTabEnabled) private var gameTabEnabled = true
     @State private var tabOrder: [TabOrderItem] = []
     @StateObject private var loginViewModel = LoginViewModel.shared
     @State private var showingPasswordManager = false
@@ -133,7 +134,9 @@ struct AccountProfileCloneView: View {
         VStack(spacing: 20) {
             settingsSection(
                 title: "タブ",
-                rows: [],
+                rows: [
+                    .toggle("gamecontroller", AppTheme.accent, "ゲームタブを表示", nil, $gameTabEnabled)
+                ],
                 customContent: AnyView(tabOrderSettingsList)
             )
 
