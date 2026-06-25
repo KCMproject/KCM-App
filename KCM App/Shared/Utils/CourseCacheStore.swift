@@ -82,6 +82,15 @@ final class CourseCacheStore: CacheStore {
         set(data, forKey: intensiveCoursesKey(for: semester))
     }
 
+    func clearAll() {
+        defaults.removeObject(forKey: Key.courses)
+        defaults.removeObject(forKey: Key.scheduleMonthKeys)
+        for semester in TimetableSemester.allCases {
+            defaults.removeObject(forKey: weeklyCoursesKey(for: semester))
+            defaults.removeObject(forKey: intensiveCoursesKey(for: semester))
+        }
+    }
+
     // MARK: - Private
 
     private func weeklyCoursesKey(for semester: TimetableSemester) -> String {

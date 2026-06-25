@@ -115,4 +115,13 @@ final class PortalCacheStore {
     func saveClassroomURLs(_ urls: [String: String]) {
         classroomURLCache.saveClassroomURLs(urls)
     }
+
+    // MARK: - 全ユーザーデータ削除
+
+    func clearAllUserData() {
+        courseCache.clearAll()
+        noticeCache.clearAll()
+        classroomURLCache.clearAll()
+        userProfileCache.clearAll()
+    }
 }

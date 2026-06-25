@@ -10,6 +10,7 @@ final class LoginViewModel: ObservableObject {
     @Published private(set) var isLoggedIn = false
     @Published private(set) var isLoading = false
     @Published private(set) var shouldShowCachedPortal = false
+    @Published private(set) var isReady = false
     @Published var errorMessage: String?
 
     private let portalClient: PortalClientProtocol
@@ -54,6 +55,12 @@ final class LoginViewModel: ObservableObject {
         password = ""
         isLoggedIn = false
         shouldShowCachedPortal = false
+        isReady = false
+        PortalCacheStore.shared.clearAllUserData()
+        TimetableViewModel.shared.courses = []
+        TimetableViewModel.shared.intensiveCourses = []
+        TimetableViewModel.shared.weeklySchedule = Array(repeating: Array(repeating: .empty, count: 6), count: 6)
+        NoticeBoardViewModel.shared.announcements = []
     }
 
     /// セッションをクリアする（デバッグ用）
@@ -103,11 +110,13 @@ final class LoginViewModel: ObservableObject {
                     self.studentID = studentID
                     self.password = password
                     self.isLoggedIn = true
-                    self.shouldShowCachedPortal = true
+                    self.shouldShowCachedPortal = self.shouldShowCachedPortal || PortalDataCoordinator.shared.hasCachedContent
                     self.persistCredentialsIfNeeded()
+                    self.isReady = false
 
                     Task {
                         await PortalDataCoordinator.shared.refreshAll(showUpdateBanner: true)
+                        self.isReady = true
                     }
                 case .failure(let error):
                     if automatic {

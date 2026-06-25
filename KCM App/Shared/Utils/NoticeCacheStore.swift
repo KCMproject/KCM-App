@@ -78,6 +78,12 @@ final class NoticeCacheStore: CacheStore {
         set(data, forKey: Key.favoriteNoticeIDs)
     }
 
+    func clearAll() {
+        defaults.removeObject(forKey: Key.notices)
+        defaults.removeObject(forKey: Key.noticeAttachments)
+        defaults.removeObject(forKey: Key.favoriteNoticeIDs)
+    }
+
     // MARK: - Private
 
     private func noticeCacheKey(for notice: NoticeCard) -> String {

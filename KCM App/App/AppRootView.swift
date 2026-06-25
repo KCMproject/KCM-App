@@ -7,7 +7,7 @@ struct AppRootView: View {
 
     var body: some View {
         Group {
-            if loginViewModel.isLoggedIn || loginViewModel.shouldShowCachedPortal {
+            if (loginViewModel.isLoggedIn && loginViewModel.isReady) || loginViewModel.shouldShowCachedPortal {
                 PortalCloneView(onLogout: {
                     Task {
                         await loginViewModel.logout()
@@ -146,7 +146,7 @@ private let agreementContent = """
 本アプリでは、CampusSquareポータルにログインするための学籍番号とパスワードを入力していただきます。これらの情報はiOSのKeychainに暗号化されて端末内にのみ保存され、運営者を含む第三者が取得することはできません。
 
 ■ 免責事項
-本アプリはCampusSquareポータルのHTMLを解析（スクレイピング）して動作しており、大学側の仕様変更により正常に動作しなくなる可能性があります。これにより生じたいかなる損害についても、運営者は一切の責任を負いません。
+本アプリはCampusSquareポータルのHTMLを解析して動作しており、大学側の仕様変更により正常に動作しなくなる可能性があります。これにより生じたいかなる損害についても、運営者は一切の責任を負いません。
 
 ■ オープンソース
 本アプリのソースコードはMITライセンスの下でGitHubに公開されています。

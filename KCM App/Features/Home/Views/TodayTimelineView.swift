@@ -182,7 +182,9 @@ struct TodayTimelineView: View {
     private func openSyllabusSearch(for event: DayEvent) {
         UIPasteboard.general.string = event.title
         guard let url = URL(string: "https://cs.kunitachi.ac.jp/campusweb/campussquare.do?_flowId=SBW3701300-flow&link=menu-link-mf-164899") else { return }
-        webDestination = CampusWebDestination(url: url, title: "シラバス参照", autoSearchText: event.title)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            webDestination = CampusWebDestination(url: url, title: "シラバス参照", autoSearchText: event.title)
+        }
     }
 
     private func classroomURL(for event: DayEvent) -> String? {

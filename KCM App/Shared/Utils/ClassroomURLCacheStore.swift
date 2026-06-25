@@ -19,4 +19,8 @@ final class ClassroomURLCacheStore: CacheStore {
         guard let data = encode(urls) else { return }
         set(data, forKey: Key.classroomURLs)
     }
+
+    func clearAll() {
+        defaults.removeObject(forKey: Key.classroomURLs)
+    }
 }

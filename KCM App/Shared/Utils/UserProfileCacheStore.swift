@@ -23,4 +23,9 @@ final class UserProfileCacheStore: CacheStore {
     func saveUserReading(_ reading: String) {
         set(reading, forKey: Key.userReading)
     }
+
+    func clearAll() {
+        defaults.removeObject(forKey: Key.userName)
+        defaults.removeObject(forKey: Key.userReading)
+    }
 }
