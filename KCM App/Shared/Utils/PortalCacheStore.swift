@@ -285,4 +285,25 @@ func saveFavoriteNoticeIDs(_ ids: Set<String>) {
       course.scheduleNoteCategory ?? ""
     ].joined(separator: "|")
   }
+
+  func clearAllUserData() {
+    let keys = [
+      Key.courses,
+      Key.scheduleMonthKeys,
+      Key.notices,
+      Key.noticeAttachments,
+      Key.favoriteNoticeIDs,
+      Key.classroomURLs,
+      Key.userName,
+      Key.userReading,
+    ]
+    for key in keys {
+      defaults.removeObject(forKey: key)
+    }
+    // 学期別のデータをクリア
+    for semester in TimetableSemester.allCases {
+      defaults.removeObject(forKey: weeklyCoursesKey(for: semester))
+      defaults.removeObject(forKey: intensiveCoursesKey(for: semester))
+    }
+  }
 }
