@@ -37,17 +37,7 @@ struct SwipeableView: UIViewControllerRepresentable {
         uiViewController.contentProvider = contentProvider
         uiViewController.onSwipeToTab = onSwipeToTab
         uiViewController.isSwipeEnabled = isSwipeEnabled
-
-        if uiViewController.isDragging {
-            uiViewController.currentTabIndex = selectedTab
-            return
-        }
-
-        // 同じタブの場合はコンテンツを作り直さない
-        guard uiViewController.currentTabIndex != selectedTab else { return }
-
-        let animated = selectedTab != uiViewController.currentTabIndex
-        uiViewController.setContent(contentProvider(selectedTab), selectedIndex: selectedTab, animated: animated)
+        uiViewController.updateIfNeeded(selectedTab: selectedTab)
     }
 }
 
@@ -63,6 +53,14 @@ class SwipeableContainerController: UIViewController {
     private var currentHC: UIHostingController<AnyView>?
     private var adjacentHC: UIHostingController<AnyView>?
     private var adjacentTabIndex: Int?
+
+    private var isAnimatingTransition = false
+    private var pendingTransitionTarget: Int?
+    private var pendingSwipeDirection: CGFloat = 0
+    private var gestureIgnored = false
+    private var hasSetPendingInThisGesture = false
+    private var preloadedHC: UIHostingController<AnyView>?
+    private var preloadedIndex: Int?
 
     private var panGesture: UIPanGestureRecognizer!
 
@@ -80,8 +78,27 @@ class SwipeableContainerController: UIViewController {
         }
     }
 
+    func updateIfNeeded(selectedTab: Int) {
+        if isDragging {
+            currentTabIndex = selectedTab
+            return
+        }
+        guard currentTabIndex != selectedTab else { return }
+
+        if isAnimatingTransition {
+            currentHC?.view.layer.removeAllAnimations()
+            adjacentHC?.view.layer.removeAllAnimations()
+            removeAdjacent()
+            isAnimatingTransition = false
+            pendingTransitionTarget = nil
+        }
+
+        setContent(contentProvider(selectedTab), selectedIndex: selectedTab, animated: true)
+    }
+
     func setContent(_ content: AnyView, selectedIndex: Int, animated: Bool) {
         removeCurrent()
+        cleanupPreloaded()
 
         let hc = UIHostingController(rootView: content)
         hc.view.backgroundColor = .clear
@@ -150,6 +167,113 @@ class SwipeableContainerController: UIViewController {
         currentHC = nil
     }
 
+    private func cleanupPreloaded() {
+        guard let hc = preloadedHC else { return }
+        hc.willMove(toParent: nil)
+        hc.view.removeFromSuperview()
+        hc.removeFromParent()
+        preloadedHC = nil
+        preloadedIndex = nil
+    }
+
+    private func promoteAdjacentToCurrent(at index: Int) {
+        guard let adj = adjacentHC else { return }
+        currentHC?.willMove(toParent: nil)
+        currentHC?.view.removeFromSuperview()
+        currentHC?.removeFromParent()
+        currentHC = adj
+        currentTabIndex = index
+        adjacentHC = nil
+        adjacentTabIndex = nil
+    }
+
+    private func preloadNextAdjacent() {
+        guard let target = pendingTransitionTarget, pendingSwipeDirection != 0 else { return }
+        let nextTarget = pendingSwipeDirection < 0 ? target + 1 : target - 1
+        guard nextTarget >= 0, nextTarget < tabCount else { return }
+        guard preloadedHC == nil else { return }
+
+        let hc = UIHostingController(rootView: contentProvider(nextTarget))
+        hc.view.backgroundColor = .clear
+        hc.view.translatesAutoresizingMaskIntoConstraints = false
+        addChild(hc)
+        view.addSubview(hc.view)
+        NSLayoutConstraint.activate([
+            hc.view.topAnchor.constraint(equalTo: view.topAnchor),
+            hc.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            hc.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            hc.view.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+        ])
+        hc.didMove(toParent: self)
+        hc.view.layoutIfNeeded()
+        hc.view.transform = CGAffineTransform(translationX: view.bounds.width * 3, y: 0)
+        preloadedHC = hc
+        preloadedIndex = nextTarget
+    }
+
+    func executePendingSwipe() {
+        let direction = pendingSwipeDirection
+        pendingSwipeDirection = 0
+
+        let targetTab: Int
+        if direction < 0 {
+            guard currentTabIndex + 1 < tabCount else { return }
+            targetTab = currentTabIndex + 1
+        } else {
+            guard currentTabIndex - 1 >= 0 else { return }
+            targetTab = currentTabIndex - 1
+        }
+
+        let screenWidth = view.bounds.width
+        let targetX: CGFloat = direction < 0 ? -screenWidth : screenWidth
+        let adjOffset: CGFloat = direction < 0 ? screenWidth : -screenWidth
+
+        if let preloaded = preloadedHC, preloadedIndex == targetTab {
+            removeAdjacent()
+            if let currentView = currentHC?.view {
+                view.insertSubview(preloaded.view, belowSubview: currentView)
+            }
+            preloaded.view.transform = CGAffineTransform(translationX: adjOffset, y: 0)
+            adjacentHC = preloaded
+            adjacentTabIndex = targetTab
+            preloadedHC = nil
+            preloadedIndex = nil
+        } else {
+            ensureAdjacent(at: targetTab)
+            adjacentHC?.view.transform = CGAffineTransform(translationX: adjOffset, y: 0)
+        }
+
+        isAnimatingTransition = true
+        pendingTransitionTarget = targetTab
+
+        guard let currentView = currentHC?.view else { return }
+
+        UIView.animate(
+            withDuration: 0.18,
+            delay: 0,
+            options: .curveEaseOut,
+            animations: {
+                currentView.transform = CGAffineTransform(translationX: targetX, y: 0)
+                self.adjacentHC?.view.transform = .identity
+            },
+            completion: { _ in
+                guard self.pendingTransitionTarget == targetTab else {
+                    self.removeAdjacent()
+                    self.isAnimatingTransition = false
+                    return
+                }
+                self.promoteAdjacentToCurrent(at: targetTab)
+                self.isAnimatingTransition = false
+                self.pendingTransitionTarget = nil
+                self.onSwipeToTab?(targetTab)
+
+                if self.pendingSwipeDirection != 0 {
+                    self.executePendingSwipe()
+                }
+            }
+        )
+    }
+
     @objc func handlePan(_ gesture: UIPanGestureRecognizer) {
         guard let currentView = currentHC?.view else { return }
         let translation = gesture.translation(in: view)
@@ -158,9 +282,31 @@ class SwipeableContainerController: UIViewController {
 
         switch gesture.state {
         case .began:
+            if isAnimatingTransition {
+                gestureIgnored = true
+                pendingSwipeDirection = 0
+                hasSetPendingInThisGesture = false
+                return
+            }
+
+            currentView.layer.removeAllAnimations()
+            adjacentHC?.view.layer.removeAllAnimations()
+            cleanupPreloaded()
+
+            gestureIgnored = false
             isDragging = true
 
         case .changed:
+            if gestureIgnored {
+                let tr = gesture.translation(in: view)
+                if !hasSetPendingInThisGesture, abs(tr.x) > 20 {
+                    pendingSwipeDirection = tr.x
+                    hasSetPendingInThisGesture = true
+                    preloadNextAdjacent()
+                }
+                return
+            }
+
             let atLeftEdge = currentTabIndex == 0
             let atRightEdge = currentTabIndex >= tabCount - 1
 
@@ -194,6 +340,11 @@ class SwipeableContainerController: UIViewController {
             }
 
         case .ended, .cancelled:
+            if gestureIgnored {
+                gestureIgnored = false
+                return
+            }
+
             let atLeftEdge = currentTabIndex == 0
             let atRightEdge = currentTabIndex >= tabCount - 1
             let atEdge = (atLeftEdge && translation.x > 0) || (atRightEdge && translation.x < 0)
@@ -238,8 +389,12 @@ class SwipeableContainerController: UIViewController {
                 let completionIndex = targetTab
                 let targetX: CGFloat = translation.x < 0 ? -screenWidth : screenWidth
 
+                isAnimatingTransition = true
+                pendingTransitionTarget = completionIndex
+                isDragging = false
+
                 UIView.animate(
-                    withDuration: 0.25,
+                    withDuration: 0.18,
                     delay: 0,
                     options: .curveEaseOut,
                     animations: {
@@ -247,9 +402,19 @@ class SwipeableContainerController: UIViewController {
                         self.adjacentHC?.view.transform = .identity
                     },
                     completion: { _ in
-                        self.setContent(self.contentProvider(completionIndex), selectedIndex: completionIndex, animated: false)
-                        self.isDragging = false
+                        guard self.pendingTransitionTarget == completionIndex else {
+                            self.removeAdjacent()
+                            self.isAnimatingTransition = false
+                            return
+                        }
+                        self.promoteAdjacentToCurrent(at: completionIndex)
+                        self.isAnimatingTransition = false
+                        self.pendingTransitionTarget = nil
                         self.onSwipeToTab?(completionIndex)
+
+                        if self.pendingSwipeDirection != 0 {
+                            self.executePendingSwipe()
+                        }
                     }
                 )
             } else {
