@@ -616,16 +616,6 @@ KCM App プライバシーポリシー
 本プライバシーポリシーに関するお問い合わせは、該当のApp StoreページまたはGitHubリポジトリのIssueからお願いいたします。
 """
 
-struct ShareSheet: UIViewControllerRepresentable {
-    let activityItems: [Any]
-
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
-    }
-
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
-}
-
 #Preview {
     AccountProfileCloneView(onLogout: {}) { _ in
     }

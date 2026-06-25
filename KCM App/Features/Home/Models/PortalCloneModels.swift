@@ -110,6 +110,12 @@ struct DateRange: Identifiable, Codable, Equatable {
         }
         return result
     }
+
+    /// 開始日〜終了日の表示用文字列
+    var formatted: String {
+        if startDate == endDate { return startDate }
+        return "\(startDate) 〜 \(endDate)"
+    }
 }
 
 struct IntensiveCourseCard: Identifiable, Codable, Equatable {
@@ -197,6 +203,11 @@ struct IrregularScheduleSection: Identifiable {
 enum NoticeSort {
     case date
     case category
+}
+
+// MARK: - アニメーション方向
+enum TransitionDirection: Equatable {
+    case left, right, none
 }
 
 // MARK: - 曜日ラベル（一元管理）
