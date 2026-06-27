@@ -8,6 +8,7 @@ final class NoticeBoardViewModel: ObservableObject {
     @Published var announcements: [NoticeCard] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published var readIDs: Set<String> = []
 
     private let portalClient: PortalClientProtocol
     private let cacheStore = PortalCacheStore.shared
@@ -21,6 +22,7 @@ final class NoticeBoardViewModel: ObservableObject {
         let cachedNotices = cacheStore.applyCachedAttachments(to: cacheStore.loadNotices())
         guard !cachedNotices.isEmpty else { return }
         announcements = cachedNotices
+        readIDs = cacheStore.loadReadNoticeIDs()
     }
 
     /// 指定されたジャンルの掲示板件数を返す
@@ -31,6 +33,11 @@ final class NoticeBoardViewModel: ObservableObject {
     /// 全掲示板件数
     var totalCount: Int {
         announcements.count
+    }
+
+    func markAsRead(_ id: String) {
+        readIDs.insert(id)
+        cacheStore.markAsRead(id)
     }
 
     func initialFetch() async {
@@ -60,6 +67,7 @@ final class NoticeBoardViewModel: ObservableObject {
             let notices = cacheStore.mergeAndSaveNotices(serverNotices)
             let didUpdate = notices != announcements
             announcements = notices
+            readIDs = cacheStore.loadReadNoticeIDs()
             isLoading = false
             Task {
                 await fetchMissingAttachments(for: notices)
@@ -74,6 +82,7 @@ final class NoticeBoardViewModel: ObservableObject {
                 announcements = []
                 errorMessage = "掲示板を読み込めませんでした。"
             }
+            readIDs = cacheStore.loadReadNoticeIDs()
             self.isLoading = false
             return false
         }
