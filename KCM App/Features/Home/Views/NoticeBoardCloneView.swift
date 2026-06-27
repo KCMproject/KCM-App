@@ -259,10 +259,6 @@ struct NoticeBoardCloneView: View {
     }
 
     private func openNotice(_ notice: NoticeCard) {
-        if !viewModel.readIDs.contains(notice.id) {
-            viewModel.markAsRead(notice.id)
-        }
-
         guard let urlString = notice.url else {
             isLoadingNotice = true
             Task {
@@ -270,7 +266,7 @@ struct NoticeBoardCloneView: View {
                 await MainActor.run {
                     isLoadingNotice = false
                     if let resolved = resolvedURL {
-                        openWebDestination(url: resolved)
+                        openWebDestination(url: resolved, notice: notice)
                     } else {
                         showOpenErrorAlert = true
                     }
@@ -291,10 +287,13 @@ struct NoticeBoardCloneView: View {
             url = u
         }
 
-        openWebDestination(url: url)
+        openWebDestination(url: url, notice: notice)
     }
 
-    private func openWebDestination(url: URL) {
+    private func openWebDestination(url: URL, notice: NoticeCard) {
+        if !viewModel.readIDs.contains(notice.id) {
+            viewModel.markAsRead(notice.id)
+        }
         webDestination = CampusWebDestination(
             url: url,
             title: "掲示板詳細",
