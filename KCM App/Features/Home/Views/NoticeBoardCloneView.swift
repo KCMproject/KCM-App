@@ -6,7 +6,6 @@ struct NoticeBoardCloneView: View {
     @State private var sortBy: NoticeSort = .date
     @State private var selectedCategory = "すべて"
     @State private var favoriteIDs: Set<String> = []
-    @State private var readIDs: Set<String> = []
     @State private var webDestination: CampusWebDestination?
     @State private var isLoadingNotice = false
     private let cacheStore = PortalCacheStore.shared
@@ -30,7 +29,7 @@ struct NoticeBoardCloneView: View {
             case "すべて":
                 matchesCategory = true
             case "未読":
-                matchesCategory = !readIDs.contains(notice.id)
+                matchesCategory = !viewModel.readIDs.contains(notice.id)
             case "お気に入り":
                 matchesCategory = favoriteIDs.contains(notice.id)
             default:
@@ -170,7 +169,7 @@ struct NoticeBoardCloneView: View {
                                     NoticeRow(
                                         notice: notice,
                                         isFavorite: favoriteIDs.contains(notice.id),
-                                        isRead: readIDs.contains(notice.id)
+                                        isRead: viewModel.readIDs.contains(notice.id)
                                     ) {
                                         toggleFavorite(notice.id)
                                     } onOpen: {
@@ -212,7 +211,6 @@ struct NoticeBoardCloneView: View {
         }
         .onAppear {
             favoriteIDs = cacheStore.loadFavoriteNoticeIDs()
-            readIDs = cacheStore.loadReadNoticeIDs()
         }
         .sheet(item: $webDestination) { destination in
             CampusWebSheet(destination: destination, presentedDestination: $webDestination)
@@ -255,9 +253,8 @@ struct NoticeBoardCloneView: View {
     }
 
     private func openNotice(_ notice: NoticeCard) {
-        if !readIDs.contains(notice.id) {
-            readIDs.insert(notice.id)
-            cacheStore.markAsRead(notice.id)
+        if !viewModel.readIDs.contains(notice.id) {
+            viewModel.markAsRead(notice.id)
         }
         isLoadingNotice = true
         Task {
@@ -321,7 +318,7 @@ struct NoticeBoardCloneView: View {
         case "すべて":
             return viewModel.totalCount
         case "未読":
-            return viewModel.announcements.filter { !readIDs.contains($0.id) }.count
+            return viewModel.announcements.filter { !viewModel.readIDs.contains($0.id) }.count
         case "お気に入り":
             return favoriteIDs.count
         default:
