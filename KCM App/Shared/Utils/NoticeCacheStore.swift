@@ -7,6 +7,7 @@ final class NoticeCacheStore: CacheStore {
         static let notices = "portalCache.notices"
         static let noticeAttachments = "portalCache.noticeAttachments"
         static let favoriteNoticeIDs = "portalCache.favoriteNoticeIDs"
+        static let readNoticeIDs = "portalCache.readNoticeIDs"
     }
 
     // MARK: - 掲示板
@@ -78,10 +79,33 @@ final class NoticeCacheStore: CacheStore {
         set(data, forKey: Key.favoriteNoticeIDs)
     }
 
+    // MARK: - 既読
+
+    func loadReadNoticeIDs() -> Set<String> {
+        guard let data = data(forKey: Key.readNoticeIDs),
+              let ids = decode([String].self, from: data) else {
+            return []
+        }
+        return Set(ids)
+    }
+
+    func saveReadNoticeIDs(_ ids: Set<String>) {
+        let sortedIDs = Array(ids).sorted()
+        guard let data = encode(sortedIDs) else { return }
+        set(data, forKey: Key.readNoticeIDs)
+    }
+
+    func markAsRead(_ id: String) {
+        var ids = loadReadNoticeIDs()
+        ids.insert(id)
+        saveReadNoticeIDs(ids)
+    }
+
     func clearAll() {
         defaults.removeObject(forKey: Key.notices)
         defaults.removeObject(forKey: Key.noticeAttachments)
         defaults.removeObject(forKey: Key.favoriteNoticeIDs)
+        defaults.removeObject(forKey: Key.readNoticeIDs)
     }
 
     // MARK: - Private
