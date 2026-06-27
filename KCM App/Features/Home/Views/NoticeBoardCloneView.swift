@@ -358,7 +358,7 @@ private struct NoticeRow: View {
                 .opacity(isRead ? 0 : 1)
             VStack(alignment: .leading, spacing: 8) {
                 Text(notice.title)
-                    .font(.system(size: 16, weight: isRead ? .regular : .bold))
+                    .font(.system(size: 16, weight: .bold))
                     .foregroundStyle(AppTheme.textPrimary)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
