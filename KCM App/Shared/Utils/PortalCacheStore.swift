@@ -106,6 +106,18 @@ final class PortalCacheStore {
         noticeCache.saveFavoriteNoticeIDs(ids)
     }
 
+    func loadReadNoticeIDs() -> Set<String> {
+        noticeCache.loadReadNoticeIDs()
+    }
+
+    func saveReadNoticeIDs(_ ids: Set<String>) {
+        noticeCache.saveReadNoticeIDs(ids)
+    }
+
+    func markAsRead(_ id: String) {
+        noticeCache.markAsRead(id)
+    }
+
     // MARK: - 教室URL
 
     func loadClassroomURLs() -> [String: String] {

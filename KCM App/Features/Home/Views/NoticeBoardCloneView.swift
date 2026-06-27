@@ -6,6 +6,7 @@ struct NoticeBoardCloneView: View {
     @State private var sortBy: NoticeSort = .date
     @State private var selectedCategory = "すべて"
     @State private var favoriteIDs: Set<String> = []
+    @State private var readIDs: Set<String> = []
     @State private var webDestination: CampusWebDestination?
     @State private var isLoadingNotice = false
     private let cacheStore = PortalCacheStore.shared
@@ -17,7 +18,7 @@ struct NoticeBoardCloneView: View {
         return f
     }()
 
-    private let categories = ["すべて", "お気に入り", "授業掲示板", "個人掲示板", "全学掲示板", "コース関連", "履修登録関連", "術科試験関連"]
+    private let categories = ["すべて", "未読", "お気に入り", "授業掲示板", "個人掲示板", "全学掲示板", "コース関連", "履修登録関連", "術科試験関連"]
 
     private var filteredNotices: [NoticeCard] {
         let filtered = viewModel.announcements.filter { notice in
@@ -28,6 +29,8 @@ struct NoticeBoardCloneView: View {
             switch selectedCategory {
             case "すべて":
                 matchesCategory = true
+            case "未読":
+                matchesCategory = !readIDs.contains(notice.id)
             case "お気に入り":
                 matchesCategory = favoriteIDs.contains(notice.id)
             default:
@@ -103,7 +106,10 @@ struct NoticeBoardCloneView: View {
                                 selectedCategory = category
                             } label: {
                                 HStack(spacing: 6) {
-                                    if category == "お気に入り" {
+                                    if category == "未読" {
+                                        Image(systemName: "circlebadge.fill")
+                                            .font(.system(size: 12))
+                                    } else if category == "お気に入り" {
                                         Image(systemName: "star.fill")
                                             .font(.system(size: 12))
                                     }
@@ -163,7 +169,8 @@ struct NoticeBoardCloneView: View {
                                 VStack(spacing: 0) {
                                     NoticeRow(
                                         notice: notice,
-                                        isFavorite: favoriteIDs.contains(notice.id)
+                                        isFavorite: favoriteIDs.contains(notice.id),
+                                        isRead: readIDs.contains(notice.id)
                                     ) {
                                         toggleFavorite(notice.id)
                                     } onOpen: {
@@ -205,6 +212,7 @@ struct NoticeBoardCloneView: View {
         }
         .onAppear {
             favoriteIDs = cacheStore.loadFavoriteNoticeIDs()
+            readIDs = cacheStore.loadReadNoticeIDs()
         }
         .sheet(item: $webDestination) { destination in
             CampusWebSheet(destination: destination, presentedDestination: $webDestination)
@@ -224,10 +232,20 @@ struct NoticeBoardCloneView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
             } else {
-                Image(systemName: selectedCategory == "お気に入り" ? "star" : "doc.text")
+                let iconName: String = {
+                    if selectedCategory == "未読" { return "circlebadge" }
+                    if selectedCategory == "お気に入り" { return "star" }
+                    return "doc.text"
+                }()
+                let emptyText: String = {
+                    if selectedCategory == "未読" { return "未読のお知らせはありません" }
+                    if selectedCategory == "お気に入り" { return "お気に入りはまだありません" }
+                    return "お知らせがありません"
+                }()
+                Image(systemName: iconName)
                     .font(.system(size: 32))
                     .foregroundStyle(AppTheme.textSoft)
-                Text(selectedCategory == "お気に入り" ? "お気に入りはまだありません" : "お知らせがありません")
+                Text(emptyText)
                     .font(.system(size: 14))
                     .foregroundStyle(AppTheme.textMuted)
             }
@@ -237,6 +255,10 @@ struct NoticeBoardCloneView: View {
     }
 
     private func openNotice(_ notice: NoticeCard) {
+        if !readIDs.contains(notice.id) {
+            readIDs.insert(notice.id)
+            cacheStore.markAsRead(notice.id)
+        }
         isLoadingNotice = true
         Task {
             let resolvedURL = await viewModel.resolveNoticeURL(for: notice)
@@ -298,6 +320,8 @@ struct NoticeBoardCloneView: View {
         switch category {
         case "すべて":
             return viewModel.totalCount
+        case "未読":
+            return viewModel.announcements.filter { !readIDs.contains($0.id) }.count
         case "お気に入り":
             return favoriteIDs.count
         default:
@@ -309,14 +333,20 @@ struct NoticeBoardCloneView: View {
 private struct NoticeRow: View {
     let notice: NoticeCard
     let isFavorite: Bool
+    let isRead: Bool
     let onToggleFavorite: () -> Void
     let onOpen: () -> Void
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
+            Circle()
+                .fill(AppTheme.accent)
+                .frame(width: 8, height: 8)
+                .padding(.top, 6)
+                .opacity(isRead ? 0 : 1)
             VStack(alignment: .leading, spacing: 8) {
                 Text(notice.title)
-                    .font(.system(size: 16, weight: .bold))
+                    .font(.system(size: 16, weight: isRead ? .regular : .bold))
                     .foregroundStyle(AppTheme.textPrimary)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
