@@ -292,6 +292,8 @@ class SwipeableContainerController: UIViewController {
             currentView.layer.removeAllAnimations()
             adjacentHC?.view.layer.removeAllAnimations()
             cleanupPreloaded()
+            pendingSwipeDirection = 0
+            hasSetPendingInThisGesture = false
 
             gestureIgnored = false
             isDragging = true
