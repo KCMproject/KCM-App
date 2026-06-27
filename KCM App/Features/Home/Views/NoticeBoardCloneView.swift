@@ -8,6 +8,7 @@ struct NoticeBoardCloneView: View {
     @State private var favoriteIDs: Set<String> = []
     @State private var webDestination: CampusWebDestination?
     @State private var isLoadingNotice = false
+    @State private var showOpenErrorAlert = false
     private let cacheStore = PortalCacheStore.shared
 
     private static let jaDateFormatter: DateFormatter = {
@@ -215,6 +216,11 @@ struct NoticeBoardCloneView: View {
         .sheet(item: $webDestination) { destination in
             CampusWebSheet(destination: destination, presentedDestination: $webDestination)
         }
+        .alert("お知らせを開けませんでした", isPresented: $showOpenErrorAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("しばらくしてからもう一度お試しください。")
+        }
     }
 
     @ViewBuilder
@@ -256,35 +262,44 @@ struct NoticeBoardCloneView: View {
         if !viewModel.readIDs.contains(notice.id) {
             viewModel.markAsRead(notice.id)
         }
-        isLoadingNotice = true
-        Task {
-            let resolvedURL = await viewModel.resolveNoticeURL(for: notice)
-            let url: URL
-            if let resolved = resolvedURL {
-                url = resolved
-            } else {
-                guard let fallback = noticeURL(for: notice) else {
+
+        guard let urlString = notice.url else {
+            isLoadingNotice = true
+            Task {
+                let resolvedURL = await viewModel.resolveNoticeURL(for: notice)
+                await MainActor.run {
                     isLoadingNotice = false
-                    return
+                    if let resolved = resolvedURL {
+                        openWebDestination(url: resolved)
+                    } else {
+                        showOpenErrorAlert = true
+                    }
                 }
-                url = fallback
             }
-            await MainActor.run {
-                isLoadingNotice = false
-                webDestination = CampusWebDestination(url: url, title: "掲示板詳細")
-            }
+            return
         }
+
+        let url: URL
+        if urlString.hasPrefix("http") {
+            guard let u = URL(string: urlString) else { return }
+            url = u
+        } else if urlString.hasPrefix("/") {
+            guard let u = URL(string: "https://cs.kunitachi.ac.jp\(urlString)") else { return }
+            url = u
+        } else {
+            guard let u = URL(string: "https://cs.kunitachi.ac.jp/campusweb/\(urlString)") else { return }
+            url = u
+        }
+
+        openWebDestination(url: url)
     }
 
-    private func noticeURL(for notice: NoticeCard) -> URL? {
-        guard let urlString = notice.url else { return nil }
-        if urlString.hasPrefix("http") {
-            return URL(string: urlString)
-        } else if urlString.hasPrefix("/") {
-            return URL(string: "https://cs.kunitachi.ac.jp\(urlString)")
-        } else {
-            return URL(string: "https://cs.kunitachi.ac.jp/campusweb/\(urlString)")
-        }
+    private func openWebDestination(url: URL) {
+        webDestination = CampusWebDestination(
+            url: url,
+            title: "掲示板詳細",
+            pageValidationScript: "document.querySelector('.keiji-title, .keiji-naiyo') !== null"
+        )
     }
 
     private func toggleFavorite(_ id: String) {

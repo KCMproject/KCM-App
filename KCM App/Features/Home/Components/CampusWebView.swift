@@ -6,11 +6,13 @@ struct CampusWebDestination: Identifiable {
     let url: URL
     let title: String
     let autoSearchText: String?
+    let pageValidationScript: String?
 
-    init(url: URL, title: String, autoSearchText: String? = nil) {
+    init(url: URL, title: String, autoSearchText: String? = nil, pageValidationScript: String? = nil) {
         self.url = url
         self.title = title
         self.autoSearchText = autoSearchText
+        self.pageValidationScript = pageValidationScript
     }
 }
 
@@ -18,11 +20,15 @@ struct CampusWebView: UIViewRepresentable {
     let url: URL
     let autoSearchText: String?
     let onLoadingChange: ((Bool) -> Void)?
+    let onPageValidationFailed: (() -> Void)?
+    let pageValidationScript: String?
 
-    init(url: URL, autoSearchText: String? = nil, onLoadingChange: ((Bool) -> Void)? = nil) {
+    init(url: URL, autoSearchText: String? = nil, onLoadingChange: ((Bool) -> Void)? = nil, pageValidationScript: String? = nil, onPageValidationFailed: (() -> Void)? = nil) {
         self.url = url
         self.autoSearchText = autoSearchText
         self.onLoadingChange = onLoadingChange
+        self.pageValidationScript = pageValidationScript
+        self.onPageValidationFailed = onPageValidationFailed
     }
 
     func makeUIView(context: Context) -> WKWebView {
@@ -37,6 +43,8 @@ struct CampusWebView: UIViewRepresentable {
 
     func updateUIView(_ webView: WKWebView, context: Context) {
         context.coordinator.autoSearchText = autoSearchText
+        context.coordinator.pageValidationScript = pageValidationScript
+        context.coordinator.onPageValidationFailed = onPageValidationFailed
         syncCookies {
             guard !context.coordinator.hasLoadedURL(url) else { return }
             context.coordinator.setRequestedURL(url)
@@ -49,6 +57,8 @@ struct CampusWebView: UIViewRepresentable {
     func makeCoordinator() -> Coordinator {
         let coordinator = Coordinator(autoSearchText: autoSearchText)
         coordinator.onLoadingChange = onLoadingChange
+        coordinator.pageValidationScript = pageValidationScript
+        coordinator.onPageValidationFailed = onPageValidationFailed
         return coordinator
     }
 
@@ -73,6 +83,8 @@ struct CampusWebView: UIViewRepresentable {
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKDownloadDelegate, UIDocumentInteractionControllerDelegate {
         var autoSearchText: String?
         var onLoadingChange: ((Bool) -> Void)?
+        var pageValidationScript: String?
+        var onPageValidationFailed: (() -> Void)?
         private var didAutoSearch = false
         private var lastRequestedURL: URL?
         private var downloadURL: URL?
@@ -104,33 +116,49 @@ struct CampusWebView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             onLoadingChange?(false)
-            guard let autoSearchText, !autoSearchText.isEmpty, !didAutoSearch else { return }
-            didAutoSearch = true
 
-            let escapedText: String
-            if let data = try? JSONSerialization.data(withJSONObject: [autoSearchText], options: []),
-               let json = String(data: data, encoding: .utf8) {
-                escapedText = String(json.dropFirst().dropLast())
-            } else {
-                escapedText = "\"\""
-            }
-
-            let script = """
-            (function() {
-                var value = \(escapedText);
-                var input = document.querySelector('#kaikoKamokunm, input[name="kaikoKamokunm"]');
-                if (!input) { return false; }
-                input.value = value;
-                input.dispatchEvent(new Event('input', { bubbles: true }));
-                input.dispatchEvent(new Event('change', { bubbles: true }));
-                var button = document.querySelector('input[type="button"][value*="検索"]');
-                if (button) {
-                    setTimeout(function() { button.click(); }, 250);
+            if let autoSearchText, !autoSearchText.isEmpty, !didAutoSearch {
+                didAutoSearch = true
+                let escapedText: String
+                if let data = try? JSONSerialization.data(withJSONObject: [autoSearchText], options: []),
+                   let json = String(data: data, encoding: .utf8) {
+                    escapedText = String(json.dropFirst().dropLast())
+                } else {
+                    escapedText = "\"\""
                 }
-                return true;
-            })();
-            """
-            webView.evaluateJavaScript(script)
+                let script = """
+                (function() {
+                    var value = \(escapedText);
+                    var input = document.querySelector('#kaikoKamokunm, input[name="kaikoKamokunm"]');
+                    if (!input) { return false; }
+                    input.value = value;
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                    var button = document.querySelector('input[type="button"][value*="検索"]');
+                    if (button) {
+                        setTimeout(function() { button.click(); }, 250);
+                    }
+                    return true;
+                })();
+                """
+                webView.evaluateJavaScript(script) { [weak self] _, _ in
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        self?.runPageValidation(webView)
+                    }
+                }
+            } else {
+                runPageValidation(webView)
+            }
+        }
+
+        private func runPageValidation(_ webView: WKWebView) {
+            guard let script = pageValidationScript else { return }
+            webView.evaluateJavaScript(script) { [weak self] result, _ in
+                guard let self else { return }
+                if let valid = result as? Bool, !valid {
+                    self.onPageValidationFailed?()
+                }
+            }
         }
 
         func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
@@ -159,19 +187,43 @@ struct CampusWebSheet: View {
     @Binding var presentedDestination: CampusWebDestination?
 
     @State private var isLoading = true
+    @State private var showPageError = false
 
     var body: some View {
         NavigationView {
             ZStack {
-                CampusWebView(url: destination.url, autoSearchText: destination.autoSearchText, onLoadingChange: { loading in
-                    isLoading = loading
-                })
+                CampusWebView(
+                    url: destination.url,
+                    autoSearchText: destination.autoSearchText,
+                    onLoadingChange: { loading in
+                        isLoading = loading
+                    },
+                    pageValidationScript: destination.pageValidationScript,
+                    onPageValidationFailed: {
+                        showPageError = true
+                    }
+                )
 
                 if isLoading {
                     ProgressView()
                         .scaleEffect(1.5)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(Color.white.opacity(0.7))
+                }
+
+                if showPageError {
+                    VStack(spacing: 16) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 40))
+                            .foregroundStyle(.orange)
+                        Text("お知らせを開けませんでした")
+                            .font(.system(size: 16, weight: .semibold))
+                        Text("しばらくしてからもう一度お試しください。")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.white)
                 }
             }
             .navigationTitle(destination.title)
