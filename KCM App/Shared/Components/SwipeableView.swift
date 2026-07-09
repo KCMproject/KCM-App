@@ -62,15 +62,17 @@ class SwipeableContainerController: UIViewController {
     private var preloadedHC: UIHostingController<AnyView>?
     private var preloadedIndex: Int?
 
-    private var panGesture: UIPanGestureRecognizer!
+    private var panGesture: UIPanGestureRecognizer?
 
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
 
         panGesture = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
-        panGesture.delegate = self
-        view.addGestureRecognizer(panGesture)
+        if let panGesture {
+            panGesture.delegate = self
+            view.addGestureRecognizer(panGesture)
+        }
 
         if let tab = pendingInitialTab {
             setContent(contentProvider(tab), selectedIndex: tab, animated: false)
@@ -453,6 +455,7 @@ class SwipeableContainerController: UIViewController {
 extension SwipeableContainerController: UIGestureRecognizerDelegate {
     func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
         guard isSwipeEnabled else { return false }
+        guard let panGesture else { return false }
         let velocity = panGesture.velocity(in: view)
         return abs(velocity.x) > abs(velocity.y) * 1.5
     }

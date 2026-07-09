@@ -26,14 +26,18 @@ struct PortalCloneView: View {
     private let accountTab = TabDef(id: "account", title: "アカウント", icon: "person.crop.circle")
 
     private var tabConfig: [TabDef] {
-        let reorderableTabs: [TabDef]
-        if let decoded = try? JSONDecoder().decode([TabDef].self, from: tabBarData), !decoded.isEmpty {
-            reorderableTabs = normalizedTabConfig(decoded)
-        } else {
-            reorderableTabs = normalizedTabConfig(defaultTabs)
-        }
+        assembleTabs(reorderable: decodeReorderableTabs())
+    }
 
-        var tabs = reorderableTabs
+    private func decodeReorderableTabs() -> [TabDef] {
+        if let decoded = try? JSONDecoder().decode([TabDef].self, from: tabBarData), !decoded.isEmpty {
+            return normalizedTabConfig(decoded)
+        }
+        return normalizedTabConfig(defaultTabs)
+    }
+
+    private func assembleTabs(reorderable: [TabDef]) -> [TabDef] {
+        var tabs = reorderable
         if gameTabEnabled {
             tabs.append(gameTab)
         }

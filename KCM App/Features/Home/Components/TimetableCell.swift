@@ -57,34 +57,39 @@ struct TimetableCell: View {
             }
         }
         .popover(isPresented: $showingActionMenu, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
-            VStack(spacing: 0) {
-                if let classroomURL {
-                    Button { showingActionMenu = false; onOpenClassroomURL(classroomURL) } label: {
-                        Label("クラスルームを表示", systemImage: "video")
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.vertical, 10)
-                            .padding(.horizontal, 12)
-                    }
-                    Divider()
-                }
-                Button { showingActionMenu = false; onEditClassroomURL() } label: {
-                    Label("クラスルームを設定", systemImage: "link.badge.plus")
+            actionMenu
+                .presentationCompactAdaptation(.popover)
+        }
+    }
+
+    @ViewBuilder
+    private var actionMenu: some View {
+        VStack(spacing: 0) {
+            if let classroomURL {
+                Button { showingActionMenu = false; onOpenClassroomURL(classroomURL) } label: {
+                    Label("クラスルームを表示", systemImage: "video")
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.vertical, 10)
                         .padding(.horizontal, 12)
                 }
                 Divider()
-                Button { showingActionMenu = false; if let title = item.title { onOpenSyllabusSearch(title) } } label: {
-                    Label("シラバスを表示", systemImage: "book")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.vertical, 10)
-                        .padding(.horizontal, 12)
-                }
             }
-            .padding(.vertical, 6)
-            .frame(minWidth: 220)
-            .presentationCompactAdaptation(.popover)
+            Button { showingActionMenu = false; onEditClassroomURL() } label: {
+                Label("クラスルームを設定", systemImage: "link.badge.plus")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 12)
+            }
+            Divider()
+            Button { showingActionMenu = false; if let title = item.title { onOpenSyllabusSearch(title) } } label: {
+                Label("シラバスを表示", systemImage: "book")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 12)
+            }
         }
+        .padding(.vertical, 6)
+        .frame(minWidth: 220)
     }
 
     private var cellBackground: Color {

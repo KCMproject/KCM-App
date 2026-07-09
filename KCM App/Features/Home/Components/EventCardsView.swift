@@ -204,38 +204,35 @@ private struct EventCardView: View {
     private var popoverMenu: some View {
         VStack(spacing: 0) {
             if classroomURL != nil {
-                Button { selectedMenuEventID = nil; onShowClassroom(event) } label: {
-                    Label("クラスルームを表示", systemImage: "video")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.vertical, 10)
-                        .padding(.horizontal, 12)
+                menuButton(title: "クラスルームを表示", systemImage: "video") {
+                    selectedMenuEventID = nil; onShowClassroom(event)
                 }
                 Divider()
             }
-            Button { selectedMenuEventID = nil; onEditClassroom(event) } label: {
-                Label("クラスルームを設定", systemImage: "link.badge.plus")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 10)
-                    .padding(.horizontal, 12)
+            menuButton(title: "クラスルームを設定", systemImage: "link.badge.plus") {
+                selectedMenuEventID = nil; onEditClassroom(event)
             }
             Divider()
-            Button { selectedMenuEventID = nil; onShowSyllabus(event) } label: {
-                Label("シラバスを表示", systemImage: "book")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 10)
-                    .padding(.horizontal, 12)
+            menuButton(title: "シラバスを表示", systemImage: "book") {
+                selectedMenuEventID = nil; onShowSyllabus(event)
             }
             if event.isIntensive {
                 Divider()
-                Button { selectedMenuEventID = nil; onScheduleAdjust(event) } label: {
-                    Label("日程を調整", systemImage: "calendar.badge.plus")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.vertical, 10)
-                        .padding(.horizontal, 12)
+                menuButton(title: "日程を調整", systemImage: "calendar.badge.plus") {
+                    selectedMenuEventID = nil; onScheduleAdjust(event)
                 }
             }
         }
         .padding(.vertical, 6)
         .frame(minWidth: 220)
+    }
+
+    private func menuButton(title: String, systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 10)
+                .padding(.horizontal, 12)
+        }
     }
 }

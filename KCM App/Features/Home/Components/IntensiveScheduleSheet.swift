@@ -83,14 +83,16 @@ struct IntensiveScheduleSheet: View {
         }
     }
 
-    private func deleteRange(_ range: DateRange) {
-        let targetID = courseID
-        let targetTitle = courseTitle
-        guard let index = intensiveCourses.firstIndex(where: { course in
-            if let id = targetID, course.id == id { return true }
-            if !targetTitle.isEmpty, course.title == targetTitle { return true }
+    private func courseIndex(matchingID id: UUID?, title: String, in courses: [IntensiveCourseCard]) -> Int? {
+        courses.firstIndex { course in
+            if let id, course.id == id { return true }
+            if !title.isEmpty, course.title == title { return true }
             return false
-        }) else { return }
+        }
+    }
+
+    private func deleteRange(_ range: DateRange) {
+        guard let index = courseIndex(matchingID: courseID, title: courseTitle, in: intensiveCourses) else { return }
         var updated = intensiveCourses[index]
         updated.dateRanges.removeAll { $0.id == range.id }
         var newCourses = intensiveCourses
@@ -147,6 +149,14 @@ struct IntensiveScheduleAddSheet: View {
         }
     }
 
+    private func courseIndex(matchingID id: UUID?, title: String, in courses: [IntensiveCourseCard]) -> Int? {
+        courses.firstIndex { course in
+            if let id, course.id == id { return true }
+            if !title.isEmpty, course.title == title { return true }
+            return false
+        }
+    }
+
     private func addSchedule() {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
@@ -161,13 +171,7 @@ struct IntensiveScheduleAddSheet: View {
             endTime: trimmedEnd.isEmpty ? nil : trimmedEnd
         )
 
-        let targetID = courseID
-        let targetTitle = courseTitle
-        guard let index = intensiveCourses.firstIndex(where: { course in
-            if let id = targetID, course.id == id { return true }
-            if !targetTitle.isEmpty, course.title == targetTitle { return true }
-            return false
-        }) else {
+        guard let index = courseIndex(matchingID: courseID, title: courseTitle, in: intensiveCourses) else {
             dismiss()
             return
         }

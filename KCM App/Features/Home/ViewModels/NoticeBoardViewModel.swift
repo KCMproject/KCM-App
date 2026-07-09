@@ -3,7 +3,7 @@ import Combine
 
 @MainActor
 final class NoticeBoardViewModel: ObservableObject {
-    static let shared = NoticeBoardViewModel(portalClient: PortalClientFactory.makeLoginService())
+    static let shared = NoticeBoardViewModel(portalClient: PortalClientFactory.makePortalClient())
     
     @Published var announcements: [NoticeCard] = []
     @Published var isLoading = false
@@ -51,17 +51,8 @@ final class NoticeBoardViewModel: ObservableObject {
         do {
             let serverNotices = try await portalClient.fetchAnnouncements()
             if serverNotices.isEmpty {
-                let fallbackNotices = announcements.isEmpty ? cacheStore.applyCachedAttachments(to: cacheStore.loadNotices()) : announcements
-                if !fallbackNotices.isEmpty {
-                    announcements = fallbackNotices
-                    errorMessage = "掲示板を読み込めませんでした。前回の一覧を表示しています。"
-                    isLoading = false
-                    return false
-                }
-                announcements = []
-                errorMessage = "掲示板を読み込めませんでした。"
                 isLoading = false
-                return false
+                return applyFallbackNotices()
             }
 
             let notices = cacheStore.mergeAndSaveNotices(serverNotices)
@@ -74,18 +65,22 @@ final class NoticeBoardViewModel: ObservableObject {
             }
             return didUpdate
         } catch {
-            let fallbackNotices = announcements.isEmpty ? cacheStore.applyCachedAttachments(to: cacheStore.loadNotices()) : announcements
-            if !fallbackNotices.isEmpty {
-                announcements = fallbackNotices
-                errorMessage = "掲示板を読み込めませんでした。前回の一覧を表示しています。"
-            } else {
-                announcements = []
-                errorMessage = "掲示板を読み込めませんでした。"
-            }
             readIDs = cacheStore.loadReadNoticeIDs()
             self.isLoading = false
-            return false
+            return applyFallbackNotices()
         }
+    }
+
+    private func applyFallbackNotices() -> Bool {
+        let fallbackNotices = announcements.isEmpty ? cacheStore.applyCachedAttachments(to: cacheStore.loadNotices()) : announcements
+        if !fallbackNotices.isEmpty {
+            announcements = fallbackNotices
+            errorMessage = "掲示板を読み込めませんでした。前回の一覧を表示しています。"
+            return true
+        }
+        announcements = []
+        errorMessage = "掲示板を読み込めませんでした。"
+        return false
     }
     
     /// 掲示板詳細の最新URLを解決する（セッション切れ後に古いURLを更新）
@@ -109,6 +104,7 @@ final class NoticeBoardViewModel: ObservableObject {
         for batchStart in stride(from: 0, to: uncheckedNotices.count, by: attachmentFetchBatchSize) {
             let batchEnd = min(batchStart + attachmentFetchBatchSize, uncheckedNotices.count)
             let batch = Array(uncheckedNotices[batchStart..<batchEnd])
+            guard !batch.isEmpty else { continue }
 
             await withTaskGroup(of: (NoticeCard, [NoticeAttachment]?).self) { group in
                 for notice in batch {

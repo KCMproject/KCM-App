@@ -3,7 +3,7 @@ import Combine
 
 @MainActor
 final class TimetableViewModel: ObservableObject {
-    static let shared = TimetableViewModel(portalClient: PortalClientFactory.makeLoginService())
+    static let shared = TimetableViewModel(portalClient: PortalClientFactory.makePortalClient())
     
     @Published var courses: [Course] = []
     @Published var weeklySchedule: [[ClassCell]] = Array(repeating: Array(repeating: .empty, count: 6), count: 6)
@@ -107,41 +107,12 @@ final class TimetableViewModel: ObservableObject {
                 let scheduleMonthKeys = Set(scheduleMonthOffsets.map { scheduleMonthKey(monthOffset: $0) })
                 let fetchedCourses = try await portalClient.fetchTimetable(monthOffsets: scheduleMonthOffsets)
                 fetchedScheduleCourses = fetchedCourses
-
-                let mergedCourses = cacheStore.mergeAndSaveCourses(fetchedCourses, replacingMonthKeys: scheduleMonthKeys)
-                didUpdate = didUpdate || mergedCourses != courses
-                courses = mergedCourses
-
-                var loadedMonthKeys = cacheStore.loadScheduleMonthKeys()
-                loadedMonthKeys.formUnion(scheduleMonthKeys)
-                cacheStore.saveScheduleMonthKeys(loadedMonthKeys)
+                didUpdate = didUpdate || applyScheduleCourses(fetchedCourses, monthKeys: scheduleMonthKeys)
             }
 
             if scope.includesWeekly {
                 let (fetchedWeeklyCourses, weeklyHtml) = try await portalClient.fetchWeeklyTimetableWithHTML(semester: selectedSemester)
-
-                var newWeeklySchedule = buildGrid(from: fetchedWeeklyCourses)
-                if newWeeklySchedule.allSatisfy({ row in row.allSatisfy({ $0.title == nil }) }) {
-                    let fallbackCourses = fetchedScheduleCourses.isEmpty ? courses : fetchedScheduleCourses
-                    newWeeklySchedule = buildGrid(from: fallbackCourses)
-                }
-
-                didUpdate = didUpdate || newWeeklySchedule != weeklySchedule
-                weeklySchedule = newWeeklySchedule
-                cacheStore.saveWeeklyCourses(fetchedWeeklyCourses, for: selectedSemester)
-
-                // 集中講義も同一HTMLからパース（既存の手動日程は保持してマージ）
-                let parsedIntensive = CampusSquareParser.parseIntensiveCoursesFromRSW(from: weeklyHtml)
-                let mergedIntensive = mergeIntensiveCourses(existing: intensiveCourses, parsed: parsedIntensive)
-                didUpdate = didUpdate || mergedIntensive != intensiveCourses
-                intensiveCourses = mergedIntensive
-                cacheStore.saveIntensiveCourses(mergedIntensive, for: selectedSemester)
-
-                // ユーザー名をパースしてキャッシュ（毎回上書き）
-                if let userName = CampusSquareParser.parseUserName(from: weeklyHtml) {
-                    cacheStore.saveUserName(userName.fullName)
-                    cacheStore.saveUserReading(userName.reading)
-                }
+                didUpdate = didUpdate || applyWeeklyContent(courses: fetchedWeeklyCourses, html: weeklyHtml, fallbackCourses: fetchedScheduleCourses)
             }
 
             isLoading = false
@@ -153,6 +124,40 @@ final class TimetableViewModel: ObservableObject {
             self.isLoading = false
             return false
         }
+    }
+
+    private func applyScheduleCourses(_ fetchedCourses: [Course], monthKeys: Set<String>) -> Bool {
+        let mergedCourses = cacheStore.mergeAndSaveCourses(fetchedCourses, replacingMonthKeys: monthKeys)
+        let didUpdate = mergedCourses != courses
+        courses = mergedCourses
+        var loadedMonthKeys = cacheStore.loadScheduleMonthKeys()
+        loadedMonthKeys.formUnion(monthKeys)
+        cacheStore.saveScheduleMonthKeys(loadedMonthKeys)
+        return didUpdate
+    }
+
+    private func applyWeeklyContent(courses fetchedWeeklyCourses: [Course], html weeklyHtml: String, fallbackCourses: [Course]) -> Bool {
+        var didUpdate = false
+        var newWeeklySchedule = buildGrid(from: fetchedWeeklyCourses)
+        if newWeeklySchedule.allSatisfy({ row in row.allSatisfy({ $0.title == nil }) }) {
+            let fallback = fallbackCourses.isEmpty ? courses : fallbackCourses
+            newWeeklySchedule = buildGrid(from: fallback)
+        }
+        didUpdate = didUpdate || newWeeklySchedule != weeklySchedule
+        weeklySchedule = newWeeklySchedule
+        cacheStore.saveWeeklyCourses(fetchedWeeklyCourses, for: selectedSemester)
+
+        let parsedIntensive = CampusSquareParser.parseIntensiveCoursesFromRSW(from: weeklyHtml)
+        let mergedIntensive = mergeIntensiveCourses(existing: intensiveCourses, parsed: parsedIntensive)
+        didUpdate = didUpdate || mergedIntensive != intensiveCourses
+        intensiveCourses = mergedIntensive
+        cacheStore.saveIntensiveCourses(mergedIntensive, for: selectedSemester)
+
+        if let userName = CampusSquareParser.parseUserName(from: weeklyHtml) {
+            cacheStore.saveUserName(userName.fullName)
+            cacheStore.saveUserReading(userName.reading)
+        }
+        return didUpdate
     }
 
     private func scheduleMonthOffsetsToFetch(forOneYear: Bool = false) -> [Int] {
@@ -174,7 +179,8 @@ final class TimetableViewModel: ObservableObject {
         let currentMonth = startOfMonth(for: referenceDay, calendar: calendar)
         let targetMonth = startOfMonth(for: clampedDate, calendar: calendar)
         let monthCount = calendar.dateComponents([.month], from: currentMonth, to: targetMonth).month ?? 0
-        return Array(0...max(0, min(monthCount, 12)))
+        guard monthCount > 0 else { return [0] }
+        return Array(0...min(monthCount, 12))
     }
 
     private func scheduleMonthKey(monthOffset: Int) -> String {

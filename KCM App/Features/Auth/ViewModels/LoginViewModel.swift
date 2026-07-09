@@ -3,7 +3,7 @@ import Foundation
 
 @MainActor
 final class LoginViewModel: ObservableObject {
-    static let shared = LoginViewModel(portalClient: PortalClientFactory.makeLoginService())
+    static let shared = LoginViewModel(portalClient: PortalClientFactory.makePortalClient())
     
     @Published var studentID = ""
     @Published var password = ""
@@ -22,7 +22,9 @@ final class LoginViewModel: ObservableObject {
     }
 
     func login() {
-        login(studentID: studentID, password: password, automatic: false)
+        Task {
+            await login(studentID: studentID, password: password, automatic: false)
+        }
     }
 
     /// アプリ起動時に呼ばれる。既存セッションを破棄し、自動ログイン設定に応じて分岐する。
@@ -42,7 +44,7 @@ final class LoginViewModel: ObservableObject {
                 isLoading = true
                 studentID = credentials.studentID
                 password = credentials.password
-                login(studentID: credentials.studentID, password: credentials.password, automatic: true)
+                await login(studentID: credentials.studentID, password: credentials.password, automatic: true)
             } else {
                 // 自動ログインOFF：ログイン画面を表示
                 shouldShowCachedPortal = false
@@ -52,11 +54,15 @@ final class LoginViewModel: ObservableObject {
 
     func logout() async {
         await portalClient.logout()
+        clearSharedViewModelStates()
+        PortalCacheStore.shared.clearAllUserData()
         password = ""
         isLoggedIn = false
         shouldShowCachedPortal = false
         isReady = false
-        PortalCacheStore.shared.clearAllUserData()
+    }
+
+    private func clearSharedViewModelStates() {
         TimetableViewModel.shared.courses = []
         TimetableViewModel.shared.intensiveCourses = []
         TimetableViewModel.shared.weeklySchedule = Array(repeating: Array(repeating: .empty, count: 6), count: 6)
@@ -85,7 +91,7 @@ final class LoginViewModel: ObservableObject {
         AppBannerCenter.shared.show("パスワードを保存しました")
     }
 
-    private func login(studentID: String, password: String, automatic: Bool) {
+    private func login(studentID: String, password: String, automatic: Bool) async {
         guard !studentID.isEmpty, !password.isEmpty else {
             if !automatic {
                 errorMessage = "学籍番号とパスワードを入力してください"
@@ -100,32 +106,28 @@ final class LoginViewModel: ObservableObject {
 
         let credentials = CampusSquareCredentials(userName: studentID, password: password)
 
-        portalClient.login(credentials: credentials) { [weak self] result in
-            guard let self = self else { return }
+        let result: CampusSquareLoginResult = await withCheckedContinuation { continuation in
+            portalClient.login(credentials: credentials) { result in
+                continuation.resume(returning: result)
+            }
+        }
 
-            DispatchQueue.main.async {
-                self.isLoading = false
-                switch result {
-                case .success:
-                    self.studentID = studentID
-                    self.password = password
-                    self.isLoggedIn = true
-                    self.shouldShowCachedPortal = self.shouldShowCachedPortal || PortalDataCoordinator.shared.hasCachedContent
-                    self.persistCredentialsIfNeeded()
-                    self.isReady = false
-
-                    Task {
-                        await PortalDataCoordinator.shared.refreshAll(showUpdateBanner: true)
-                        self.isReady = true
-                    }
-                case .failure(let error):
-                    if automatic {
-                        // 自動ログイン失敗時はキャッシュ表示を維持し、静かに失敗
-                        self.shouldShowCachedPortal = true
-                    } else {
-                        self.errorMessage = error.errorDescription
-                    }
-                }
+        isLoading = false
+        switch result {
+        case .success:
+            self.studentID = studentID
+            self.password = password
+            isLoggedIn = true
+            shouldShowCachedPortal = shouldShowCachedPortal || PortalDataCoordinator.shared.hasCachedContent
+            persistCredentialsIfNeeded()
+            isReady = false
+            await PortalDataCoordinator.shared.refreshAll(showUpdateBanner: true)
+            isReady = true
+        case .failure(let error):
+            if automatic {
+                shouldShowCachedPortal = true
+            } else {
+                errorMessage = error.errorDescription
             }
         }
     }

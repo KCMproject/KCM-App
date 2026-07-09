@@ -75,7 +75,7 @@ final class PortalAuthClient {
             self.rwfHash = String(loginPageHtml[range])
         }
 
-        let postURL = URL(string: "\(networkClient.baseURL)\(portalURL)")!
+        guard let postURL = URL(string: "\(networkClient.baseURL)\(portalURL)") else { throw CampusSquareLoginError.authenticationFailed("無効なポータルURLです") }
         var request = networkClient.makeRequest(
             url: postURL,
             method: "POST",

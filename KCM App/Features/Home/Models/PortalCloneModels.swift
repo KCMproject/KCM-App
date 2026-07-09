@@ -43,11 +43,6 @@ struct DayEvent: Identifiable {
         )
     }
 
-    private static func parseMinutes(_ time: String) -> Int {
-        let parts = time.split(separator: ":").compactMap { Int($0) }
-        guard parts.count == 2 else { return 0 }
-        return parts[0] * 60 + parts[1]
-    }
 }
 
 struct Period {
@@ -174,8 +169,7 @@ struct IntensiveCourseCard: Identifiable, Codable, Equatable {
         } else {
             if let dates = try container.decodeIfPresent([String].self, forKey: .dates), !dates.isEmpty {
                 let sorted = dates.sorted()
-                let first = sorted.first!
-                let last = sorted.last!
+                guard let first = sorted.first, let last = sorted.last else { self.dateRanges = []; return }
                 let start = try container.decodeIfPresent(String.self, forKey: .startTime)
                 let end = try container.decodeIfPresent(String.self, forKey: .endTime)
                 self.dateRanges = [DateRange(startDate: first, endDate: last, startTime: start, endTime: end)]
@@ -276,7 +270,7 @@ struct ChatMessage: Identifiable, Equatable {
 
 struct SettingRow {
     enum Kind {
-        case toggle(Binding<Bool>)
+        case toggle(String)
         case link(() -> Void)
     }
 
@@ -286,8 +280,8 @@ struct SettingRow {
     let subtitle: String?
     let kind: Kind
 
-    static func toggle(_ icon: String, _ color: Color, _ title: String, _ subtitle: String?, _ binding: Binding<Bool>) -> Self {
-        .init(icon: icon, color: color, title: title, subtitle: subtitle, kind: .toggle(binding))
+    static func toggle(_ icon: String, _ color: Color, _ title: String, _ subtitle: String?, _ id: String) -> Self {
+        .init(icon: icon, color: color, title: title, subtitle: subtitle, kind: .toggle(id))
     }
 
     static func link(_ icon: String, _ color: Color, _ title: String, _ subtitle: String?, _ action: @escaping () -> Void) -> Self {

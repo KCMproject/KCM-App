@@ -9,7 +9,7 @@
 import Foundation
 
 /// CAMPUSSQUARE ログインインターフェース
-protocol PortalClientProtocol: AnyObject {
+protocol PortalClientProtocol {
 
     /// ログインを実行する
     /// - Parameters:

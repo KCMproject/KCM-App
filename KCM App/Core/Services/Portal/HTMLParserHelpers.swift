@@ -34,7 +34,7 @@ enum HTMLParserHelpers {
             let snippet = html[nextTag.upperBound...].lowercased()
             if snippet.hasPrefix("/\(tag.lowercased())") {
                 if depth == 0 {
-                    let tagEnd = html.range(of: ">", range: nextTag.lowerBound..<html.endIndex)!.upperBound
+                    guard let tagEnd = html.range(of: ">", range: nextTag.lowerBound..<html.endIndex)?.upperBound else { return nil }
                     return String(html[firstOpenBracket..<tagEnd])
                 }
                 depth -= 1

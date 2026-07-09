@@ -1,8 +1,11 @@
 import Foundation
 
 /// ユーザー名・読みのキャッシュを管理
-@MainActor
 final class UserProfileCacheStore: CacheStore {
+    override init(defaults: UserDefaults = .standard) {
+        super.init(defaults: defaults)
+    }
+
     private enum Key {
         static let userName = "portalCache.userName"
         static let userReading = "portalCache.userReading"

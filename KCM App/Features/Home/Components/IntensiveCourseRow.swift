@@ -77,40 +77,45 @@ struct IntensiveCourseRow: View {
             showingActionMenu = true
         }
         .popover(isPresented: $showingActionMenu, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
-            VStack(spacing: 0) {
-                Button { showingActionMenu = false; onEdit() } label: {
-                    Label("日程を編集", systemImage: "calendar.badge.clock")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.vertical, 10)
-                        .padding(.horizontal, 12)
-                }
+            actionMenu
+                .presentationCompactAdaptation(.popover)
+        }
+    }
+
+    @ViewBuilder
+    private var actionMenu: some View {
+        VStack(spacing: 0) {
+            Button { showingActionMenu = false; onEdit() } label: {
+                Label("日程を編集", systemImage: "calendar.badge.clock")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 12)
+            }
+            Divider()
+            Button { showingActionMenu = false; onEditClassroomURL() } label: {
+                Label("クラスルームを設定", systemImage: "link.badge.plus")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 12)
+            }
+            if let url = classroomURL {
                 Divider()
-                Button { showingActionMenu = false; onEditClassroomURL() } label: {
-                    Label("クラスルームを設定", systemImage: "link.badge.plus")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.vertical, 10)
-                        .padding(.horizontal, 12)
-                }
-                if let url = classroomURL {
-                    Divider()
-                    Button { showingActionMenu = false; onOpenClassroomURL(url) } label: {
-                        Label("クラスルームを表示", systemImage: "video")
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.vertical, 10)
-                            .padding(.horizontal, 12)
-                    }
-                }
-                Divider()
-                Button { showingActionMenu = false; onOpenSyllabusSearch(course.title) } label: {
-                    Label("シラバスを表示", systemImage: "book")
+                Button { showingActionMenu = false; onOpenClassroomURL(url) } label: {
+                    Label("クラスルームを表示", systemImage: "video")
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.vertical, 10)
                         .padding(.horizontal, 12)
                 }
             }
-            .padding(.vertical, 6)
-            .frame(minWidth: 220)
-            .presentationCompactAdaptation(.popover)
+            Divider()
+            Button { showingActionMenu = false; onOpenSyllabusSearch(course.title) } label: {
+                Label("シラバスを表示", systemImage: "book")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 12)
+            }
         }
+        .padding(.vertical, 6)
+        .frame(minWidth: 220)
     }
 }

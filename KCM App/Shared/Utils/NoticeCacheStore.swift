@@ -1,8 +1,11 @@
 import Foundation
 
 /// 掲示板・添付ファイル・お気に入りIDのキャッシュを管理
-@MainActor
 final class NoticeCacheStore: CacheStore {
+    override init(defaults: UserDefaults = .standard) {
+        super.init(defaults: defaults)
+    }
+
     private enum Key {
         static let notices = "portalCache.notices"
         static let noticeAttachments = "portalCache.noticeAttachments"

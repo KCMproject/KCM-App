@@ -119,13 +119,7 @@ struct CampusWebView: UIViewRepresentable {
 
             if let autoSearchText, !autoSearchText.isEmpty, !didAutoSearch {
                 didAutoSearch = true
-                let escapedText: String
-                if let data = try? JSONSerialization.data(withJSONObject: [autoSearchText], options: []),
-                   let json = String(data: data, encoding: .utf8) {
-                    escapedText = String(json.dropFirst().dropLast())
-                } else {
-                    escapedText = "\"\""
-                }
+                let escapedText = (try? String(data: JSONEncoder().encode(autoSearchText), encoding: .utf8)) ?? "\"\""
                 let script = """
                 (function() {
                     var value = \(escapedText);

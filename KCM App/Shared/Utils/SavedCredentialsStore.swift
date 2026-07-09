@@ -24,22 +24,17 @@ final class SavedCredentialsStore {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
-            kSecAttrSynchronizable as String: false
+            kSecAttrAccount as String: account
         ]
 
-        let attributes: [String: Any] = [
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
-            kSecAttrSynchronizable as String: false
-        ]
-
-        let status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
-        if status == errSecItemNotFound {
+        let status = SecItemUpdate(query as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+        switch status {
+        case errSecSuccess: break
+        case errSecItemNotFound:
             var insertQuery = query
             insertQuery[kSecValueData as String] = data
             SecItemAdd(insertQuery as CFDictionary, nil)
+        default: break
         }
     }
 
