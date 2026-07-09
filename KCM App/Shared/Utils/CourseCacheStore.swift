@@ -1,8 +1,11 @@
 import Foundation
 
 /// 授業・予定・時間割・集中講義のキャッシュを管理
-@MainActor
 final class CourseCacheStore: CacheStore {
+    override init(defaults: UserDefaults = .standard) {
+        super.init(defaults: defaults)
+    }
+
     private enum Key {
         static let courses = "portalCache.courses"
         static let scheduleMonthKeys = "portalCache.scheduleMonthKeys"

@@ -1,11 +1,14 @@
 import Foundation
 
 /// UserDefaults ベースのキャッシュ保存の共通基盤
-@MainActor
 class CacheStore {
-    let defaults = UserDefaults.standard
+    let defaults: UserDefaults
     let encoder = JSONEncoder()
     let decoder = JSONDecoder()
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+    }
 
     func encode<T: Encodable>(_ value: T) -> Data? {
         try? encoder.encode(value)

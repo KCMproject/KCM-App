@@ -1,8 +1,11 @@
 import Foundation
 
 /// 教室URLのキャッシュを管理
-@MainActor
 final class ClassroomURLCacheStore: CacheStore {
+    override init(defaults: UserDefaults = .standard) {
+        super.init(defaults: defaults)
+    }
+
     private enum Key {
         static let classroomURLs = "portalCache.classroomURLs"
     }

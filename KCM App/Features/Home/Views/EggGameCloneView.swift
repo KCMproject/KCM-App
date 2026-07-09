@@ -1,13 +1,13 @@
 import SwiftUI
 
-// MARK: - Debug Constants
+// MARK: - Game Configuration
 
-/// 本番に戻す際はここを false にしてください
-let isDebugMode = false
-/// 1タップで加算されるタップ数（デバッグ用）
-let tapsPerTap = 1
-/// デバッグ時は全キャラ出現率を均等にする
-let debugWeight: Double = 20
+struct EggGameConfig {
+    static let isDebugMode = false
+    static let tapsPerTap = 1
+    static let tapsPerSpawn = 1_000
+    static let debugWeight: Double = 20
+}
 
 // MARK: - Character Definitions
 
@@ -21,8 +21,8 @@ struct CharDef: Identifiable, Hashable {
     let glowColor: Color
 }
 
-let chars: [CharDef] = {
-    let baseChars: [CharDef] = [
+struct EggGameCharacters {
+    static let base: [CharDef] = [
         CharDef(id: "normal", name: "ノーマル", rarity: "NORMAL", rarityColor: .gray, imageName: "char_normal", weight: 80, glowColor: .clear),
         CharDef(id: "sunglass", name: "クールくん", rarity: "RARE", rarityColor: .blue, imageName: "char_sunglass", weight: 7, glowColor: .blue.opacity(0.3)),
         CharDef(id: "aloha", name: "アロハくん", rarity: "RARE", rarityColor: .green, imageName: "char_aloha", weight: 6.99, glowColor: .green.opacity(0.3)),
@@ -30,20 +30,23 @@ let chars: [CharDef] = {
         CharDef(id: "gold", name: "ゴールド", rarity: "LEGENDARY", rarityColor: .yellow, imageName: "char_gold", weight: 0.01, glowColor: .yellow.opacity(0.5))
     ]
 
-    guard isDebugMode else { return baseChars }
-    return baseChars.map { CharDef(id: $0.id, name: $0.name, rarity: $0.rarity, rarityColor: $0.rarityColor, imageName: $0.imageName, weight: debugWeight, glowColor: $0.glowColor) }
-}()
-
-let totalWeight = chars.reduce(0) { $0 + $1.weight }
-let tapsPerSpawn = 1_000
-
-func pickChar() -> CharDef {
-    var r = Double.random(in: 0..<totalWeight)
-    for char in chars {
-        r -= char.weight
-        if r <= 0 { return char }
+    static var all: [CharDef] {
+        guard EggGameConfig.isDebugMode else { return base }
+        return base.map { CharDef(id: $0.id, name: $0.name, rarity: $0.rarity, rarityColor: $0.rarityColor, imageName: $0.imageName, weight: EggGameConfig.debugWeight, glowColor: $0.glowColor) }
     }
-    return chars[0]
+}
+
+enum EggGameRandom {
+    static func pickChar() -> CharDef {
+        let all = EggGameCharacters.all
+        let totalWeight = all.reduce(0) { $0 + $1.weight }
+        var r = Double.random(in: 0..<totalWeight)
+        for char in all {
+            r -= char.weight
+            if r <= 0 { return char }
+        }
+        return all[0]
+    }
 }
 
 // MARK: - Walking Character Model
@@ -123,7 +126,7 @@ struct EggGameCloneView: View {
                     .frame(width: 120, height: 140)
 
                 if state.hatchPhase == .none {
-                    ProgressView(value: Double(state.tapCount % tapsPerSpawn), total: Double(tapsPerSpawn))
+                    ProgressView(value: Double(state.tapCount % EggGameConfig.tapsPerSpawn), total: Double(EggGameConfig.tapsPerSpawn))
                         .progressViewStyle(EggProgressStyle())
                         .frame(width: 180)
                 }
@@ -360,7 +363,7 @@ struct EggGameCloneView: View {
 
     private var collectionList: some View {
         VStack(alignment: .leading, spacing: 6) {
-            ForEach(chars) { char in
+            ForEach(EggGameCharacters.all) { char in
                 collectionRow(char: char)
             }
         }
@@ -406,147 +409,15 @@ struct EggGameCloneView: View {
     }
 }
 
-// MARK: - Egg Shapes
-
-struct EggShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let scaleX = rect.width / 110
-        let scaleY = rect.height / 130
-        let transform = CGAffineTransform(scaleX: scaleX, y: scaleY)
-            .translatedBy(x: rect.minX / scaleX, y: rect.minY / scaleY)
-
-        path.move(to: CGPoint(x: 55, y: 6))
-        path.addCurve(to: CGPoint(x: 14, y: 68), control1: CGPoint(x: 28, y: 6), control2: CGPoint(x: 14, y: 36))
-        path.addCurve(to: CGPoint(x: 55, y: 122), control1: CGPoint(x: 14, y: 100), control2: CGPoint(x: 32, y: 122))
-        path.addCurve(to: CGPoint(x: 96, y: 68), control1: CGPoint(x: 78, y: 122), control2: CGPoint(x: 96, y: 100))
-        path.addCurve(to: CGPoint(x: 55, y: 6), control1: CGPoint(x: 96, y: 36), control2: CGPoint(x: 82, y: 6))
-        path.closeSubpath()
-
-        return path.applying(transform)
-    }
-}
-
-struct EggHalf: Shape {
-    let isLeft: Bool
-
-    func path(in rect: CGRect) -> Path {
-        let eggPath = EggShape().path(in: rect)
-        var path = Path()
-        let width = rect.width
-        let height = rect.height
-
-        if isLeft {
-            path.addRect(CGRect(x: 0, y: 0, width: width / 2, height: height))
-        } else {
-            path.addRect(CGRect(x: width / 2, y: 0, width: width / 2, height: height))
-        }
-
-        return eggPath.intersection(path)
-    }
-}
-
-struct EggCracks: Shape {
-    let level: Int
-
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let scaleX = rect.width / 110
-        let scaleY = rect.height / 130
-        let transform = CGAffineTransform(scaleX: scaleX, y: scaleY)
-
-        let cracks: [(Int, String)] = [
-            (1, "M52 48 L58 58 L53 65"),
-            (2, "M58 58 L66 54 L70 62 M52 48 L46 44 L42 52"),
-            (3, "M55 65 L59 76 L54 83 M42 52 L36 57 L40 64 M70 62 L76 66 L72 74"),
-            (4, "M47 38 L42 32 L48 28 M64 40 L70 34 M46 95 L40 103 M66 92 L72 100 L68 108")
-        ]
-
-        for (minLevel, d) in cracks where level >= minLevel {
-            path.addPath(parseSVGPath(d).applying(transform))
-        }
-
-        return path
-    }
-
-    private func parseSVGPath(_ d: String) -> Path {
-        var path = Path()
-        var current = CGPoint.zero
-        var index = d.startIndex
-
-        func parseNumber() -> CGFloat? {
-            // Skip whitespace and commas
-            while index < d.endIndex && (d[index] == " " || d[index] == ",") {
-                d.formIndex(after: &index)
-            }
-            guard index < d.endIndex else { return nil }
-
-            let start = index
-            if d[index] == "-" {
-                d.formIndex(after: &index)
-            }
-            var hasDigit = false
-            var hasDot = false
-            while index < d.endIndex {
-                let c = d[index]
-                if c.isNumber {
-                    hasDigit = true
-                    d.formIndex(after: &index)
-                } else if c == "." && !hasDot {
-                    hasDot = true
-                    d.formIndex(after: &index)
-                } else {
-                    break
-                }
-            }
-            guard hasDigit else { return nil }
-            let numStr = String(d[start..<index])
-            return CGFloat(Double(numStr) ?? 0)
-        }
-
-        var currentCommand: Character = " "
-
-        while index < d.endIndex {
-            // Skip whitespace
-            while index < d.endIndex && d[index] == " " {
-                d.formIndex(after: &index)
-            }
-            guard index < d.endIndex else { break }
-
-            // Check for command letter
-            if d[index].isLetter {
-                currentCommand = d[index]
-                d.formIndex(after: &index)
-            }
-
-            guard let x = parseNumber(), let y = parseNumber() else { break }
-
-            switch currentCommand {
-            case "M":
-                current = CGPoint(x: x, y: y)
-                path.move(to: current)
-                currentCommand = "L" // Subsequent coords are treated as line-to
-            case "L", "l":
-                current = CGPoint(x: x, y: y)
-                path.addLine(to: current)
-            default:
-                break
-            }
-        }
-
-        return path
-    }
-}
+// MARK: - Egg Rendering Helpers
 
 private func eggShape(crackLevel: Int) -> some View {
     ZStack {
-        // Shadow
         Ellipse()
             .fill(Color.brown.opacity(0.18))
             .frame(width: 48, height: 8)
             .offset(y: 62)
 
-        // Egg body
         EggShape()
             .fill(Color(hex: 0xFEF6E4))
             .overlay(
@@ -554,7 +425,6 @@ private func eggShape(crackLevel: Int) -> some View {
                     .stroke(Color(hex: 0xC8A882), lineWidth: 3.5)
             )
 
-        // Cracks
         EggCracks(level: crackLevel)
             .stroke(Color(hex: 0xC8A882), lineWidth: 2)
     }
@@ -567,54 +437,6 @@ private func eggHalf(isLeft: Bool) -> some View {
             EggHalf(isLeft: isLeft)
                 .stroke(Color(hex: 0xC8A882), lineWidth: 3.5)
         )
-}
-
-// MARK: - Effects
-
-struct ShakeEffect: ViewModifier {
-    let shake: Bool
-
-    func body(content: Content) -> some View {
-        content
-            .rotationEffect(.degrees(shake ? -6 : 0))
-            .offset(x: shake ? -3 : 0)
-            .animation(
-                shake
-                    ? .easeInOut(duration: 0.08).repeatForever(autoreverses: true)
-                    : .spring(response: 0.18, dampingFraction: 0.5),
-                value: shake
-            )
-    }
-}
-
-struct EggProgressStyle: ProgressViewStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        GeometryReader { geometry in
-            RoundedRectangle(cornerRadius: 5)
-                .fill(AppTheme.accent.opacity(0.15))
-                .frame(height: 10)
-                .overlay(alignment: .leading) {
-                    Rectangle()
-                        .fill(AppTheme.accent)
-                        .frame(width: CGFloat(configuration.fractionCompleted ?? 0) * geometry.size.width)
-                        .animation(.linear(duration: 0.1), value: configuration.fractionCompleted)
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 5))
-        }
-        .frame(height: 10)
-    }
-}
-
-// MARK: - Color Helper
-
-extension Color {
-    init(hex: UInt) {
-        self.init(
-            red: Double((hex >> 16) & 0xFF) / 255.0,
-            green: Double((hex >> 8) & 0xFF) / 255.0,
-            blue: Double(hex & 0xFF) / 255.0
-        )
-    }
 }
 
 // MARK: - Preview

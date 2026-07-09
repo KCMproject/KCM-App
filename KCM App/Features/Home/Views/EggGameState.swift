@@ -45,7 +45,7 @@ final class EggGameState: ObservableObject {
     // MARK: Computed
 
     var progress: Double {
-        Double(tapCount % tapsPerSpawn) / Double(tapsPerSpawn)
+        Double(tapCount % EggGameConfig.tapsPerSpawn) / Double(EggGameConfig.tapsPerSpawn)
     }
 
     var crackLevel: Int {
@@ -53,7 +53,7 @@ final class EggGameState: ObservableObject {
     }
 
     var currentCycle: Int {
-        tapCount / tapsPerSpawn
+        tapCount / EggGameConfig.tapsPerSpawn
     }
 
     // MARK: Game Loop
@@ -91,8 +91,9 @@ final class EggGameState: ObservableObject {
 
     func regenerateWalkersFromCollection() {
         var newWalkers: [WalkingChar] = []
+        let allChars = EggGameCharacters.all
         for (charID, count) in collection {
-            guard let char = chars.first(where: { $0.id == charID }) else { continue }
+            guard let char = allChars.first(where: { $0.id == charID }) else { continue }
             for _ in 0..<count {
                 newWalkers.append(makeWalker(char: char))
             }
@@ -161,12 +162,12 @@ final class EggGameState: ObservableObject {
             self?.tapRipples.removeAll { $0.id == ripple.id }
         }
 
-        let previousCycle = tapCount / tapsPerSpawn
-        tapCount += tapsPerTap
-        let newCycle = tapCount / tapsPerSpawn
+        let previousCycle = tapCount / EggGameConfig.tapsPerSpawn
+        tapCount += EggGameConfig.tapsPerTap
+        let newCycle = tapCount / EggGameConfig.tapsPerSpawn
 
         if newCycle > previousCycle {
-            let char = pickChar()
+            let char = EggGameRandom.pickChar()
             triggerHatch(char)
         }
     }

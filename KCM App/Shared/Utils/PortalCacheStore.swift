@@ -1,16 +1,23 @@
 import Foundation
 
 /// 各種キャッシュ保存のファサード
-@MainActor
 final class PortalCacheStore {
     static let shared = PortalCacheStore()
 
-    private let courseCache = CourseCacheStore()
-    private let noticeCache = NoticeCacheStore()
-    private let classroomURLCache = ClassroomURLCacheStore()
-    private let userProfileCache = UserProfileCacheStore()
+    private let courseCache: CourseCacheStore
+    private let noticeCache: NoticeCacheStore
+    private let classroomURLCache: ClassroomURLCacheStore
+    private let userProfileCache: UserProfileCacheStore
 
-    private init() {}
+    init(courseCache: CourseCacheStore = CourseCacheStore(),
+         noticeCache: NoticeCacheStore = NoticeCacheStore(),
+         classroomURLCache: ClassroomURLCacheStore = ClassroomURLCacheStore(),
+         userProfileCache: UserProfileCacheStore = UserProfileCacheStore()) {
+        self.courseCache = courseCache
+        self.noticeCache = noticeCache
+        self.classroomURLCache = classroomURLCache
+        self.userProfileCache = userProfileCache
+    }
 
     // MARK: - 月次予定
 

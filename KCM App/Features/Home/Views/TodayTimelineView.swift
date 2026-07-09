@@ -28,17 +28,20 @@ struct TodayTimelineView: View {
         let calendarWeekday = Calendar.current.component(.weekday, from: date)
         let weekday = labels[calendarWeekday - 1]
         let weekdayIndex = (2...6).contains(calendarWeekday) ? calendarWeekday - 2 : -1
-        
+
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         let dateString = formatter.string(from: date)
-        
-        let periods = Period.standardPeriods
-        
+
         var results: [DayEvent] = []
-        
-        // 通常授業
-        let regularEvents = viewModel.courses
+        results.append(contentsOf: makeRegularEvents(for: date, dateString: dateString, weekday: weekday, weekdayIndex: weekdayIndex))
+        results.append(contentsOf: makeIntensiveEvents(for: date, dateString: dateString))
+        return results
+    }
+
+    private func makeRegularEvents(for date: Date, dateString: String, weekday: String, weekdayIndex: Int) -> [DayEvent] {
+        let periods = Period.standardPeriods
+        return viewModel.courses
             .filter { course in
                 guard !course.isScheduleNote else { return false }
                 if let courseDate = course.dateString {
@@ -73,13 +76,12 @@ struct TodayTimelineView: View {
                     classroomKey: classroomKey
                 )
             }
-        results.append(contentsOf: regularEvents)
-        
-        // 集中講義（日程が入力されているもの）
-        let intensiveEvents = viewModel.intensiveCourses
+    }
+
+    private func makeIntensiveEvents(for date: Date, dateString: String) -> [DayEvent] {
+        viewModel.intensiveCourses
             .filter { $0.allDates.contains(dateString) && !$0.dateRanges.isEmpty }
             .map { course in
-                // 該当するDateRangeの時間を使用
                 let matchingRange = course.dateRanges.first { $0.dates.contains(dateString) }
                 return DayEvent(
                     title: course.title,
@@ -91,9 +93,6 @@ struct TodayTimelineView: View {
                     isIntensive: true
                 )
             }
-        results.append(contentsOf: intensiveEvents)
-        
-        return results
     }
 
     private func scheduleNotes(for date: Date) -> [Course] {
@@ -161,30 +160,11 @@ struct TodayTimelineView: View {
         .sheet(item: $webDestination) { destination in
             CampusWebSheet(destination: destination, presentedDestination: $webDestination)
         }
-        .alert("クラスルームURLを設定", isPresented: $classroomURLManager.isEditing) {
-            TextField("URLを入力", text: $classroomURLManager.temporaryURL)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-            Button("キャンセル", role: .cancel) {
-                classroomURLManager.cancel()
-            }
-            Button("保存") {
-                classroomURLManager.commit()
-            }
-            Button("クリア", role: .destructive) {
-                classroomURLManager.clear()
-            }
-        } message: {
-            Text("Google Classroom・Zoom等のURLを入力してください. ClassroomのURLはアプリではなくブラウザから取得できます。")
-        }
+        .classroomURLEditAlert(manager: classroomURLManager)
     }
 
     private func openSyllabusSearch(for event: DayEvent) {
-        UIPasteboard.general.string = event.title
-        guard let url = URL(string: "https://cs.kunitachi.ac.jp/campusweb/campussquare.do?_flowId=SBW3701300-flow&link=menu-link-mf-164899") else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-            webDestination = CampusWebDestination(url: url, title: "シラバス参照", autoSearchText: event.title)
-        }
+        SyllabusSearchOpener.openSearch(for: event.title) { self.webDestination = $0 }
     }
 
     private func classroomURL(for event: DayEvent) -> String? {
@@ -332,8 +312,8 @@ struct TodayTimelineView: View {
 
     @MainActor
     private var datePickerContentInner: some View {
-        let lowerBound = viewModel.earliestCachedDate() ?? Calendar.current.date(byAdding: .day, value: -365, to: today)!
-        // UIDatePickerのinlineスタイル（サイズ変動なし）
+        let lowerBound = viewModel.earliestCachedDate() ?? Calendar.current.date(byAdding: .day, value: -365, to: today) ?? today
+        let upperBound = Calendar.current.date(byAdding: .day, value: 365, to: today) ?? today
         return FixedHeightDatePicker(
             selection: Binding(
                 get: { selectedDate },
@@ -347,7 +327,7 @@ struct TodayTimelineView: View {
                     }
                 }
             ),
-            range: lowerBound...Calendar.current.date(byAdding: .day, value: 365, to: today)!
+            range: lowerBound...upperBound
         )
     }
 
@@ -422,31 +402,35 @@ struct TodayTimelineView: View {
             ForEach(Array(dates.enumerated()), id: \.offset) { _, date in
                 let selected = calendar.isDate(date, inSameDayAs: selectedDate)
                 let isToday = calendar.isDate(date, inSameDayAs: today)
-                let dayIndex = calendar.component(.weekday, from: date) - 1
-                let textColor: Color = dayIndex == 0 ? .red.opacity(0.7) : dayIndex == 6 ? AppTheme.accent.opacity(0.8) : AppTheme.textMuted
-
-                Button {
-                    setDisplayedDate(date)
-                } label: {
-                    VStack(spacing: 4) {
-                        Text(WeekdayLabels.full[dayIndex])
-                            .font(.system(size: 12))
-                            .foregroundStyle(textColor)
-                        Text("\(calendar.component(.day, from: date))")
-                            .font(.system(size: 14))
-                            .foregroundStyle(selected ? .white : isToday ? AppTheme.accent : AppTheme.textPrimary)
-                            .frame(width: 28, height: 28)
-                            .background(
-                                Circle()
-                                    .fill(selected ? AppTheme.accent : isToday ? AppTheme.accent.opacity(0.14) : .clear)
-                            )
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                }
-                .buttonStyle(.plain)
+                weekDayButton(date: date, selected: selected, isToday: isToday)
             }
         }
+    }
+
+    private func weekDayButton(date: Date, selected: Bool, isToday: Bool) -> some View {
+        let dayIndex = Calendar.current.component(.weekday, from: date) - 1
+        let textColor: Color = dayIndex == 0 ? .red.opacity(0.7) : dayIndex == 6 ? AppTheme.accent.opacity(0.8) : AppTheme.textMuted
+
+        return Button {
+            setDisplayedDate(date)
+        } label: {
+            VStack(spacing: 4) {
+                Text(WeekdayLabels.full[dayIndex])
+                    .font(.system(size: 12))
+                    .foregroundStyle(textColor)
+                Text("\(Calendar.current.component(.day, from: date))")
+                    .font(.system(size: 14))
+                    .foregroundStyle(selected ? .white : isToday ? AppTheme.accent : AppTheme.textPrimary)
+                    .frame(width: 28, height: 28)
+                    .background(
+                        Circle()
+                            .fill(selected ? AppTheme.accent : isToday ? AppTheme.accent.opacity(0.14) : .clear)
+                    )
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+        }
+        .buttonStyle(.plain)
     }
 
     private func timeline(for date: Date) -> some View {
@@ -473,51 +457,10 @@ struct TodayTimelineView: View {
                     let sideZoneWidth = max((geo.size.width - centerDeadZoneWidth) / 2, 0)
 
                     ZStack(alignment: .topLeading) {
-                        // 背景のグリッド線（全幅）
-                        ForEach(slots, id: \.self) { hour in
-                            let y = CGFloat(hour - startHour) * hourHeight + 16
-                            Capsule()
-                                .fill(AppTheme.lightBlueBorder.opacity(0.8))
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 1.5)
-                                .offset(y: y)
-                        }
+                        timelineGridLines(slots: slots)
+                        timelineTimeLabels(slots: slots, timeLabelWidth: timeLabelWidth, timeLabelHeight: timeLabelHeight)
+                        timelineTapZones(sideZoneWidth: sideZoneWidth, centerDeadZoneWidth: centerDeadZoneWidth)
 
-                        // 時刻ラベル（線の真上に重ねる）
-                        ForEach(slots, id: \.self) { hour in
-                            let y = CGFloat(hour - startHour) * hourHeight + 16
-                            Text("\(hour):00")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundStyle(AppTheme.textPrimary)
-                                .frame(width: timeLabelWidth, height: timeLabelHeight, alignment: .center)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                        .fill(AppTheme.pageBackground)
-                                )
-                                .offset(y: y - (timeLabelHeight / 2))
-                        }
-
-                        // タップゾーン（日付切り替え）
-                        HStack(spacing: 0) {
-                            // 左ゾーン：前日へ
-                            Color.clear
-                                .frame(width: sideZoneWidth)
-                                .contentShape(Rectangle())
-                                .onTapGesture { shiftDate(by: -1) }
-
-                            // 中央ゾーン：長押しはカードに任せる
-                            Color.clear
-                                .frame(width: centerDeadZoneWidth)
-
-                            // 右ゾーン：翌日へ
-                            Color.clear
-                                .frame(width: sideZoneWidth)
-                                .contentShape(Rectangle())
-                                .onTapGesture { shiftDate(by: 1) }
-                        }
-                        .zIndex(-1)
-
-                        // イベントカード（スライドアニメーション）
                         EventCardsView(
                             date: date,
                             events: events,
@@ -546,7 +489,6 @@ struct TodayTimelineView: View {
                         )
                         .id(date)
 
-                        // 現在時刻の線＋ラベル（今日のみ）
                         if calendar.isDate(date, inSameDayAs: currentTime), let indicatorTop = currentIndicatorTop {
                             let indicatorLabelHeight: CGFloat = 24
                             HStack(spacing: 8) {
@@ -576,6 +518,50 @@ struct TodayTimelineView: View {
         .refreshable {
             await PortalDataCoordinator.shared.refreshScheduleForOneYear(showUpdateBanner: true)
         }
+    }
+
+    private func timelineGridLines(slots: [Int]) -> some View {
+        ForEach(slots, id: \.self) { hour in
+            let y = CGFloat(hour - startHour) * hourHeight + 16
+            Capsule()
+                .fill(AppTheme.lightBlueBorder.opacity(0.8))
+                .frame(maxWidth: .infinity)
+                .frame(height: 1.5)
+                .offset(y: y)
+        }
+    }
+
+    private func timelineTimeLabels(slots: [Int], timeLabelWidth: CGFloat, timeLabelHeight: CGFloat) -> some View {
+        ForEach(slots, id: \.self) { hour in
+            let y = CGFloat(hour - startHour) * hourHeight + 16
+            Text("\(hour):00")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(AppTheme.textPrimary)
+                .frame(width: timeLabelWidth, height: timeLabelHeight, alignment: .center)
+                .background(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(AppTheme.pageBackground)
+                )
+                .offset(y: y - (timeLabelHeight / 2))
+        }
+    }
+
+    private func timelineTapZones(sideZoneWidth: CGFloat, centerDeadZoneWidth: CGFloat) -> some View {
+        HStack(spacing: 0) {
+            Color.clear
+                .frame(width: sideZoneWidth)
+                .contentShape(Rectangle())
+                .onTapGesture { shiftDate(by: -1) }
+
+            Color.clear
+                .frame(width: centerDeadZoneWidth)
+
+            Color.clear
+                .frame(width: sideZoneWidth)
+                .contentShape(Rectangle())
+                .onTapGesture { shiftDate(by: 1) }
+        }
+        .zIndex(-1)
     }
 
     private var currentIndicatorTop: CGFloat? {

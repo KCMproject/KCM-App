@@ -16,9 +16,10 @@ final class GameStateStore {
 
     private let filename = "egg_game_state.json"
     private var fileURL: URL {
-        let url = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
-            .appendingPathComponent("KCM_App_GameState", isDirectory: true) ?? URL(fileURLWithPath: "")
-        return url.appendingPathComponent(filename)
+        let baseURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("KCM_App_GameState", isDirectory: true)
+            ?? FileManager.default.temporaryDirectory.appendingPathComponent("KCM_App_GameState", isDirectory: true)
+        return baseURL.appendingPathComponent(filename)
     }
 
     private init() {
@@ -26,8 +27,9 @@ final class GameStateStore {
     }
 
     private func createDirectoryIfNeeded() {
-        guard let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
-            .appendingPathComponent("KCM_App_GameState", isDirectory: true) else { return }
+        let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("KCM_App_GameState", isDirectory: true)
+            ?? FileManager.default.temporaryDirectory.appendingPathComponent("KCM_App_GameState", isDirectory: true)
 
         if !FileManager.default.fileExists(atPath: directory.path) {
             try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
