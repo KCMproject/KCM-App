@@ -103,6 +103,19 @@ final class PortalClientImpl: PortalClientProtocol {
         try await announcementClient.resolveNoticeDetailURL(for: notice)
     }
 
+    func ensureValidSession() async -> Bool {
+        let mainURL = "\(networkClient.baseURL)/portal.do?page=main"
+        do {
+            _ = try await authClient.executeWithAutoRelogin {
+                let html = try await networkClient.fetchHTML(from: mainURL)
+                try PortalClientHelper.validatePortalPage(html)
+            }
+            return true
+        } catch {
+            return false
+        }
+    }
+
     // MARK: - 時間割
 
     func fetchTimetable() async throws -> [Course] {
