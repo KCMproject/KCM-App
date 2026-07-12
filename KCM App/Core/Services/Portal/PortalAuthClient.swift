@@ -8,6 +8,7 @@ final class PortalAuthClient {
 
     private(set) var currentSession: CampusSquareSession?
     private var rwfHash: String = ""
+    private var lastCredentials: CampusSquareCredentials?
 
     init(networkClient: PortalNetworkClient) {
         self.networkClient = networkClient
@@ -24,7 +25,8 @@ final class PortalAuthClient {
     func logout() async {
         currentSession = nil
         rwfHash = ""
-        networkClient.deleteCookies()
+        lastCredentials = nil
+        networkClient.deleteAllCookies()
     }
 
     func validateSession() async throws -> Bool {
@@ -120,6 +122,8 @@ final class PortalAuthClient {
         let sessionId = self.networkClient.sessionIdentifier() ?? UUID().uuidString
         let expiresIn = self.networkClient.earliestExpirationInMinutes() ?? 20
 
+        self.lastCredentials = credentials
+
         return CampusSquareSession(
             sessionId: sessionId,
             loggedInAt: Date(),
@@ -128,14 +132,17 @@ final class PortalAuthClient {
     }
 
     private func attemptRelogin() async throws -> Bool {
-        guard let credentials = SavedCredentialsStore.shared.load() else {
+        let credentials: CampusSquareCredentials
+        if let saved = SavedCredentialsStore.shared.load() {
+            credentials = CampusSquareCredentials(userName: saved.studentID, password: saved.password)
+        } else if let last = lastCredentials {
+            credentials = last
+        } else {
             return false
         }
         do {
-            _ = try await performLogin(credentials: CampusSquareCredentials(
-                userName: credentials.studentID,
-                password: credentials.password
-            ))
+            let session = try await performLogin(credentials: credentials)
+            self.currentSession = session
             return true
         } catch {
             return false
