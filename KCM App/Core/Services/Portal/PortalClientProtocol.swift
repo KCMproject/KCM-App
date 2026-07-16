@@ -37,9 +37,6 @@ protocol PortalClientProtocol {
     /// 掲示板詳細の最新URLを解決する（セッション切れ後に古いURLを更新する）
     func resolveNoticeDetailURL(for notice: NoticeCard) async throws -> URL?
 
-    /// 現在のセッションが有効か確認し、切れていれば再ログインする
-    func ensureValidSession() async -> Bool
-
     /// 時間割を取得する
     func fetchTimetable(completion: @escaping (Result<[Course], Error>) -> Void)
     func fetchTimetable() async throws -> [Course]

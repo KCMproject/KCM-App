@@ -268,27 +268,24 @@ struct NoticeBoardCloneView: View {
     }
 
     private func openNotice(_ notice: NoticeCard) {
-        isLoadingNotice = true
-        Task {
-            guard await viewModel.ensureValidSession() else {
+        guard let urlString = notice.url else {
+            isLoadingNotice = true
+            Task {
+                let resolvedURL = await viewModel.resolveNoticeURL(for: notice)
                 await MainActor.run {
                     isLoadingNotice = false
-                    showOpenErrorAlert = true
-                }
-                return
-            }
-            let resolvedURL = await viewModel.resolveNoticeURL(for: notice)
-            await MainActor.run {
-                isLoadingNotice = false
-                if let resolved = resolvedURL {
-                    openWebDestination(url: resolved, notice: notice)
-                } else if let urlString = notice.url, let url = resolveURL(from: urlString) {
-                    openWebDestination(url: url, notice: notice)
-                } else {
-                    showOpenErrorAlert = true
+                    if let resolved = resolvedURL {
+                        openWebDestination(url: resolved, notice: notice)
+                    } else {
+                        showOpenErrorAlert = true
+                    }
                 }
             }
+            return
         }
+
+        guard let url = resolveURL(from: urlString) else { return }
+        openWebDestination(url: url, notice: notice)
     }
 
     private func resolveURL(from urlString: String) -> URL? {

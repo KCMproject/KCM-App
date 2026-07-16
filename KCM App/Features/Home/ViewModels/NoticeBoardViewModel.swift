@@ -12,7 +12,7 @@ final class NoticeBoardViewModel: ObservableObject {
 
     private let portalClient: PortalClientProtocol
     private let cacheStore = PortalCacheStore.shared
-    private let attachmentFetchBatchSize = 3
+    private let attachmentFetchBatchSize = 1
 
     init(portalClient: PortalClientProtocol) {
         self.portalClient = portalClient
@@ -60,7 +60,9 @@ final class NoticeBoardViewModel: ObservableObject {
             announcements = notices
             readIDs = cacheStore.loadReadNoticeIDs()
             isLoading = false
-            await fetchMissingAttachments(for: notices)
+            Task {
+                await fetchMissingAttachments(for: notices)
+            }
             return didUpdate
         } catch {
             readIDs = cacheStore.loadReadNoticeIDs()
@@ -81,17 +83,10 @@ final class NoticeBoardViewModel: ObservableObject {
         return false
     }
     
-    /// お知らせを開く前にセッションの有効性を確認し、切れていれば再ログインする
-    func ensureValidSession() async -> Bool {
-        let result = await portalClient.ensureValidSession()
-        return result
-    }
-
     /// 掲示板詳細の最新URLを解決する（セッション切れ後に古いURLを更新）
     func resolveNoticeURL(for notice: NoticeCard) async -> URL? {
         do {
-            let url = try await portalClient.resolveNoticeDetailURL(for: notice)
-            return url
+            return try await portalClient.resolveNoticeDetailURL(for: notice)
         } catch {
             return nil
         }
