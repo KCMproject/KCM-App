@@ -8,8 +8,9 @@ final class PortalNetworkClient {
     init(baseURL: String = "https://cs.kunitachi.ac.jp/campusweb") {
         self.baseURL = baseURL
         let config = URLSessionConfiguration.default
+        // 共有Cookieストレージを使用（URLSessionの標準動作）
         config.httpCookieStorage = .shared
-        config.httpShouldSetCookies = false
+        config.httpShouldSetCookies = true
         config.httpCookieAcceptPolicy = .always
         self.session = URLSession(configuration: config)
     }
@@ -22,18 +23,22 @@ final class PortalNetworkClient {
         if let referer = referer {
             request.setValue(referer, forHTTPHeaderField: "Referer")
         }
-        if let cookies = HTTPCookieStorage.shared.cookies(for: url), !cookies.isEmpty {
-            let headers = HTTPCookie.requestHeaderFields(with: cookies)
-            if let cookieHeader = headers["Cookie"] {
-                request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
-            }
-        }
         return request
     }
     
-    /// async/awaitでデータを取得
+    /// async/awaitでデータを取得（Cookieを明示的に保存）
     func send(_ request: URLRequest) async throws -> (Data, URLResponse) {
-        try await session.data(for: request)
+        let (data, response) = try await session.data(for: request)
+        // 明示的にCookieを.sharedストレージに保存（URLSessionの自動保存との二重保存になっても安全）
+        if let httpResponse = response as? HTTPURLResponse,
+           let url = response.url {
+            let fields = httpResponse.allHeaderFields as? [String: String] ?? [:]
+            let cookies = HTTPCookie.cookies(withResponseHeaderFields: fields, for: url)
+            for cookie in cookies {
+                HTTPCookieStorage.shared.setCookie(cookie)
+            }
+        }
+        return (data, response)
     }
     
     /// HTMLとレスポンスURLを一緒に取得（リダイレクト後のURLを捕捉するため）
@@ -75,14 +80,16 @@ final class PortalNetworkClient {
     
     private var cookieStorage: HTTPCookieStorage { .shared }
     
-    /// すべてのCookieを削除する
-    func deleteAllCookies() {
-        if let cookies = cookieStorage.cookies {
-            for cookie in cookies {
+    /// 指定ドメインのCookieをすべて削除する
+    func deleteCookies(for domain: String = "cs.kunitachi.ac.jp") {
+        guard let cookies = cookieStorage.cookies else { return }
+        for cookie in cookies {
+            let cookieDomain = cookie.domain
+            // cookieDomain が domain を含む、または domain が cookieDomain を含む（両方向）
+            if cookieDomain.contains(domain) || domain.contains(cookieDomain) {
                 cookieStorage.deleteCookie(cookie)
             }
         }
-        URLCache.shared.removeAllCachedResponses()
     }
     
     /// 指定ドメインのすべてのCookieを取得する
