@@ -9,77 +9,90 @@ enum TimetableParser {
         let tbodyInner = HTMLParserHelpers.extractInnerOfFirstTag(tag: "tbody", from: tableHtml) ?? HTMLParserHelpers.extractInnerOfFirstTag(tag: "table", from: tableHtml) ?? ""
         let trs = HTMLParserHelpers.extractDirectChildTags(tag: "tr", in: tbodyInner)
         guard trs.count >= 1 else { return [] }
-        let headerTds = HTMLParserHelpers.extractDirectChildTags(tag: "td", in: trs[0])
-        var dayHeaders: [String] = []
-        for i in 1..<headerTds.count {
-            dayHeaders.append(HTMLParserHelpers.stripHtmlTags(from: headerTds[i]))
-        }
-        for rowIndex in 1..<trs.count {
-            let rowHtml = trs[rowIndex]
+
+        let dayNames = ["月", "火", "水", "木", "金", "土"]
+        var seenCodes = Set<String>()
+
+        for rowHtml in trs {
             let tds = HTMLParserHelpers.extractDirectChildTags(tag: "td", in: rowHtml)
-            if tds.isEmpty { continue }
-            let jigenName = HTMLParserHelpers.stripHtmlTags(from: tds[0])
-            if jigenName.isEmpty || jigenName.contains("曜") { continue }
-            for tdIndex in 1..<tds.count {
-                let dayIdx = tdIndex - 1
-                if dayIdx >= dayHeaders.count { break }
-                let weekday = dayHeaders[dayIdx]
-                let cellHtml = tds[tdIndex]
-                guard let innerTd = HTMLParserHelpers.findInnerMostTdOfClass("rishu-koma-inner", in: cellHtml) else {
-                    continue
-                }
-                if innerTd.contains("未登録") { continue }
-                let formatted = innerTd
-                    .replacingOccurrences(of: "(?i)<br\\s*/?>", with: "\n", options: [.regularExpression])
-                    .replacingOccurrences(of: "<[^>]+>", with: "", options: [.regularExpression])
-                    .replacingOccurrences(of: "&nbsp;", with: " ")
-                    .replacingOccurrences(of: "&amp;", with: "&")
-                let lines = formatted.components(separatedBy: .newlines)
-                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                    .filter { !$0.isEmpty }
-                if lines.count >= 2 {
-                    let title = lines[1]
-                    let instructor = lines.count > 2 ? lines[2] : ""
-                    var room = lines.count > 4 ? lines[4] : (lines.count > 3 ? lines[3] : "")
-                    var startTime: String? = nil
-                    var endTime: String? = nil
-                    for line in lines {
-                        let timePattern = "(\\d{1,2}:\\d{2})[～〜-](\\d{1,2}:\\d{2})"
-                        if let range = line.range(of: timePattern, options: .regularExpression) {
-                            let parts = line[range].components(separatedBy: CharacterSet(charactersIn: "～〜-"))
-                            if parts.count == 2 {
-                                startTime = parts[0].trimmingCharacters(in: .whitespaces)
-                                endTime = parts[1].trimmingCharacters(in: .whitespaces)
-                                break
-                            }
-                        }
-                    }
-                    if room.contains(":") || room.contains("～") {
-                        if let r = lines.first(where: { $0.range(of: "[A-Z0-9]+-[A-Z0-9]+", options: .regularExpression) != nil }) {
-                            room = r
-                        } else {
-                            room = ""
-                        }
-                    }
+            if tds.count < 8 { continue }
+
+            let firstClass = HTMLParserHelpers.attributeValue("class", in: tds[0]) ?? ""
+            let secondClass = HTMLParserHelpers.attributeValue("class", in: tds[1]) ?? ""
+            let isPeriodRow = firstClass.contains("rishu-koma-head") && secondClass.contains("rishu-koma-head")
+            guard isPeriodRow else { continue }
+
+            let period = HTMLParserHelpers.stripHtmlTags(from: tds[0])
+            if period.contains("曜") || period.isEmpty { continue }
+
+            for dayIndex in 0..<6 {
+                let cellIndex = 2 + dayIndex * 2
+                guard cellIndex < tds.count else { break }
+                let cellHtml = tds[cellIndex]
+                let cellText = HTMLParserHelpers.stripHtmlTags(from: cellHtml)
+                if cellText.isEmpty || cellText.contains("未登録") { continue }
+
+                if let parsed = parseRSWCellText(cellText) {
+                    let code = parsed.code
+                    if seenCodes.contains(code) { continue }
+                    seenCodes.insert(code)
+                    let weekday = dayNames[dayIndex]
                     results.append(Course(
                         id: UUID(),
                         weekday: weekday,
-                        period: jigenName,
-                        title: title,
-                        room: room,
+                        period: period,
+                        title: parsed.title,
+                        room: parsed.room,
                         status: "",
-                        instructor: instructor,
+                        instructor: parsed.instructor,
                         nextClassInfo: "",
                         materials: [],
                         assignments: [],
-                        startTime: startTime,
-                        endTime: endTime,
+                        startTime: parsed.startTime,
+                        endTime: parsed.endTime,
                         dateString: nil
                     ))
                 }
             }
         }
         return results
+    }
+
+    private static func parseRSWCellText(_ text: String) -> (code: String, title: String, instructor: String, room: String, startTime: String?, endTime: String?)? {
+        let parts = text.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
+        guard parts.count >= 4 else { return nil }
+
+        let code = parts[0]
+        guard let creditIdx = parts.firstIndex(where: { $0.contains("単位") }) else { return nil }
+
+        let titleInstructorParts = Array(parts[1..<creditIdx])
+        guard titleInstructorParts.count >= 1 else { return nil }
+        let instructor = titleInstructorParts.count >= 2 ? titleInstructorParts.last! : ""
+        let title = titleInstructorParts.count >= 2
+            ? titleInstructorParts.dropLast().joined(separator: " ")
+            : titleInstructorParts.joined(separator: " ")
+
+        let roomAndTimeParts = creditIdx + 1 < parts.count ? Array(parts[(creditIdx + 1)...]) : []
+        var room = roomAndTimeParts.first ?? ""
+        var startTime: String? = nil
+        var endTime: String? = nil
+
+        if roomAndTimeParts.count >= 2 {
+            let combined = roomAndTimeParts.joined(separator: " ")
+            let timePattern = "(\\d{1,2}:\\d{2})[〜～-](\\d{1,2}:\\d{2})"
+            if let range = combined.range(of: timePattern, options: .regularExpression) {
+                let matched = String(combined[range])
+                let separators = CharacterSet(charactersIn: "〜～-")
+                let timeParts = matched.components(separatedBy: separators).filter { !$0.isEmpty }
+                if timeParts.count == 2 {
+                    startTime = timeParts[0].trimmingCharacters(in: .whitespaces)
+                    endTime = timeParts[1].trimmingCharacters(in: .whitespaces)
+                }
+                room = combined.replacingOccurrences(of: matched, with: "").trimmingCharacters(in: .whitespaces)
+            }
+        }
+
+        return (code, title, instructor, room, startTime, endTime)
     }
 
     static func parseIntensiveCoursesFromRSW(from html: String) -> [IntensiveCourseCard] {

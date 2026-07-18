@@ -14,6 +14,17 @@ enum FormFieldParser {
         return nil
     }
 
+    static func extractHrefByFlow(from html: String, flowId: String) -> String? {
+        let escapedFlowId = NSRegularExpression.escapedPattern(for: flowId)
+        let pattern = "href\\s*=\\s*['\"]([^'\"]*_flowId=\(escapedFlowId)[^'\"]*)['\"]"
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]),
+              let match = regex.firstMatch(in: html, options: [], range: NSRange(location: 0, length: html.utf16.count)),
+              let range = Range(match.range(at: 1), in: html) else {
+            return nil
+        }
+        return String(html[range]).replacingOccurrences(of: "&amp;", with: "&")
+    }
+
     static func parseFormFields(from html: String, formID: String) -> [(String, String)] {
         let escapedID = NSRegularExpression.escapedPattern(for: formID)
         let formPattern = "<form[^>]*id\\s*=\\s*['\"]\(escapedID)['\"][^>]*>(.*?)</form>"

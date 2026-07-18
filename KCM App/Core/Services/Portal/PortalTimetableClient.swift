@@ -90,7 +90,8 @@ final class PortalTimetableClient {
         let mainHtml = try await networkClient.fetchHTML(from: mainURL)
         try PortalClientHelper.validatePortalPage(mainHtml)
 
-        guard let rswPath = CampusSquareParser.extractHref(from: mainHtml, withId: "menu-link-mf-164915") else {
+        guard let rswPath = CampusSquareParser.extractHrefByFlow(from: mainHtml, flowId: "RSW0001000-flow")
+                ?? CampusSquareParser.extractHref(from: mainHtml, withId: "menu-link-mf-164915") else {
             throw CampusSquareLoginError.portalError("履修登録リンクが見つかりません")
         }
 
