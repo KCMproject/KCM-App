@@ -45,6 +45,10 @@ enum CampusSquareParser {
         FormFieldParser.extractHref(from: html, withId: id)
     }
 
+    static func extractHrefByFlow(from html: String, flowId: String) -> String? {
+        FormFieldParser.extractHrefByFlow(from: html, flowId: flowId)
+    }
+
     static func parseFormFields(from html: String, formID: String) -> [(String, String)] {
         FormFieldParser.parseFormFields(from: html, formID: formID)
     }
