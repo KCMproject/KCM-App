@@ -185,7 +185,8 @@ final class PortalAnnouncementClient {
 
         let mainHtml = try await networkClient.fetchHTML(from: mainURL)
         try PortalClientHelper.validatePortalPage(mainHtml)
-        guard let bulletinPath = CampusSquareParser.extractHref(from: mainHtml, withId: "menu-link-mf-164854") else {
+        guard let bulletinPath = CampusSquareParser.extractHrefByFlow(from: mainHtml, flowId: "KJW0001100-flow")
+                ?? CampusSquareParser.extractHref(from: mainHtml, withId: "menu-link-mf-164854") else {
             return nil
         }
 
