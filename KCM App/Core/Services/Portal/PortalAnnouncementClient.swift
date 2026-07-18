@@ -258,8 +258,7 @@ final class PortalAnnouncementClient {
     }
 
     private func isNoticeDetailPage(_ html: String, for notice: NoticeCard) -> Bool {
-        html.contains("KeijiReferView")
-            && (html.contains("keiji-title") || html.contains("keiji-naiyo"))
+        (html.contains("keiji-title") || html.contains("keiji-naiyo"))
             && html.contains(notice.title)
     }
 
