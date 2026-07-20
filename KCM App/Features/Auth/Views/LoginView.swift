@@ -32,6 +32,7 @@ struct LoginView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 16))
 
                     Button {
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                         viewModel.login()
                     } label: {
                         if viewModel.isLoading {
@@ -62,6 +63,20 @@ struct LoginView: View {
             }
             .padding(24)
             .background(AppTheme.background.ignoresSafeArea())
+        }
+        .overlay {
+            if viewModel.isLoading {
+                Color.white.opacity(0.7)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(true)
+                VStack(spacing: 16) {
+                    ProgressView()
+                        .scaleEffect(1.5)
+                    Text("ロード中…")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
     }
 }
