@@ -22,7 +22,9 @@ final class PortalDataCoordinator {
         }
         let didUpdate = await operation()
         if showUpdateBanner, didUpdate {
-            AppBannerCenter.shared.show(progressMessage + "完了しました")
+            AppBannerCenter.shared.hide(ifShowing: progressMessage)
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            AppBannerCenter.shared.show("完了しました")
         } else if showUpdateBanner {
             AppBannerCenter.shared.hide(ifShowing: progressMessage)
         }
