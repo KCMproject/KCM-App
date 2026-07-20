@@ -22,6 +22,12 @@ final class LoginViewModel: ObservableObject {
     }
 
     func login() {
+        guard !studentID.isEmpty, !password.isEmpty else {
+            errorMessage = "学籍番号とパスワードを入力してください"
+            return
+        }
+        errorMessage = nil
+        isLoading = true
         Task {
             await login(studentID: studentID, password: password, automatic: false)
         }
@@ -96,10 +102,10 @@ final class LoginViewModel: ObservableObject {
             if !automatic {
                 errorMessage = "学籍番号とパスワードを入力してください"
             }
+            isLoading = false
             return
         }
 
-        isLoading = true
         if !automatic {
             errorMessage = nil
         }
@@ -112,7 +118,6 @@ final class LoginViewModel: ObservableObject {
             }
         }
 
-        isLoading = false
         switch result {
         case .success:
             self.studentID = studentID
@@ -123,7 +128,9 @@ final class LoginViewModel: ObservableObject {
             isReady = false
             await PortalDataCoordinator.shared.refreshAll(showUpdateBanner: true)
             isReady = true
+            isLoading = false
         case .failure(let error):
+            isLoading = false
             if automatic {
                 shouldShowCachedPortal = true
             } else {
