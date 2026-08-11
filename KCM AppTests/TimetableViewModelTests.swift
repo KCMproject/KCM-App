@@ -94,6 +94,70 @@ final class TimetableViewModelTests: XCTestCase {
             Array(0...12)
         )
     }
+
+    @MainActor
+    func testEmptyWeeklyFetchDoesNotWipeWeeklyCache() async {
+        let mockClient = MockPortalClient()
+        let viewModel = TimetableViewModel(portalClient: mockClient)
+
+        let cachedCourse = Course(
+            id: UUID(),
+            weekday: "月曜日",
+            period: "1限",
+            title: "キャッシュされた授業",
+            room: "教室C",
+            status: "",
+            instructor: "",
+            nextClassInfo: "",
+            materials: [],
+            assignments: [],
+            startTime: "09:00",
+            endTime: "10:30",
+            dateString: nil
+        )
+        PortalCacheStore.shared.saveWeeklyCourses([cachedCourse], for: .current)
+        addTeardownBlock {
+            PortalCacheStore.shared.clearAllUserData()
+        }
+
+        // サーバーが空の週間時間割を返してもキャッシュを消さない
+        mockClient.weeklyCourses = []
+        _ = await viewModel.refreshFromServer()
+
+        let cachedAfterRefresh = PortalCacheStore.shared.loadWeeklyCourses(for: .current)
+        XCTAssertEqual(cachedAfterRefresh.count, 1)
+        XCTAssertEqual(cachedAfterRefresh.first?.title, "キャッシュされた授業")
+    }
+
+    @MainActor
+    func testLoadCachedDataFallsBackToMonthlyCoursesWhenWeeklyCacheIsEmpty() {
+        let viewModel = TimetableViewModel(portalClient: MockPortalClient())
+
+        let monthlyCourse = Course(
+            id: UUID(),
+            weekday: "火",
+            period: "2限",
+            title: "月次予定の授業",
+            room: "教室D",
+            status: "",
+            instructor: "",
+            nextClassInfo: "",
+            materials: [],
+            assignments: [],
+            startTime: "10:40",
+            endTime: "12:10",
+            dateString: "2026-08-11"
+        )
+        PortalCacheStore.shared.saveCourses([monthlyCourse])
+        PortalCacheStore.shared.saveWeeklyCourses([], for: .current)
+        addTeardownBlock {
+            PortalCacheStore.shared.clearAllUserData()
+        }
+
+        viewModel.loadCachedData()
+
+        XCTAssertEqual(viewModel.weeklySchedule[1][1].title, "月次予定の授業")
+    }
 }
 
 // MARK: - Mock
