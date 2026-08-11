@@ -1,6 +1,6 @@
 import Foundation
 
-enum UserProfileParser {
+nonisolated enum UserProfileParser {
     static func parseUserName(from rswHtml: String) -> (fullName: String, reading: String)? {
         guard let nameRange = rswHtml.range(of: "氏名") else { return nil }
         let afterName = rswHtml[nameRange.upperBound...]

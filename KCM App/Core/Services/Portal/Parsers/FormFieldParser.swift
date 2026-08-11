@@ -1,6 +1,6 @@
 import Foundation
 
-enum FormFieldParser {
+nonisolated enum FormFieldParser {
     static func extractHref(from html: String, withId id: String) -> String? {
         let pattern = "id\\s*=\\s*['\"]\(id)['\"][^>]*href\\s*=\\s*['\"]([^'\"]+)['\"]"
         let patternAlt = "href\\s*=\\s*['\"]([^'\"]+)['\"][^>]*id\\s*=\\s*['\"]\(id)['\"]"

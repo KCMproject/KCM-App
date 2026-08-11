@@ -27,7 +27,9 @@ final class PortalTimetableClient {
     func fetchWeeklyTimetable(semester: TimetableSemester) async throws -> [Course] {
         try await authClient.executeWithAutoRelogin {
             let html = try await self._fetchWeeklyTimetableHTML(semester: semester)
-            return CampusSquareParser.parseWeeklyTimetableFromRSW(from: html)
+            return await Task.detached(priority: .utility) {
+                CampusSquareParser.parseWeeklyTimetableFromRSW(from: html)
+            }.value
         }
     }
 
@@ -40,7 +42,9 @@ final class PortalTimetableClient {
     func fetchWeeklyTimetableWithHTML(semester: TimetableSemester) async throws -> (courses: [Course], html: String) {
         try await authClient.executeWithAutoRelogin {
             let html = try await self._fetchWeeklyTimetableHTML(semester: semester)
-            let courses = CampusSquareParser.parseWeeklyTimetableFromRSW(from: html)
+            let courses = await Task.detached(priority: .utility) {
+                CampusSquareParser.parseWeeklyTimetableFromRSW(from: html)
+            }.value
             return (courses, html)
         }
     }
@@ -65,7 +69,10 @@ final class PortalTimetableClient {
                 group.addTask {
                     do {
                         let html = try await self.fetchScheduleHTML(monthOffset: offset, referer: self.mainURL)
-                        return await CampusSquareParser.parseSchedule(from: html)
+                        // HTMLパースはメインスレッドを塞がないようバックグラウンドで行う
+                        return await Task.detached(priority: .utility) {
+                            CampusSquareParser.parseSchedule(from: html)
+                        }.value
                     } catch {
                         return []
                     }

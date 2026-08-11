@@ -1,6 +1,6 @@
 import Foundation
 
-enum AnnouncementParser {
+nonisolated enum AnnouncementParser {
     static func parseAnnouncements(from html: String) -> [NoticeCard] {
         var results: [NoticeCard] = []
         let rowPattern = "<tr[^>]*>(.*?)</tr>"

@@ -1,7 +1,7 @@
 import Foundation
 
 /// 授業・予定・時間割・集中講義のキャッシュを管理
-final class CourseCacheStore: CacheStore {
+nonisolated final class CourseCacheStore: CacheStore {
     override init(defaults: UserDefaults = .standard) {
         super.init(defaults: defaults)
     }

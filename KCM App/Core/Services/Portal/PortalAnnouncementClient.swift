@@ -79,7 +79,9 @@ final class PortalAnnouncementClient {
         let detailURL = PortalClientHelper.absolutePortalURLString(from: path, baseURL: baseURL)
         let html = try await networkClient.fetchHTML(from: detailURL, referer: mainURL)
         if isNoticeDetailPage(html, for: notice) {
-            return CampusSquareParser.parseNoticeAttachments(from: html, baseURL: baseURL)
+            return await Task.detached(priority: .utility) {
+                CampusSquareParser.parseNoticeAttachments(from: html, baseURL: self.baseURL)
+            }.value
         }
 
         if let freshDetail = try await resolveFreshNoticeDetailURL(for: notice, mainURL: mainURL) {
@@ -87,7 +89,9 @@ final class PortalAnnouncementClient {
             guard isNoticeDetailPage(freshHtml, for: notice) else {
                 throw CampusSquareLoginError.portalError("掲示板詳細を取得できませんでした")
             }
-            return CampusSquareParser.parseNoticeAttachments(from: freshHtml, baseURL: baseURL)
+            return await Task.detached(priority: .utility) {
+                CampusSquareParser.parseNoticeAttachments(from: freshHtml, baseURL: self.baseURL)
+            }.value
         }
 
         throw CampusSquareLoginError.portalError("掲示板詳細URLを更新できませんでした")
@@ -114,7 +118,9 @@ final class PortalAnnouncementClient {
         var pageCount = 0
 
         while pageCount < maxPages {
-            let notices = CampusSquareParser.parseAnnouncements(from: currentHtml)
+            let notices = await Task.detached(priority: .utility) {
+                CampusSquareParser.parseAnnouncements(from: currentHtml)
+            }.value
             for n in notices { allByID[n.id] = n }
 
             guard let nextHref = PortalClientHelper.extractNextPageHref(from: currentHtml) else {

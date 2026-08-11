@@ -55,9 +55,14 @@ final class NoticeBoardViewModel: ObservableObject {
                 return applyFallbackNotices()
             }
 
-            let notices = cacheStore.mergeAndSaveNotices(serverNotices)
+            // キャッシュ全体のデコード・マージ・保存はメインスレッドを塞がないようバックグラウンドで行う
+            let notices = await Task.detached(priority: .utility) { [serverNotices] in
+                PortalCacheStore.shared.mergeAndSaveNotices(serverNotices)
+            }.value
             let didUpdate = notices != announcements
-            announcements = notices
+            if didUpdate {
+                announcements = notices
+            }
             readIDs = cacheStore.loadReadNoticeIDs()
             isLoading = false
             await fetchMissingAttachments(for: notices)
@@ -129,10 +134,16 @@ final class NoticeBoardViewModel: ObservableObject {
                 }
             }
 
-            let updatedNotices = cacheStore.applyCachedAttachments(to: announcements)
+            // 添付ファイルのマージ・保存はバックグラウンドで行う
+            let currentAnnouncements = announcements
+            let updatedNotices = await Task.detached(priority: .utility) { [currentAnnouncements] in
+                let store = PortalCacheStore.shared
+                let updated = store.applyCachedAttachments(to: currentAnnouncements)
+                store.saveNotices(updated)
+                return updated
+            }.value
             if updatedNotices != announcements {
                 announcements = updatedNotices
-                cacheStore.saveNotices(updatedNotices)
             }
         }
     }

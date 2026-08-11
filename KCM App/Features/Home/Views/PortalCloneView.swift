@@ -68,6 +68,9 @@ struct PortalCloneView: View {
             if !hasRefreshedOneYear {
                 hasRefreshedOneYear = true
                 Task {
+                    // ログイン時の refreshAll が全データを更新済みの場合はスキップする
+                    // （自動ログイン失敗時など refreshAll が未実行のときのみ1年分を更新）
+                    guard !PortalDataCoordinator.shared.hasCompletedStartupRefresh else { return }
                     await PortalDataCoordinator.shared.refreshScheduleForOneYear(showUpdateBanner: true)
                 }
             }

@@ -1,6 +1,6 @@
 import Foundation
 
-enum TimetableParser {
+nonisolated enum TimetableParser {
     static func parseWeeklyTimetableFromRSW(from html: String) -> [Course] {
         var results: [Course] = []
         guard let tableHtml = HTMLParserHelpers.findTagWithClass("table", className: "rishu-koma", in: html) else {
