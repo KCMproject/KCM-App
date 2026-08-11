@@ -2,7 +2,6 @@ import Foundation
 
 enum TimetableParser {
     static func parseWeeklyTimetableFromRSW(from html: String) -> [Course] {
-        var results: [Course] = []
         guard let tableHtml = HTMLParserHelpers.findTagWithClass("table", className: "rishu-koma", in: html) else {
             return []
         }
@@ -10,6 +9,17 @@ enum TimetableParser {
         let trs = HTMLParserHelpers.extractDirectChildTags(tag: "tr", in: tbodyInner)
         guard trs.count >= 1 else { return [] }
 
+        // 新仕様（時限+曜日ごと2セル）か旧仕様（時限+6曜日）かをヘッダー行の列数で判定する
+        let headerTds = HTMLParserHelpers.extractDirectChildTags(tag: "td", in: trs[0])
+        if headerTds.count >= 8 {
+            return parseNewStructureRSW(trs: trs)
+        }
+        return parseLegacyStructureRSW(trs: trs)
+    }
+
+    /// 新仕様: 1行に時限セル + 曜日ごと2セル（合計8セル以上）で構成される
+    private static func parseNewStructureRSW(trs: [String]) -> [Course] {
+        var results: [Course] = []
         let dayNames = ["月", "火", "水", "木", "金", "土"]
         var seenCodes = Set<String>()
 
@@ -29,7 +39,7 @@ enum TimetableParser {
                 let cellIndex = 2 + dayIndex * 2
                 guard cellIndex < tds.count else { break }
                 let cellHtml = tds[cellIndex]
-                let cellText = HTMLParserHelpers.stripHtmlTags(from: cellHtml)
+                let cellText = normalizedRSWCellText(cellHtml)
                 if cellText.isEmpty || cellText.contains("未登録") { continue }
 
                 if let parsed = parseRSWCellText(cellText) {
@@ -37,29 +47,74 @@ enum TimetableParser {
                     if seenCodes.contains(code) { continue }
                     seenCodes.insert(code)
                     let weekday = dayNames[dayIndex]
-                    results.append(Course(
-                        id: UUID(),
-                        weekday: weekday,
-                        period: period,
-                        title: parsed.title,
-                        room: parsed.room,
-                        status: "",
-                        instructor: parsed.instructor,
-                        nextClassInfo: "",
-                        materials: [],
-                        assignments: [],
-                        startTime: parsed.startTime,
-                        endTime: parsed.endTime,
-                        dateString: nil
-                    ))
+                    results.append(makeWeeklyCourse(weekday: weekday, period: period, parsed: parsed))
                 }
             }
         }
         return results
     }
 
+    /// 旧仕様: 1行に時限セル + 6曜日の7セルで構成される
+    private static func parseLegacyStructureRSW(trs: [String]) -> [Course] {
+        var results: [Course] = []
+        let headerTds = HTMLParserHelpers.extractDirectChildTags(tag: "td", in: trs[0])
+        var dayHeaders: [String] = []
+        for i in 1..<headerTds.count {
+            dayHeaders.append(HTMLParserHelpers.stripHtmlTags(from: headerTds[i]))
+        }
+        for rowIndex in 1..<trs.count {
+            let rowHtml = trs[rowIndex]
+            let tds = HTMLParserHelpers.extractDirectChildTags(tag: "td", in: rowHtml)
+            if tds.isEmpty { continue }
+            let jigenName = HTMLParserHelpers.stripHtmlTags(from: tds[0])
+            if jigenName.isEmpty || jigenName.contains("曜") { continue }
+            for tdIndex in 1..<tds.count {
+                let dayIdx = tdIndex - 1
+                if dayIdx >= dayHeaders.count { break }
+                let weekday = dayHeaders[dayIdx]
+                let cellHtml = tds[tdIndex]
+                guard let innerTd = HTMLParserHelpers.findInnerMostTdOfClass("rishu-koma-inner", in: cellHtml) else {
+                    continue
+                }
+                let cellText = normalizedRSWCellText(innerTd)
+                if cellText.isEmpty || cellText.contains("未登録") { continue }
+                if let parsed = parseRSWCellText(cellText) {
+                    results.append(makeWeeklyCourse(weekday: weekday, period: jigenName, parsed: parsed))
+                }
+            }
+        }
+        return results
+    }
+
+    private static func makeWeeklyCourse(weekday: String, period: String, parsed: (code: String, title: String, instructor: String, room: String, startTime: String?, endTime: String?)) -> Course {
+        Course(
+            id: UUID(),
+            weekday: weekday,
+            period: period,
+            title: parsed.title,
+            room: parsed.room,
+            status: "",
+            instructor: parsed.instructor,
+            nextClassInfo: "",
+            materials: [],
+            assignments: [],
+            startTime: parsed.startTime,
+            endTime: parsed.endTime,
+            dateString: nil
+        )
+    }
+
+    /// <br> を改行に変換してからタグを除去し、セル内の各要素を分離可能な形にする
+    private static func normalizedRSWCellText(_ cellHtml: String) -> String {
+        HTMLParserHelpers.stripHtmlTags(
+            from: cellHtml.replacingOccurrences(of: "(?i)<br\\s*/?>", with: "\n", options: [.regularExpression])
+        )
+    }
+
     private static func parseRSWCellText(_ text: String) -> (code: String, title: String, instructor: String, room: String, startTime: String?, endTime: String?)? {
-        let parts = text.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
+        // 注意: split(whereSeparator:) は "\r\n" を1つのグラフィームクラスタとして扱うため、
+        // CR/LF を含むセルを正しく分割できない。components(separatedBy:) はスカラ単位で分割する。
+        let parts = text.components(separatedBy: CharacterSet(charactersIn: " \n\r\t")).filter { !$0.isEmpty }
         guard parts.count >= 4 else { return nil }
 
         let code = parts[0]

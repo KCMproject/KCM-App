@@ -43,6 +43,9 @@ final class TimetableViewModel: ObservableObject {
         }
         if !cachedWeeklyCourses.isEmpty {
             weeklySchedule = buildGrid(from: cachedWeeklyCourses)
+        } else if !cachedCourses.isEmpty {
+            // 週間時間割キャッシュがない場合は月次予定からグリッドを構築し、起動時に空表示を防ぐ
+            weeklySchedule = buildGrid(from: cachedCourses)
         }
         if !cachedIntensive.isEmpty {
             intensiveCourses = cachedIntensive
@@ -145,7 +148,10 @@ final class TimetableViewModel: ObservableObject {
         }
         didUpdate = didUpdate || newWeeklySchedule != weeklySchedule
         weeklySchedule = newWeeklySchedule
-        cacheStore.saveWeeklyCourses(fetchedWeeklyCourses, for: selectedSemester)
+        // 取得結果が空の場合、キャッシュを上書きしない（セッション切れ・パース失敗等で空配列が返る可能性があるため）
+        if !fetchedWeeklyCourses.isEmpty {
+            cacheStore.saveWeeklyCourses(fetchedWeeklyCourses, for: selectedSemester)
+        }
 
         let parsedIntensive = CampusSquareParser.parseIntensiveCoursesFromRSW(from: weeklyHtml)
         let mergedIntensive = mergeIntensiveCourses(existing: intensiveCourses, parsed: parsedIntensive)

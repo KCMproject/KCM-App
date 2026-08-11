@@ -68,6 +68,13 @@ struct PortalCloneView: View {
             if !hasRefreshedOneYear {
                 hasRefreshedOneYear = true
                 Task {
+                    // 自動ログインと並行して更新するとセッション競合で認証エラーが返り、
+                    // 空データでキャッシュが上書きされるため、ログイン完了を待ってから更新する
+                    while LoginViewModel.shared.isLoading {
+                        try? await Task.sleep(nanoseconds: 100_000_000)
+                    }
+                    // ログイン成功済みなら refreshAll が全データを更新済みのためスキップ
+                    guard !(LoginViewModel.shared.isLoggedIn && LoginViewModel.shared.isReady) else { return }
                     await PortalDataCoordinator.shared.refreshScheduleForOneYear(showUpdateBanner: true)
                 }
             }

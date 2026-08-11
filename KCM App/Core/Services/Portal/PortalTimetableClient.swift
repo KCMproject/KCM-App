@@ -97,6 +97,7 @@ final class PortalTimetableClient {
 
         let rswURL = PortalClientHelper.absolutePortalURLString(from: rswPath, baseURL: baseURL)
         let initialHtml = try await networkClient.fetchHTML(from: rswURL, referer: mainURL)
+        try PortalClientHelper.validatePortalPage(initialHtml)
         let selectedSemester = CampusSquareParser.parseSelectedTimetableSemester(from: initialHtml)
 
         let html: String
@@ -105,6 +106,7 @@ final class PortalTimetableClient {
         } else if let semesterPath = CampusSquareParser.extractTimetableSemesterHref(from: initialHtml, semester: semester) {
             let semesterURL = PortalClientHelper.absolutePortalURLString(from: semesterPath, baseURL: baseURL)
             html = try await networkClient.fetchHTML(from: semesterURL, referer: rswURL)
+            try PortalClientHelper.validatePortalPage(html)
         } else {
             html = initialHtml
         }

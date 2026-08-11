@@ -23,6 +23,10 @@ enum PortalClientHelper {
         if html.contains("ログイン") && (html.contains("password") || html.contains("userName")) {
             throw CampusSquareLoginError.sessionExpired
         }
+        // セッション無効時に返される「認証エラー」ページもセッション切れとして扱う
+        if html.contains("認証エラー") || html.contains("authorization-error-flow") {
+            throw CampusSquareLoginError.sessionExpired
+        }
     }
 
     /// ページング: 次ページリンクを抽出する
