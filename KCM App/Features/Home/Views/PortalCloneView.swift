@@ -48,6 +48,7 @@ struct PortalCloneView: View {
     @State private var hasRefreshedOneYear = false
     @State private var tabBarSize: CGSize = .zero
     @State private var isDraggingTab = false
+    @State private var dragMoved = false
     @State private var dragStartX: CGFloat = 0
     @State private var dragTranslation: CGFloat = 0
 
@@ -135,7 +136,7 @@ struct PortalCloneView: View {
     private var customTabBar: some View {
         HStack(spacing: 0) {
             ForEach(Array(tabConfig.enumerated()), id: \.offset) { index, tab in
-                tabButton(title: tab.title, icon: tab.icon, index: index)
+                tabLabel(title: tab.title, icon: tab.icon, index: index)
             }
         }
         .padding(5)
@@ -146,6 +147,7 @@ struct PortalCloneView: View {
                         Capsule()
                             .fill(.clear)
                             .glassEffect()
+                            .shadow(color: .black.opacity(0.08), radius: 16, y: 8)
                     } else {
                         Capsule()
                             .fill(Color.white)
@@ -160,6 +162,7 @@ struct PortalCloneView: View {
             }
         }
         .simultaneousGesture(tabBarDragGesture())
+        .contentShape(Rectangle().inset(by: -12))
         .animation(.spring(duration: 0.35), value: selectedTab)
         .padding(.horizontal, 28)
         .padding(.bottom, 22)
@@ -196,6 +199,7 @@ struct PortalCloneView: View {
             .fill(indicatorFill)
             .modifier(IndicatorGlassEffect())
             .frame(width: pillWidth(), height: pillHeight)
+            .scaleEffect(isDraggingTab ? 1.12 : 1.0)
             .offset(x: indicatorCenterX() - size.width / 2)
     }
 
@@ -211,7 +215,7 @@ struct PortalCloneView: View {
 
     private var indicatorFill: some ShapeStyle {
         if #available(iOS 26.0, *) {
-            AnyShapeStyle(Color(red: 0.86, green: 0.89, blue: 0.93))
+            AnyShapeStyle(AppTheme.accent.opacity(0.14))
         } else {
             AnyShapeStyle(AppTheme.accent.opacity(0.12))
         }
@@ -223,9 +227,10 @@ struct PortalCloneView: View {
                 guard tabWidth > 0 else { return }
                 if !isDraggingTab {
                     // 指が置かれた瞬間にその位置のタブへピルを移動してから追従する
+                    isDraggingTab = true
+                    dragMoved = false
                     let startIndex = min(max(Int(value.location.x / tabWidth), 0), tabConfig.count - 1)
                     withAnimation(.spring(duration: 0.3)) {
-                        isDraggingTab = true
                         dragStartX = CGFloat(startIndex) * tabWidth + tabWidth / 2
                         if startIndex != selectedTab {
                             switchTab(to: startIndex)
@@ -234,6 +239,9 @@ struct PortalCloneView: View {
                     return
                 }
                 dragTranslation = value.translation.width
+                if abs(dragTranslation) > 6 {
+                    dragMoved = true
+                }
                 let center = dragStartX + dragTranslation
                 let index = min(max(Int(center / tabWidth), 0), tabConfig.count - 1)
                 if index != selectedTab {
@@ -242,39 +250,38 @@ struct PortalCloneView: View {
             }
             .onEnded { value in
                 guard tabWidth > 0 else { return }
-                dragTranslation = value.translation.width
-                let center = dragStartX + dragTranslation
-                let index = min(max(Int((center / tabWidth).rounded()), 0), tabConfig.count - 1)
+                let center = dragStartX + value.translation.width
+                // ドラッグ中のライブ切り替えと同じく、指が乗っているタブに切り替える
+                let index = min(max(Int(center / tabWidth), 0), tabConfig.count - 1)
+                let wasTap = !dragMoved
                 withAnimation(.spring(duration: 0.35)) {
                     isDraggingTab = false
                     dragTranslation = 0
                     switchTab(to: index)
                 }
+                // タップの場合は「選択中タブの再タップ = 今日タブを更新」
+                if wasTap, index == 0, selectedTab == 0 {
+                    todayViewKey = UUID()
+                }
+                dragMoved = false
             }
     }
 
-    private func tabButton(title: String, icon: String, index: Int) -> some View {
-        Button {
-            if selectedTab == index {
-                if index == 0 {
-                    todayViewKey = UUID()
-                }
-            } else {
-                switchTab(to: index)
-            }
-        } label: {
-            VStack(spacing: 2) {
-                Image(systemName: icon)
-                    .font(.system(size: 19))
-                Text(title)
-                    .font(.system(size: 9))
-            }
-            .foregroundStyle(selectedTab == index ? AppTheme.accent : AppTheme.textMuted)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 7)
-            .padding(.horizontal, 14)
+    private func tabLabel(title: String, icon: String, index: Int) -> some View {
+        VStack(spacing: 2) {
+            Image(systemName: icon)
+                .font(.system(size: 19))
+            Text(title)
+                .font(.system(size: 9))
         }
-        .buttonStyle(.plain)
+        .foregroundStyle(selectedTab == index ? AppTheme.accent : AppTheme.textMuted)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 4)
+        .padding(.horizontal, 14)
+        .scaleEffect(isDraggingTab && selectedTab == index ? 1.08 : 1.0)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(selectedTab == index ? [.isButton, .isSelected] : [.isButton])
     }
 
     private func normalizedTabConfig(_ items: [TabDef]) -> [TabDef] {
