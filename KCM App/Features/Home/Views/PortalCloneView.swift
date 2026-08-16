@@ -57,11 +57,12 @@ struct PortalCloneView: View {
             selectedTab: selectedTab,
             tabCount: tabConfig.count,
             contentProvider: { index in
-                AnyView(contentView(for: tabConfig[index]))
+                AnyView(contentView(for: tabConfig[index]).ignoresSafeArea(edges: .bottom))
             },
             onSwipeToTab: { index in switchTab(to: index) },
             isSwipeEnabled: !isGameTabLocked || tabConfig[selectedTab].id != "game"
         )
+        .ignoresSafeArea()
         .overlay(alignment: .bottom) {
             customTabBar
         }
@@ -165,12 +166,32 @@ struct PortalCloneView: View {
         .contentShape(Rectangle().inset(by: -12))
         .animation(.spring(duration: 0.35), value: selectedTab)
         .padding(.horizontal, 28)
-        .padding(.bottom, 22)
+        .padding(.bottom, 0)
     }
 
     private var tabWidth: CGFloat {
         guard tabBarSize.width > 0, tabConfig.count > 1 else { return 0 }
         return tabBarSize.width / CGFloat(tabConfig.count)
+    }
+
+    /// 端のタブでバーとの余白（上下の余白と同じ）
+    private var endMargin: CGFloat {
+        let barHeight = tabBarSize.height
+        guard barHeight > 0 else { return 0 }
+        return (barHeight - max(barHeight - 10, 32)) / 2
+    }
+
+    /// タブの中心位置（アイコン中心と同じ。両端ではピルの外側の余白が上下と同じになる）
+    private func tabCenterX(for index: Int) -> CGFloat {
+        let tabWidth = tabWidth
+        guard tabWidth > 0 else { return 0 }
+        if index <= 0 {
+            return endMargin + pillWidth() / 2
+        }
+        if index >= tabConfig.count - 1 {
+            return tabBarSize.width - endMargin - pillWidth() / 2
+        }
+        return CGFloat(index) * tabWidth + tabWidth / 2
     }
 
     /// 小さい長円（選択インジケーター）の中心位置。ドラッグ中は指に追従する
@@ -182,15 +203,16 @@ struct PortalCloneView: View {
         if isDraggingTab {
             center = dragStartX + dragTranslation
         } else {
-            center = CGFloat(selectedTab) * tabWidth + tabWidth / 2
+            center = tabCenterX(for: selectedTab)
         }
-        let minCenter = pillWidth / 2
-        let maxCenter = tabBarSize.width - pillWidth / 2
+        let minCenter = endMargin + pillWidth / 2
+        let maxCenter = tabBarSize.width - endMargin - pillWidth / 2
         return min(max(center, minCenter), maxCenter)
     }
 
+    /// 横長の長円（選択インジケーター）の幅
     private func pillWidth() -> CGFloat {
-        max(tabWidth - 28, 40)
+        max(tabWidth - 4, 40)
     }
 
     private func tabIndicator(in size: CGSize) -> some View {
@@ -199,7 +221,6 @@ struct PortalCloneView: View {
             .fill(indicatorFill)
             .modifier(IndicatorGlassEffect())
             .frame(width: pillWidth(), height: pillHeight)
-            .scaleEffect(isDraggingTab ? 1.12 : 1.0)
             .offset(x: indicatorCenterX() - size.width / 2)
     }
 
@@ -231,7 +252,7 @@ struct PortalCloneView: View {
                     dragMoved = false
                     let startIndex = min(max(Int(value.location.x / tabWidth), 0), tabConfig.count - 1)
                     withAnimation(.spring(duration: 0.3)) {
-                        dragStartX = CGFloat(startIndex) * tabWidth + tabWidth / 2
+                        dragStartX = tabCenterX(for: startIndex)
                         if startIndex != selectedTab {
                             switchTab(to: startIndex)
                         }
@@ -268,16 +289,18 @@ struct PortalCloneView: View {
     }
 
     private func tabLabel(title: String, icon: String, index: Int) -> some View {
-        VStack(spacing: 2) {
+        VStack(spacing: 1) {
             Image(systemName: icon)
-                .font(.system(size: 19))
+                .font(.system(size: 20))
             Text(title)
                 .font(.system(size: 9))
+                .lineLimit(1)
+                .minimumScaleFactor(0.9)
         }
         .foregroundStyle(selectedTab == index ? AppTheme.accent : AppTheme.textMuted)
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 4)
-        .padding(.horizontal, 14)
+        .padding(.vertical, 7)
+        .padding(.horizontal, 4)
         .scaleEffect(isDraggingTab && selectedTab == index ? 1.08 : 1.0)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(title)

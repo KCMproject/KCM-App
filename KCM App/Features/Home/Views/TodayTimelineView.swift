@@ -513,6 +513,7 @@ struct TodayTimelineView: View {
                 .frame(height: totalHeight)
                 .padding(.horizontal, sidePadding)
             }
+            .padding(.bottom, 96)
         }
         .background(AppTheme.pageBackground)
         .refreshable {
