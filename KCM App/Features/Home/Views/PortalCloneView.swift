@@ -59,8 +59,11 @@ struct PortalCloneView: View {
             contentProvider: { index in
                 AnyView(contentView(for: tabConfig[index]).ignoresSafeArea(edges: .bottom))
             },
-            onSwipeToTab: { index in switchTab(to: index) },
-            isSwipeEnabled: !isGameTabLocked || tabConfig[selectedTab].id != "game"
+            onSwipeToTab: { index in switchTab(to: index, haptic: false) },
+            isSwipeEnabled: !isGameTabLocked || tabConfig[selectedTab].id != "game",
+            onSwipeRelease: {
+                UISelectionFeedbackGenerator().selectionChanged()
+            }
         )
         .ignoresSafeArea()
         .overlay(alignment: .bottom) {
@@ -96,10 +99,13 @@ struct PortalCloneView: View {
         }
     }
 
-    private func switchTab(to index: Int) {
+    private func switchTab(to index: Int, haptic: Bool = true) {
         guard index >= 0, index < tabConfig.count, index != selectedTab else { return }
         selectedTab = index
         lastSelectedTabID = tabConfig[index].id
+        if haptic {
+            UISelectionFeedbackGenerator().selectionChanged()
+        }
     }
 
     @ViewBuilder
