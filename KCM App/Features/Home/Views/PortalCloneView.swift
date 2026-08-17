@@ -164,6 +164,7 @@ struct PortalCloneView: View {
         }
         .simultaneousGesture(tabBarDragGesture())
         .contentShape(Rectangle().inset(by: -12))
+        .scaleEffect(isDraggingTab ? 1.04 : 1.0, anchor: .bottom)
         .animation(.spring(duration: 0.35), value: selectedTab)
         .padding(.horizontal, 28)
         .padding(.bottom, 0)
@@ -221,6 +222,7 @@ struct PortalCloneView: View {
             .fill(indicatorFill)
             .modifier(IndicatorGlassEffect())
             .frame(width: pillWidth(), height: pillHeight)
+            .scaleEffect(isDraggingTab ? 1.1 : 1.0)
             .offset(x: indicatorCenterX() - size.width / 2)
     }
 
@@ -251,7 +253,7 @@ struct PortalCloneView: View {
                     isDraggingTab = true
                     dragMoved = false
                     let startIndex = min(max(Int(value.location.x / tabWidth), 0), tabConfig.count - 1)
-                    withAnimation(.spring(duration: 0.3)) {
+                    withAnimation(.spring(response: 0.45, dampingFraction: 0.50)) {
                         dragStartX = tabCenterX(for: startIndex)
                         if startIndex != selectedTab {
                             switchTab(to: startIndex)
@@ -275,7 +277,7 @@ struct PortalCloneView: View {
                 // ドラッグ中のライブ切り替えと同じく、指が乗っているタブに切り替える
                 let index = min(max(Int(center / tabWidth), 0), tabConfig.count - 1)
                 let wasTap = !dragMoved
-                withAnimation(.spring(duration: 0.35)) {
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.6)) {
                     isDraggingTab = false
                     dragTranslation = 0
                     switchTab(to: index)
