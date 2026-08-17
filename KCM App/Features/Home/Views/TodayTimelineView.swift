@@ -513,7 +513,7 @@ struct TodayTimelineView: View {
                 .frame(height: totalHeight)
                 .padding(.horizontal, sidePadding)
             }
-            .padding(.bottom, 96)
+            .padding(.bottom, 60)
         }
         .background(AppTheme.pageBackground)
         .onScrollGeometryChange(for: ScrollInfo.self) { geometry in

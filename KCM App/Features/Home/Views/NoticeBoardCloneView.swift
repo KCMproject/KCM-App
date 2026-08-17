@@ -213,6 +213,7 @@ struct NoticeBoardCloneView: View {
                     }
                 }
                 .background(Color.white)
+                .padding(.bottom, 90)
             }
         }
         .background(AppTheme.pageBackground)

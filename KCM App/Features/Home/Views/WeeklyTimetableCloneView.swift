@@ -191,6 +191,7 @@ struct WeeklyTimetableCloneView: View {
                 }
                 intensiveCoursesSection
             }
+            .padding(.bottom, 60)
         }
         .onScrollGeometryChange(for: ScrollInfo.self) { geometry in
             let maxOffset = max(0, geometry.contentSize.height - geometry.visibleRect.height)

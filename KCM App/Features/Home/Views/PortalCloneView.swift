@@ -261,6 +261,8 @@ struct PortalCloneView: View {
                     // 指が置かれた瞬間にその位置のタブへピルを移動してから追従する
                     isDraggingTab = true
                     dragMoved = false
+                    // 折りたたみ状態はタッチで解除
+                    tabBarScrollState.isScrolledDown = false
                     let startIndex = min(max(Int(value.location.x / tabWidth), 0), tabConfig.count - 1)
                     withAnimation(.spring(response: 0.45, dampingFraction: 0.50)) {
                         dragStartX = tabCenterX(for: startIndex)
