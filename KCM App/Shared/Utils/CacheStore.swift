@@ -1,7 +1,7 @@
 import Foundation
 
 /// UserDefaults ベースのキャッシュ保存の共通基盤
-class CacheStore {
+nonisolated class CacheStore {
     let defaults: UserDefaults
     let encoder = JSONEncoder()
     let decoder = JSONDecoder()

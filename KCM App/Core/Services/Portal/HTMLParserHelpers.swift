@@ -1,7 +1,7 @@
 import Foundation
 
 /// HTML 文字列に対する低レベルなタグ操作ヘルパー
-enum HTMLParserHelpers {
+nonisolated enum HTMLParserHelpers {
 
     /// 指定タグ・クラス名を持つ要素全体を抽出する
     static func findTagWithClass(_ tag: String, className: String, in html: String) -> String? {

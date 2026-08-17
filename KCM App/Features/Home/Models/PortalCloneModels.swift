@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct DayEvent: Identifiable {
+nonisolated struct DayEvent: Identifiable {
     let id: String
     let title: String
     let startTime: String
@@ -45,7 +45,7 @@ struct DayEvent: Identifiable {
 
 }
 
-struct Period {
+nonisolated struct Period {
     let number: Int
     let start: String
     let end: String
@@ -61,11 +61,11 @@ struct Period {
     ]
 }
 
-struct WeekdayColumn {
+nonisolated struct WeekdayColumn {
     let label: String
 }
 
-struct ClassCell: Equatable {
+nonisolated struct ClassCell: Equatable {
     let title: String?
     let room: String?
 
@@ -76,7 +76,7 @@ struct ClassCell: Equatable {
     }
 }
 
-struct DateRange: Identifiable, Codable, Equatable {
+nonisolated struct DateRange: Identifiable, Codable, Equatable {
     let id: UUID
     var startDate: String         // "yyyy-MM-dd"
     var endDate: String           // "yyyy-MM-dd"
@@ -113,7 +113,7 @@ struct DateRange: Identifiable, Codable, Equatable {
     }
 }
 
-struct IntensiveCourseCard: Identifiable, Codable, Equatable {
+nonisolated struct IntensiveCourseCard: Identifiable, Codable, Equatable {
     var id: UUID
     let title: String
     let period: String
@@ -180,7 +180,7 @@ struct IntensiveCourseCard: Identifiable, Codable, Equatable {
     }
 }
 
-struct LessonCard: Identifiable {
+nonisolated struct LessonCard: Identifiable {
     let id = UUID()
     let title: String
     let schedule: String
@@ -188,35 +188,35 @@ struct LessonCard: Identifiable {
     let instructor: String
 }
 
-struct IrregularScheduleSection: Identifiable {
+nonisolated struct IrregularScheduleSection: Identifiable {
     let id = UUID()
     let title: String
     let courses: [IntensiveCourseCard]
 }
 
-enum NoticeSort {
+nonisolated enum NoticeSort {
     case date
     case category
 }
 
 // MARK: - アニメーション方向
-enum TransitionDirection: Equatable {
+nonisolated enum TransitionDirection: Equatable {
     case left, right, none
 }
 
 // MARK: - 曜日ラベル（一元管理）
-enum WeekdayLabels {
+nonisolated enum WeekdayLabels {
     static let full = ["日", "月", "火", "水", "木", "金", "土"]
     static let weekdays = ["月", "火", "水", "木", "金", "土"]
 }
 
-struct NoticeAttachment: Identifiable, Codable, Equatable {
+nonisolated struct NoticeAttachment: Identifiable, Codable, Equatable {
     let id: String
     let title: String
     let url: String
 }
 
-struct NoticeCard: Identifiable, Codable, Equatable {
+nonisolated struct NoticeCard: Identifiable, Codable, Equatable {
     let id: String
     let title: String
     let date: String
@@ -244,7 +244,7 @@ struct NoticeCard: Identifiable, Codable, Equatable {
     }
 }
 
-struct MessageThread: Identifiable, Equatable {
+nonisolated struct MessageThread: Identifiable, Equatable {
     enum Status {
         case online
         case offline
@@ -261,7 +261,7 @@ struct MessageThread: Identifiable, Equatable {
     let messages: [ChatMessage]
 }
 
-struct ChatMessage: Identifiable, Equatable {
+nonisolated struct ChatMessage: Identifiable, Equatable {
     let id = UUID()
     let fromMe: Bool
     let text: String

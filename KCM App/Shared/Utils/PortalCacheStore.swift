@@ -1,7 +1,7 @@
 import Foundation
 
 /// 各種キャッシュ保存のファサード
-final class PortalCacheStore {
+nonisolated final class PortalCacheStore {
     static let shared = PortalCacheStore()
 
     private let courseCache: CourseCacheStore

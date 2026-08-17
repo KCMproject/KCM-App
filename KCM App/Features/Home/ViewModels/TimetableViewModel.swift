@@ -42,7 +42,10 @@ final class TimetableViewModel: ObservableObject {
             applyCourses(cachedCourses)
         }
         if !cachedWeeklyCourses.isEmpty {
-            weeklySchedule = buildGrid(from: cachedWeeklyCourses)
+            weeklySchedule = Self.buildGrid(from: cachedWeeklyCourses)
+        } else if !cachedCourses.isEmpty {
+            // 週間時間割キャッシュがない場合は月次予定からグリッドを構築し、起動時に空表示を防ぐ
+            weeklySchedule = Self.buildGrid(from: cachedCourses)
         }
         if !cachedIntensive.isEmpty {
             intensiveCourses = cachedIntensive
@@ -64,7 +67,7 @@ final class TimetableViewModel: ObservableObject {
         UserDefaults.standard.set(semester.rawValue, forKey: AppSettings.lastViewedSemester)
         intensiveCourses = cacheStore.loadIntensiveCourses(for: semester)
         let cachedWeeklyCourses = cacheStore.loadWeeklyCourses(for: semester)
-        weeklySchedule = buildGrid(from: cachedWeeklyCourses)
+        weeklySchedule = Self.buildGrid(from: cachedWeeklyCourses)
         Task {
             _ = await refreshFromServer()
         }
@@ -107,12 +110,14 @@ final class TimetableViewModel: ObservableObject {
                 let scheduleMonthKeys = Set(scheduleMonthOffsets.map { scheduleMonthKey(monthOffset: $0) })
                 let fetchedCourses = try await portalClient.fetchTimetable(monthOffsets: scheduleMonthOffsets)
                 fetchedScheduleCourses = fetchedCourses
-                didUpdate = didUpdate || applyScheduleCourses(fetchedCourses, monthKeys: scheduleMonthKeys)
+                let appliedSchedule = await applyScheduleCourses(fetchedCourses, monthKeys: scheduleMonthKeys)
+                didUpdate = didUpdate || appliedSchedule
             }
 
             if scope.includesWeekly {
                 let (fetchedWeeklyCourses, weeklyHtml) = try await portalClient.fetchWeeklyTimetableWithHTML(semester: selectedSemester)
-                didUpdate = didUpdate || applyWeeklyContent(courses: fetchedWeeklyCourses, html: weeklyHtml, fallbackCourses: fetchedScheduleCourses)
+                let appliedWeekly = await applyWeeklyContent(courses: fetchedWeeklyCourses, html: weeklyHtml, fallbackCourses: fetchedScheduleCourses)
+                didUpdate = didUpdate || appliedWeekly
             }
 
             isLoading = false
@@ -126,38 +131,60 @@ final class TimetableViewModel: ObservableObject {
         }
     }
 
-    private func applyScheduleCourses(_ fetchedCourses: [Course], monthKeys: Set<String>) -> Bool {
-        let mergedCourses = cacheStore.mergeAndSaveCourses(fetchedCourses, replacingMonthKeys: monthKeys)
+    private func applyScheduleCourses(_ fetchedCourses: [Course], monthKeys: Set<String>) async -> Bool {
+        // キャッシュ全体のデコード・マージ・エンコード・保存はメインスレッドを塞がないようバックグラウンドで行う
+        let mergedCourses = await Task.detached(priority: .utility) { [fetchedCourses, monthKeys] in
+            PortalCacheStore.shared.mergeAndSaveCourses(fetchedCourses, replacingMonthKeys: monthKeys)
+        }.value
+        // 内容が変わったときだけ発火して、不要な再レンダリングを避ける
         let didUpdate = mergedCourses != courses
-        courses = mergedCourses
+        if didUpdate {
+            courses = mergedCourses
+        }
         var loadedMonthKeys = cacheStore.loadScheduleMonthKeys()
         loadedMonthKeys.formUnion(monthKeys)
         cacheStore.saveScheduleMonthKeys(loadedMonthKeys)
         return didUpdate
     }
 
-    private func applyWeeklyContent(courses fetchedWeeklyCourses: [Course], html weeklyHtml: String, fallbackCourses: [Course]) -> Bool {
-        var didUpdate = false
-        var newWeeklySchedule = buildGrid(from: fetchedWeeklyCourses)
-        if newWeeklySchedule.allSatisfy({ row in row.allSatisfy({ $0.title == nil }) }) {
-            let fallback = fallbackCourses.isEmpty ? courses : fallbackCourses
-            newWeeklySchedule = buildGrid(from: fallback)
-        }
-        didUpdate = didUpdate || newWeeklySchedule != weeklySchedule
-        weeklySchedule = newWeeklySchedule
-        cacheStore.saveWeeklyCourses(fetchedWeeklyCourses, for: selectedSemester)
+    private func applyWeeklyContent(courses fetchedWeeklyCourses: [Course], html weeklyHtml: String, fallbackCourses: [Course]) async -> Bool {
+        let semester = selectedSemester
+        let existingIntensive = intensiveCourses
+        let currentCourses = courses
+        // グリッド構築・集中講義パース・キャッシュ保存はメインスレッドを塞がないようバックグラウンドで行う
+        let result = await Task.detached(priority: .utility) { [fetchedWeeklyCourses, weeklyHtml, fallbackCourses, semester, existingIntensive, currentCourses] in
+            let store = PortalCacheStore.shared
+            var newWeeklySchedule = Self.buildGrid(from: fetchedWeeklyCourses)
+            if newWeeklySchedule.allSatisfy({ row in row.allSatisfy({ $0.title == nil }) }) {
+                let fallback = fallbackCourses.isEmpty ? currentCourses : fallbackCourses
+                newWeeklySchedule = Self.buildGrid(from: fallback)
+            }
+            // 取得結果が空の場合、キャッシュを上書きしない（セッション切れ・パース失敗等で空配列が返る可能性があるため）
+            if !fetchedWeeklyCourses.isEmpty {
+                store.saveWeeklyCourses(fetchedWeeklyCourses, for: semester)
+            }
 
-        let parsedIntensive = CampusSquareParser.parseIntensiveCoursesFromRSW(from: weeklyHtml)
-        let mergedIntensive = mergeIntensiveCourses(existing: intensiveCourses, parsed: parsedIntensive)
-        didUpdate = didUpdate || mergedIntensive != intensiveCourses
-        intensiveCourses = mergedIntensive
-        cacheStore.saveIntensiveCourses(mergedIntensive, for: selectedSemester)
+            let parsedIntensive = CampusSquareParser.parseIntensiveCoursesFromRSW(from: weeklyHtml)
+            let mergedIntensive = Self.mergeIntensiveCourses(existing: existingIntensive, parsed: parsedIntensive)
+            store.saveIntensiveCourses(mergedIntensive, for: semester)
 
-        if let userName = CampusSquareParser.parseUserName(from: weeklyHtml) {
-            cacheStore.saveUserName(userName.fullName)
-            cacheStore.saveUserReading(userName.reading)
+            if let userName = CampusSquareParser.parseUserName(from: weeklyHtml) {
+                store.saveUserName(userName.fullName)
+                store.saveUserReading(userName.reading)
+            }
+            return (weeklySchedule: newWeeklySchedule, intensiveCourses: mergedIntensive)
+        }.value
+
+        // 内容が変わったときだけ発火して、不要な再レンダリングを避ける
+        let weeklyChanged = result.weeklySchedule != weeklySchedule
+        if weeklyChanged {
+            weeklySchedule = result.weeklySchedule
         }
-        return didUpdate
+        let intensiveChanged = result.intensiveCourses != intensiveCourses
+        if intensiveChanged {
+            intensiveCourses = result.intensiveCourses
+        }
+        return weeklyChanged || intensiveChanged
     }
 
     private func scheduleMonthOffsetsToFetch(forOneYear: Bool = false) -> [Int] {
@@ -239,7 +266,7 @@ final class TimetableViewModel: ObservableObject {
         }
     }
 
-    private func buildGrid(from rswCourses: [Course]) -> [[ClassCell]] {
+    nonisolated private static func buildGrid(from rswCourses: [Course]) -> [[ClassCell]] {
         var grid = Array(repeating: Array(repeating: ClassCell.empty, count: 6), count: 6)
         let weekdayMap = ["月": 0, "火": 1, "水": 2, "木": 3, "金": 4, "土": 5]
 
@@ -268,7 +295,7 @@ final class TimetableViewModel: ObservableObject {
 
     /// 既存の手動日程を保持しつつ、パース結果とマージ
     /// parsedに含まれない既存科目も残す（履修登録から外れた科目等の手動日程を保護）
-    private func mergeIntensiveCourses(existing: [IntensiveCourseCard], parsed: [IntensiveCourseCard]) -> [IntensiveCourseCard] {
+    nonisolated private static func mergeIntensiveCourses(existing: [IntensiveCourseCard], parsed: [IntensiveCourseCard]) -> [IntensiveCourseCard] {
         let existingByTitle = Dictionary(grouping: existing, by: \.title)
         var mergedByTitle: [String: IntensiveCourseCard] = [:]
 

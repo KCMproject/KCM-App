@@ -1,6 +1,6 @@
 import Foundation
 
-enum TimetableSemester: String, CaseIterable, Codable {
+nonisolated enum TimetableSemester: String, CaseIterable, Codable {
     case first
     case second
 
@@ -24,7 +24,7 @@ enum TimetableSemester: String, CaseIterable, Codable {
     }
 }
 
-struct Course: Identifiable, Hashable, Codable {
+nonisolated struct Course: Identifiable, Hashable, Codable {
     let id: UUID
     let weekday: String
     let period: String

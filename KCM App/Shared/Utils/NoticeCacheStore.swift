@@ -1,7 +1,7 @@
 import Foundation
 
 /// 掲示板・添付ファイル・お気に入りIDのキャッシュを管理
-final class NoticeCacheStore: CacheStore {
+nonisolated final class NoticeCacheStore: CacheStore {
     override init(defaults: UserDefaults = .standard) {
         super.init(defaults: defaults)
     }

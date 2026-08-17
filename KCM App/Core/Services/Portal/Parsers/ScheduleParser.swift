@@ -1,6 +1,6 @@
 import Foundation
 
-enum ScheduleParser {
+nonisolated enum ScheduleParser {
     static func parseSchedule(from html: String) -> [Course] {
         var results: [Course] = []
         let cellPattern = "<td[^>]*class\\s*=\\s*['\"][^'\"]*(?:today|day|sat|sun|kyujitsu|tokubetsukikan)[^'\"]*['\"][^>]*>(.*?)</td>"

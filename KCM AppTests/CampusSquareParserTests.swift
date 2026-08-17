@@ -291,4 +291,23 @@ final class CampusSquareParserTests: XCTestCase {
         XCTAssertEqual(attachments[0].title, "ミッシャ・マイスキー学内.pdf")
         XCTAssertEqual(attachments[0].url, "https://cs.kunitachi.ac.jp/campusweb/campussquare.do?_flowExecutionKey=abc&_eventId=download&keijitype=4&genrecd=429&seqNo=329&index=0")
     }
+
+    func testValidatePortalPageDetectsAuthErrorPage() {
+        // セッション無効時に返される「認証エラー」ページ（ログイン画面とは別形式）
+        let authErrorHtml = """
+        <html>
+            <head><title>認証エラー</title></head>
+            <body onload="doRedirect();">
+                <form name="authorizationError" method="post" action="/campusweb/campussquare.do">
+                    <input type="hidden" name="_flowId" value="authorization-error-flow">
+                </form>
+            </body>
+        </html>
+        """
+        XCTAssertThrowsError(try PortalClientHelper.validatePortalPage(authErrorHtml)) { error in
+            guard case CampusSquareLoginError.sessionExpired = error else {
+                return XCTFail("認証エラーページは sessionExpired として扱われるべきです: \(error)")
+            }
+        }
+    }
 }

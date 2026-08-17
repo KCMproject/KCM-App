@@ -6,6 +6,12 @@ final class PortalDataCoordinator {
 
     private init() {}
 
+    /// 更新の実行中フラグ（多重更新・並行実行を防ぐ）
+    private var isRefreshing = false
+
+    /// 起動時に refreshAll（全データ更新）が実行されたかどうか
+    private(set) var hasCompletedStartupRefresh = false
+
     var hasCachedContent: Bool {
         !TimetableViewModel.shared.courses.isEmpty || !NoticeBoardViewModel.shared.announcements.isEmpty
     }
@@ -17,6 +23,11 @@ final class PortalDataCoordinator {
 
     @discardableResult
     private func runRefresh(progressMessage: String, showUpdateBanner: Bool, operation: () async -> Bool) async -> Bool {
+        // 更新が実行中の場合は多重実行せずスキップする
+        guard !isRefreshing else { return false }
+        isRefreshing = true
+        defer { isRefreshing = false }
+
         if showUpdateBanner {
             AppBannerCenter.shared.showPersistent(progressMessage)
         }
@@ -32,6 +43,7 @@ final class PortalDataCoordinator {
     }
 
     func refreshAll(showUpdateBanner: Bool) async {
+        hasCompletedStartupRefresh = true
         await runRefresh(progressMessage: "全体を更新中...", showUpdateBanner: showUpdateBanner) {
             var results: [Bool] = []
             await withTaskGroup(of: Bool.self) { group in

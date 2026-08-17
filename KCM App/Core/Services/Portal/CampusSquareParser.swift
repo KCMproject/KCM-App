@@ -1,7 +1,7 @@
 import Foundation
 
 /// CampusSquareのHTMLパースに特化したユーティリティ（Facade）
-enum CampusSquareParser {
+nonisolated enum CampusSquareParser {
     struct NoticeGenreLink: Equatable {
         let title: String
         let keijitype: String
@@ -63,7 +63,7 @@ enum CampusSquareParser {
 }
 
 extension Array {
-    subscript(safe index: Index) -> Element? {
+    nonisolated subscript(safe index: Index) -> Element? {
         return indices.contains(index) ? self[index] : nil
     }
 }
