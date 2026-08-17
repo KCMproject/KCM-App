@@ -7,19 +7,22 @@ struct SwipeableView: UIViewControllerRepresentable {
     let contentProvider: (Int) -> AnyView
     let onSwipeToTab: ((Int) -> Void)?
     var isSwipeEnabled: Bool = true
+    var onSwipeRelease: (() -> Void)?
 
     init(
         selectedTab: Int,
         tabCount: Int,
         contentProvider: @escaping (Int) -> AnyView,
         onSwipeToTab: ((Int) -> Void)?,
-        isSwipeEnabled: Bool = true
+        isSwipeEnabled: Bool = true,
+        onSwipeRelease: (() -> Void)? = nil
     ) {
         self.selectedTab = selectedTab
         self.tabCount = tabCount
         self.contentProvider = contentProvider
         self.onSwipeToTab = onSwipeToTab
         self.isSwipeEnabled = isSwipeEnabled
+        self.onSwipeRelease = onSwipeRelease
     }
 
     func makeUIViewController(context: Context) -> SwipeableContainerController {
@@ -27,6 +30,7 @@ struct SwipeableView: UIViewControllerRepresentable {
         controller.tabCount = tabCount
         controller.contentProvider = contentProvider
         controller.onSwipeToTab = onSwipeToTab
+        controller.onSwipeRelease = onSwipeRelease
         controller.pendingInitialTab = selectedTab
         controller.isSwipeEnabled = isSwipeEnabled
         return controller
@@ -36,6 +40,7 @@ struct SwipeableView: UIViewControllerRepresentable {
         uiViewController.tabCount = tabCount
         uiViewController.contentProvider = contentProvider
         uiViewController.onSwipeToTab = onSwipeToTab
+        uiViewController.onSwipeRelease = onSwipeRelease
         uiViewController.isSwipeEnabled = isSwipeEnabled
         uiViewController.updateIfNeeded(selectedTab: selectedTab)
     }
@@ -43,6 +48,7 @@ struct SwipeableView: UIViewControllerRepresentable {
 
 class SwipeableContainerController: UIViewController {
     var onSwipeToTab: ((Int) -> Void)?
+    var onSwipeRelease: (() -> Void)?
     var tabCount: Int = 0
     var currentTabIndex: Int = 0
     var contentProvider: (Int) -> AnyView = { _ in AnyView(EmptyView()) }
@@ -390,6 +396,7 @@ class SwipeableContainerController: UIViewController {
             }
 
             if shouldComplete && targetTab != currentTabIndex {
+                onSwipeRelease?()
                 let completionIndex = targetTab
                 let targetX: CGFloat = translation.x < 0 ? -screenWidth : screenWidth
 

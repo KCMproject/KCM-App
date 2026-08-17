@@ -136,7 +136,7 @@ struct EggGameCloneView: View {
             collectionList
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
                 .padding(.leading, 12)
-                .padding(.bottom, 12)
+                .padding(.bottom, 96)
 
             Button {
                 isLocked.toggle()
