@@ -41,6 +41,12 @@ struct AccountProfileCloneView: View {
                 settingsView
             }
             .background(AppTheme.accountBackground)
+            .onScrollGeometryChange(for: ScrollInfo.self) { geometry in
+                let maxOffset = max(0, geometry.contentSize.height - geometry.visibleRect.height)
+                return ScrollInfo(offset: geometry.contentOffset.y, maxOffset: maxOffset)
+            } action: { old, new in
+                TabBarScrollState.shared.handleScroll(oldOffset: old.offset, newOffset: new.offset, maxOffset: new.maxOffset)
+            }
             .refreshable {
                 await PortalDataCoordinator.shared.refreshAll(showUpdateBanner: true)
             }

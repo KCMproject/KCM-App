@@ -51,6 +51,7 @@ struct PortalCloneView: View {
     @State private var dragMoved = false
     @State private var dragStartX: CGFloat = 0
     @State private var dragTranslation: CGFloat = 0
+    @StateObject private var tabBarScrollState = TabBarScrollState.shared
 
     var body: some View {
         SwipeableView(
@@ -103,6 +104,7 @@ struct PortalCloneView: View {
         guard index >= 0, index < tabConfig.count, index != selectedTab else { return }
         selectedTab = index
         lastSelectedTabID = tabConfig[index].id
+        tabBarScrollState.isScrolledDown = false
         if haptic {
             UISelectionFeedbackGenerator().selectionChanged()
         }
@@ -171,6 +173,7 @@ struct PortalCloneView: View {
         .simultaneousGesture(tabBarDragGesture())
         .contentShape(Rectangle().inset(by: -12))
         .scaleEffect(isDraggingTab ? 1.04 : 1.0, anchor: .bottom)
+        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: tabBarScrollState.isScrolledDown)
         .animation(.spring(duration: 0.35), value: selectedTab)
         .padding(.horizontal, 28)
         .padding(.bottom, 0)
@@ -300,10 +303,12 @@ struct PortalCloneView: View {
         VStack(spacing: 1) {
             Image(systemName: icon)
                 .font(.system(size: 20))
-            Text(title)
-                .font(.system(size: 9))
-                .lineLimit(1)
-                .minimumScaleFactor(0.9)
+            if !tabBarScrollState.isScrolledDown {
+                Text(title)
+                    .font(.system(size: 9))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.9)
+            }
         }
         .foregroundStyle(selectedTab == index ? AppTheme.accent : AppTheme.textMuted)
         .frame(maxWidth: .infinity)
