@@ -155,7 +155,7 @@ struct PortalCloneView: View {
                     if #available(iOS 26.0, *) {
                         Capsule()
                             .fill(.clear)
-                            .glassEffect()
+                            .glassEffect(.clear)
                             .shadow(color: .black.opacity(0.08), radius: 16, y: 8)
                     } else {
                         Capsule()
