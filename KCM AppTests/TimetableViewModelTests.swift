@@ -212,12 +212,14 @@ final class TimetableViewModelTests: XCTestCase {
         mockClient.scheduleCourses = [scheduleCourse]
         // 通常の時間割（RSW）の取得を失敗させる
         mockClient.shouldFailWeeklyFetch = true
+        viewModel.selectedSemester = .first
 
         _ = await viewModel.refreshFromServer()
 
         // スケジュールから週間時間割が構築される
         XCTAssertEqual(viewModel.weeklySchedule[1][1].title, "スケジュールの授業")
-        XCTAssertNil(viewModel.errorMessage)
+        // 表示は残しつつ、更新できなかったことを通知する
+        XCTAssertEqual(viewModel.errorMessage, "週間時間割を更新できませんでした。スケジュールのデータを表示しています。")
     }
 
     @MainActor
@@ -396,7 +398,8 @@ final class TimetableViewModelTests: XCTestCase {
         // RSW失敗・フォールバックデータなしでも、キャッシュの表示を消さない
         XCTAssertEqual(viewModel.weeklySchedule[0][0].title, "キャッシュ前期の授業")
         XCTAssertNil(viewModel.weeklySchedule[1][1].title)
-        XCTAssertNil(viewModel.errorMessage)
+        // 表示は残しつつ、更新できなかったことを通知する
+        XCTAssertEqual(viewModel.errorMessage, "週間時間割を更新できませんでした。スケジュールのデータを表示しています。")
     }
 }
 

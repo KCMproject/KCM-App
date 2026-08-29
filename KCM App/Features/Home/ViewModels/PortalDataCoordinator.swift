@@ -79,7 +79,15 @@ final class PortalDataCoordinator {
 
     func refreshWeeklyTimetable(showUpdateBanner: Bool) async {
         await runRefresh(progressMessage: "時間割タブを更新中...", showUpdateBanner: showUpdateBanner) {
-            await TimetableViewModel.shared.refreshWeeklyFromServer()
+            let start = Date()
+            let didUpdate = await TimetableViewModel.shared.refreshWeeklyFromServer()
+            // RSWが取得できない場合など即時失敗すると更新インジケータが一瞬で消えてしまうため、
+            // 最低限の表示時間を確保する
+            let elapsed = Date().timeIntervalSince(start)
+            if elapsed < 0.6 {
+                try? await Task.sleep(nanoseconds: UInt64((0.6 - elapsed) * 1_000_000_000))
+            }
+            return didUpdate
         }
     }
 

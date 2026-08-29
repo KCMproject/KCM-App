@@ -128,9 +128,13 @@ final class TimetableViewModel: ObservableObject {
                         // 通常の時間割（RSW）の取得に失敗した場合、今日タブで取得済みのスケジュールから時間割を構築してフォールバックする
                         let appliedFallback = applyFallbackWeeklyContent(from: scheduleFallbackCourses)
                         didUpdate = didUpdate || appliedFallback
-                        if !appliedFallback, courses.isEmpty, intensiveCourses.isEmpty,
+                        if courses.isEmpty, intensiveCourses.isEmpty,
                            weeklySchedule.allSatisfy({ $0.allSatisfy({ $0.title == nil }) }) {
+                            // 表示できるデータが何もない場合は全体エラー
                             errorMessage = "時間割を取得できませんでした。時間をおいて再度お試しください。"
+                        } else {
+                            // 表示中のデータ（キャッシュ/スケジュール）は残しつつ、更新できなかったことを通知
+                            errorMessage = "週間時間割を更新できませんでした。スケジュールのデータを表示しています。"
                         }
                     }
                 }
