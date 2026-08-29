@@ -20,7 +20,7 @@ nonisolated enum TimetableSemester: String, CaseIterable, Codable {
 
     static var current: Self {
         let month = Calendar.current.component(.month, from: Date())
-        return (4...9).contains(month) ? .first : .second
+        return (4...8).contains(month) ? .first : .second
     }
 }
 
