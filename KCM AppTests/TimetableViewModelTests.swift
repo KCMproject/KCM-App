@@ -96,6 +96,32 @@ final class TimetableViewModelTests: XCTestCase {
     }
 
     @MainActor
+    func testAcademicYearMonthOffsetsCoverAprilToMarch() {
+        let calendar = Calendar(identifier: .gregorian)
+
+        // 2026年8月基準: 2026年4月（-4）〜 2027年3月（+7）の12ヶ月
+        let august = calendar.date(from: DateComponents(year: 2026, month: 8, day: 15))!
+        XCTAssertEqual(
+            TimetableViewModel.academicYearMonthOffsets(from: august),
+            Array(-4...7)
+        )
+
+        // 2027年1月基準: 2026年4月（-9）〜 2027年3月（+2）の12ヶ月
+        let january = calendar.date(from: DateComponents(year: 2027, month: 1, day: 10))!
+        XCTAssertEqual(
+            TimetableViewModel.academicYearMonthOffsets(from: january),
+            Array(-9...2)
+        )
+
+        // 2026年3月基準: 年度は前年4月（2025年4月）〜 2026年3月
+        let march = calendar.date(from: DateComponents(year: 2026, month: 3, day: 1))!
+        XCTAssertEqual(
+            TimetableViewModel.academicYearMonthOffsets(from: march),
+            Array(-11...0)
+        )
+    }
+
+    @MainActor
     func testEmptyWeeklyFetchDoesNotWipeWeeklyCache() async {
         let mockClient = MockPortalClient()
         let viewModel = TimetableViewModel(portalClient: mockClient)
@@ -209,6 +235,169 @@ final class TimetableViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.errorMessage, "時間割を取得できませんでした。時間をおいて再度お試しください。")
         XCTAssertTrue(viewModel.weeklySchedule.allSatisfy { row in row.allSatisfy { $0.title == nil } })
     }
+
+    @MainActor
+    func testStaleWeeklyFetchDoesNotOverwriteAfterSemesterSwitch() async {
+        let mockClient = MockPortalClient()
+        let viewModel = TimetableViewModel(portalClient: mockClient)
+        addTeardownBlock {
+            PortalCacheStore.shared.clearAllUserData()
+        }
+
+        // 後期の授業データ（遅れて完了する旧学期のフェッチが返す想定）
+        let secondCourse = Course(
+            id: UUID(),
+            weekday: "火",
+            period: "2限",
+            title: "後期の授業",
+            room: "教室F",
+            status: "",
+            instructor: "",
+            nextClassInfo: "",
+            materials: [],
+            assignments: [],
+            startTime: "10:40",
+            endTime: "12:10",
+            dateString: "2026-09-14"
+        )
+        mockClient.weeklyCourses = [secondCourse]
+        viewModel.selectedSemester = .first
+        mockClient.shouldBlockWeeklyFetch = true
+
+        // フェッチをブロックしたまま開始
+        let fetchTask = Task { await viewModel.refreshWeeklyFromServer() }
+
+        var waitCount = 0
+        while mockClient.weeklyFetchContinuation == nil && waitCount < 100 {
+            await Task.yield()
+            waitCount += 1
+        }
+        XCTAssertNotNil(mockClient.weeklyFetchContinuation, "週間時間割のフェッチが開始されるはず")
+
+        // フェッチ中に学期を後期へ切り替える
+        viewModel.selectedSemester = .second
+
+        // 旧学期（前期）のフェッチを完了させる
+        mockClient.weeklyFetchContinuation?.resume()
+        mockClient.weeklyFetchContinuation = nil
+        let didUpdate = await fetchTask.value
+
+        // 旧学期のデータで表示が上書きされない（初期状態の空グリッドのまま）
+        XCTAssertFalse(didUpdate)
+        XCTAssertTrue(viewModel.weeklySchedule.allSatisfy { row in row.allSatisfy { $0.title == nil } })
+    }
+
+    @MainActor
+    func testFallbackGridIsFilteredBySemester() async {
+        let mockClient = MockPortalClient()
+        let viewModel = TimetableViewModel(portalClient: mockClient)
+        addTeardownBlock {
+            PortalCacheStore.shared.clearAllUserData()
+        }
+
+        let firstCourse = Course(
+            id: UUID(),
+            weekday: "月",
+            period: "1限",
+            title: "前期の授業",
+            room: "教室G",
+            status: "",
+            instructor: "",
+            nextClassInfo: "",
+            materials: [],
+            assignments: [],
+            startTime: "09:00",
+            endTime: "10:30",
+            dateString: "2026-04-13"
+        )
+        let secondCourse = Course(
+            id: UUID(),
+            weekday: "火",
+            period: "2限",
+            title: "後期の授業",
+            room: "教室H",
+            status: "",
+            instructor: "",
+            nextClassInfo: "",
+            materials: [],
+            assignments: [],
+            startTime: "10:40",
+            endTime: "12:10",
+            dateString: "2026-09-14"
+        )
+        // 月次スケジュールには前後期が混在している
+        mockClient.scheduleCourses = [firstCourse, secondCourse]
+        mockClient.shouldFailWeeklyFetch = true
+
+        // 前期では前期の授業だけがグリッドに入る
+        viewModel.selectedSemester = .first
+        _ = await viewModel.refreshFromServer()
+        XCTAssertEqual(viewModel.weeklySchedule[0][0].title, "前期の授業")
+        XCTAssertNil(viewModel.weeklySchedule[1][1].title)
+
+        // 後期では後期の授業だけがグリッドに入る
+        viewModel.selectedSemester = .second
+        _ = await viewModel.refreshFromServer()
+        XCTAssertEqual(viewModel.weeklySchedule[1][1].title, "後期の授業")
+        XCTAssertNil(viewModel.weeklySchedule[0][0].title)
+    }
+
+    @MainActor
+    func testWeeklyFetchFailureKeepsCachedScheduleDisplayWhenFallbackIsEmpty() async {
+        let mockClient = MockPortalClient()
+        let viewModel = TimetableViewModel(portalClient: mockClient)
+        addTeardownBlock {
+            PortalCacheStore.shared.clearAllUserData()
+        }
+
+        // 過去のRSW取得で得た前期の週間時間割キャッシュ
+        let cachedCourse = Course(
+            id: UUID(),
+            weekday: "月",
+            period: "1限",
+            title: "キャッシュ前期の授業",
+            room: "教室I",
+            status: "",
+            instructor: "",
+            nextClassInfo: "",
+            materials: [],
+            assignments: [],
+            startTime: "09:00",
+            endTime: "10:30",
+            dateString: nil
+        )
+        PortalCacheStore.shared.saveWeeklyCourses([cachedCourse], for: .first)
+
+        // 今回フェッチするスケジュールは後期の月のみ（ポータルに前期データが存在しない状況を再現）
+        let secondCourse = Course(
+            id: UUID(),
+            weekday: "火",
+            period: "2限",
+            title: "後期の授業",
+            room: "教室J",
+            status: "",
+            instructor: "",
+            nextClassInfo: "",
+            materials: [],
+            assignments: [],
+            startTime: "10:40",
+            endTime: "12:10",
+            dateString: "2026-09-14"
+        )
+        mockClient.scheduleCourses = [secondCourse]
+        mockClient.shouldFailWeeklyFetch = true
+
+        viewModel.selectedSemester = .first
+        viewModel.loadCachedData()
+        XCTAssertEqual(viewModel.weeklySchedule[0][0].title, "キャッシュ前期の授業")
+
+        _ = await viewModel.refreshFromServer()
+
+        // RSW失敗・フォールバックデータなしでも、キャッシュの表示を消さない
+        XCTAssertEqual(viewModel.weeklySchedule[0][0].title, "キャッシュ前期の授業")
+        XCTAssertNil(viewModel.weeklySchedule[1][1].title)
+        XCTAssertNil(viewModel.errorMessage)
+    }
 }
 
 // MARK: - Mock
@@ -217,6 +406,8 @@ class MockPortalClient: PortalClientProtocol {
     var weeklyCourses: [Course] = []
     var scheduleCourses: [Course] = []
     var shouldFailWeeklyFetch = false
+    var shouldBlockWeeklyFetch = false
+    var weeklyFetchContinuation: CheckedContinuation<Void, Never>?
     var isLoggedIn = true
     
     func login(credentials: CampusSquareCredentials, completion: @escaping (CampusSquareLoginResult) -> Void) {}
@@ -252,6 +443,11 @@ class MockPortalClient: PortalClientProtocol {
     }
     func fetchWeeklyTimetableWithHTML(semester: TimetableSemester) async throws -> (courses: [Course], html: String) {
         if shouldFailWeeklyFetch { throw CampusSquareLoginError.sessionExpired }
+        if shouldBlockWeeklyFetch {
+            await withCheckedContinuation { continuation in
+                weeklyFetchContinuation = continuation
+            }
+        }
         return (weeklyCourses, "")
     }
     func fetchGradeReportPDF() async throws -> Data { return Data() }

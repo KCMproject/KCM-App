@@ -115,7 +115,15 @@ final class PortalTimetableClient {
             html = try await networkClient.fetchHTML(from: semesterURL, referer: rswURL)
             try PortalClientHelper.validatePortalPage(html)
         } else {
-            html = initialHtml
+            // 要求学期への切り替えができない場合、別学期のページを黙って返すと
+            // 誤った時間割の表示・キャッシュ汚染につながるため、エラーにする
+            throw CampusSquareLoginError.portalError("時間割の\(semester.displayName)ページを取得できませんでした")
+        }
+
+        // 取得したページの実際の学期を検証する（切り替えリンクが意図した学期を表示していない場合の防止）
+        if let displayedSemester = CampusSquareParser.parseSelectedTimetableSemester(from: html),
+           displayedSemester != semester {
+            throw CampusSquareLoginError.portalError("時間割の学期が一致しません（\(displayedSemester.displayName)が表示されました）")
         }
 
         return html
