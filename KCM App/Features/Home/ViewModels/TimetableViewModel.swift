@@ -111,6 +111,10 @@ final class TimetableViewModel: ObservableObject {
                 let fetchedCourses = try await portalClient.fetchTimetable(monthOffsets: scheduleMonthOffsets)
                 let appliedSchedule = await applyScheduleCourses(fetchedCourses, monthKeys: scheduleMonthKeys)
                 didUpdate = didUpdate || appliedSchedule
+                // スケジュール取得成功時に、並行実行中の週間時間割などの失敗で残ったエラーをクリアする。
+                // 初回起動時（キャッシュなし）は週間時間割の失敗が先に終わり、データが空の状態で
+                // エラーが設定されることがあるため、後から揃ったスケジュールで解消する。
+                errorMessage = nil
             }
 
             if scope.includesWeekly {

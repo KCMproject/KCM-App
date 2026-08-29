@@ -237,6 +237,44 @@ final class TimetableViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.weeklySchedule.allSatisfy { row in row.allSatisfy { $0.title == nil } })
     }
 
+    /// 初回起動時（キャッシュなし）の並行更新で、週間時間割の失敗後にスケジュールが成功したら
+    /// 残ったエラーがクリアされる（今日タブの誤エラー表示を防ぐ）
+    @MainActor
+    func testScheduleSuccessClearsErrorSetByWeeklyFailureAtFirstLaunch() async {
+        let mockClient = MockPortalClient()
+        let viewModel = TimetableViewModel(portalClient: mockClient)
+        addTeardownBlock {
+            PortalCacheStore.shared.clearAllUserData()
+        }
+
+        let firstCourse = Course(
+            id: UUID(),
+            weekday: "月",
+            period: "1限",
+            title: "前期の授業",
+            room: "教室K",
+            status: "",
+            instructor: "",
+            nextClassInfo: "",
+            materials: [],
+            assignments: [],
+            startTime: "09:00",
+            endTime: "10:30",
+            dateString: "2026-04-13"
+        )
+        mockClient.scheduleCourses = [firstCourse]
+        mockClient.shouldFailWeeklyFetch = true
+
+        // 週間時間割が先に失敗すると、スケジュール未取得の空データ状態ではエラーが設定される
+        _ = await viewModel.refreshWeeklyFromServer()
+        XCTAssertEqual(viewModel.errorMessage, "時間割を取得できませんでした。時間をおいて再度お試しください。")
+
+        // 後からスケジュールが成功すると、エラーがクリアされ今日タブ用データが揃う
+        _ = await viewModel.refreshScheduleForOneYearFromServer()
+        XCTAssertNil(viewModel.errorMessage)
+        XCTAssertEqual(viewModel.courses.map(\.title), ["前期の授業"])
+    }
+
     @MainActor
     func testStaleWeeklyFetchDoesNotOverwriteAfterSemesterSwitch() async {
         let mockClient = MockPortalClient()
