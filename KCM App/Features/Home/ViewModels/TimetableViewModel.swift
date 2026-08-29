@@ -125,16 +125,14 @@ final class TimetableViewModel: ObservableObject {
                 } catch {
                     // 取得中に学期が切り替わっていた場合は、古い学期のデータで表示を上書きしない
                     if selectedSemester == fetchSemester {
-                        // 通常の時間割（RSW）の取得に失敗した場合、今日タブで取得済みのスケジュールから時間割を構築してフォールバックする
+                        // 通常の時間割（RSW）の取得に失敗した場合、今日タブで取得済みのスケジュールから時間割を構築してフォールバックする。
+                        // スケジュールと時間割は同じ内容のため、ユーザーには通知しない（静かにフォールバックする）
                         let appliedFallback = applyFallbackWeeklyContent(from: scheduleFallbackCourses)
                         didUpdate = didUpdate || appliedFallback
-                        if courses.isEmpty, intensiveCourses.isEmpty,
+                        if !appliedFallback, courses.isEmpty, intensiveCourses.isEmpty,
                            weeklySchedule.allSatisfy({ $0.allSatisfy({ $0.title == nil }) }) {
-                            // 表示できるデータが何もない場合は全体エラー
+                            // 表示できるデータが何もない場合のみエラーを表示する
                             errorMessage = "時間割を取得できませんでした。時間をおいて再度お試しください。"
-                        } else {
-                            // 表示中のデータ（キャッシュ/スケジュール）は残しつつ、更新できなかったことを通知
-                            errorMessage = "週間時間割を更新できませんでした。スケジュールのデータを表示しています。"
                         }
                     }
                 }

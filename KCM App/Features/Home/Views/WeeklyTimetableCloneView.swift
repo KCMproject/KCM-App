@@ -57,9 +57,6 @@ struct WeeklyTimetableCloneView: View {
         VStack(spacing: 0) {
             semesterHeader
             weekdayHeader
-            if let error = viewModel.errorMessage, !error.isEmpty, hasVisibleSchedule {
-                timetableUpdateErrorBanner(error)
-            }
             ZStack {
                 timetableGrid
                 loadingOverlay
@@ -120,27 +117,6 @@ struct WeeklyTimetableCloneView: View {
         .padding(.top, 16)
         .padding(.bottom, 12)
         .background(AppTheme.surface)
-    }
-
-    /// 表示中データは残しつつ、週間時間割の更新ができなかったことを知らせる小バナー
-    private func timetableUpdateErrorBanner(_ message: String) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 12))
-                .foregroundStyle(AppTheme.textSoft)
-            Text(message)
-                .font(.system(size: 12))
-                .foregroundStyle(AppTheme.textMuted)
-                .lineLimit(2)
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .frame(maxWidth: .infinity)
-        .background(AppTheme.surface)
-        .overlay(alignment: .bottom) {
-            Rectangle().fill(AppTheme.border).frame(height: 1)
-        }
     }
 
     private var weekdayHeader: some View {
