@@ -158,12 +158,65 @@ final class TimetableViewModelTests: XCTestCase {
 
         XCTAssertEqual(viewModel.weeklySchedule[1][1].title, "月次予定の授業")
     }
+
+    @MainActor
+    func testWeeklyFetchFailureFallsBackToScheduleCourses() async {
+        let mockClient = MockPortalClient()
+        let viewModel = TimetableViewModel(portalClient: mockClient)
+        addTeardownBlock {
+            PortalCacheStore.shared.clearAllUserData()
+        }
+
+        // 今日タブで取得されるスケジュールデータ
+        let scheduleCourse = Course(
+            id: UUID(),
+            weekday: "火",
+            period: "2限",
+            title: "スケジュールの授業",
+            room: "教室E",
+            status: "",
+            instructor: "",
+            nextClassInfo: "",
+            materials: [],
+            assignments: [],
+            startTime: "10:40",
+            endTime: "12:10",
+            dateString: "2026-04-14"
+        )
+        mockClient.scheduleCourses = [scheduleCourse]
+        // 通常の時間割（RSW）の取得を失敗させる
+        mockClient.shouldFailWeeklyFetch = true
+
+        _ = await viewModel.refreshFromServer()
+
+        // スケジュールから週間時間割が構築される
+        XCTAssertEqual(viewModel.weeklySchedule[1][1].title, "スケジュールの授業")
+        XCTAssertNil(viewModel.errorMessage)
+    }
+
+    @MainActor
+    func testWeeklyFetchFailureWithoutScheduleShowsError() async {
+        let mockClient = MockPortalClient()
+        let viewModel = TimetableViewModel(portalClient: mockClient)
+        addTeardownBlock {
+            PortalCacheStore.shared.clearAllUserData()
+        }
+
+        mockClient.shouldFailWeeklyFetch = true
+
+        _ = await viewModel.refreshWeeklyFromServer()
+
+        XCTAssertEqual(viewModel.errorMessage, "時間割を取得できませんでした。時間をおいて再度お試しください。")
+        XCTAssertTrue(viewModel.weeklySchedule.allSatisfy { row in row.allSatisfy { $0.title == nil } })
+    }
 }
 
 // MARK: - Mock
 
 class MockPortalClient: PortalClientProtocol {
     var weeklyCourses: [Course] = []
+    var scheduleCourses: [Course] = []
+    var shouldFailWeeklyFetch = false
     var isLoggedIn = true
     
     func login(credentials: CampusSquareCredentials, completion: @escaping (CampusSquareLoginResult) -> Void) {}
@@ -182,18 +235,23 @@ class MockPortalClient: PortalClientProtocol {
     func resolveNoticeDetailURL(for notice: NoticeCard) async throws -> URL? { return nil }
     func ensureValidSession() async -> Bool { return isLoggedIn }
     func fetchTimetable() async throws -> [Course] { return [] }
-    func fetchTimetable(monthOffsets: [Int]) async throws -> [Course] { return [] }
-    func fetchTimetable(completion: @escaping (Result<[Course], Error>) -> Void) {}
+    func fetchTimetable(monthOffsets: [Int]) async throws -> [Course] { return scheduleCourses }
+
+    func fetchTimetable(completion: @escaping (Result<[Course], Error>) -> Void) { completion(.success(scheduleCourses)) }
     func fetchWeeklyTimetable() async throws -> [Course] {
+        if shouldFailWeeklyFetch { throw CampusSquareLoginError.sessionExpired }
         return weeklyCourses
     }
     func fetchWeeklyTimetable(semester: TimetableSemester) async throws -> [Course] {
+        if shouldFailWeeklyFetch { throw CampusSquareLoginError.sessionExpired }
         return weeklyCourses
     }
     func fetchWeeklyTimetableHTML(semester: TimetableSemester) async throws -> String {
+        if shouldFailWeeklyFetch { throw CampusSquareLoginError.sessionExpired }
         return ""
     }
     func fetchWeeklyTimetableWithHTML(semester: TimetableSemester) async throws -> (courses: [Course], html: String) {
+        if shouldFailWeeklyFetch { throw CampusSquareLoginError.sessionExpired }
         return (weeklyCourses, "")
     }
     func fetchGradeReportPDF() async throws -> Data { return Data() }

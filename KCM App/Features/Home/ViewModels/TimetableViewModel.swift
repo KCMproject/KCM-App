@@ -115,9 +115,20 @@ final class TimetableViewModel: ObservableObject {
             }
 
             if scope.includesWeekly {
-                let (fetchedWeeklyCourses, weeklyHtml) = try await portalClient.fetchWeeklyTimetableWithHTML(semester: selectedSemester)
-                let appliedWeekly = await applyWeeklyContent(courses: fetchedWeeklyCourses, html: weeklyHtml, fallbackCourses: fetchedScheduleCourses)
-                didUpdate = didUpdate || appliedWeekly
+                do {
+                    let (fetchedWeeklyCourses, weeklyHtml) = try await portalClient.fetchWeeklyTimetableWithHTML(semester: selectedSemester)
+                    let appliedWeekly = await applyWeeklyContent(courses: fetchedWeeklyCourses, html: weeklyHtml, fallbackCourses: fetchedScheduleCourses)
+                    didUpdate = didUpdate || appliedWeekly
+                } catch {
+                    // 通常の時間割（RSW）の取得に失敗した場合、今日タブで取得済みのスケジュールから時間割を構築してフォールバックする
+                    let sourceCourses = fetchedScheduleCourses.isEmpty ? courses : fetchedScheduleCourses
+                    let appliedFallback = applyFallbackWeeklyContent(from: sourceCourses)
+                    didUpdate = didUpdate || appliedFallback
+                    if !appliedFallback, courses.isEmpty, intensiveCourses.isEmpty,
+                       weeklySchedule.allSatisfy({ $0.allSatisfy({ $0.title == nil }) }) {
+                        errorMessage = "時間割を取得できませんでした。時間をおいて再度お試しください。"
+                    }
+                }
             }
 
             isLoading = false
@@ -185,6 +196,17 @@ final class TimetableViewModel: ObservableObject {
             intensiveCourses = result.intensiveCourses
         }
         return weeklyChanged || intensiveChanged
+    }
+
+    /// 通常の時間割（RSW）の取得に失敗した際に、今日タブで取得済みの月次スケジュールから週間グリッドを構築するフォールバック。
+    /// キャッシュには実際のRSWデータのみを保存する方針のため、フォールバック結果はキャッシュへ保存しない。
+    private func applyFallbackWeeklyContent(from scheduleCourses: [Course]) -> Bool {
+        let fallbackGrid = Self.buildGrid(from: scheduleCourses)
+        let weeklyChanged = fallbackGrid != weeklySchedule
+        if weeklyChanged {
+            weeklySchedule = fallbackGrid
+        }
+        return weeklyChanged
     }
 
     private func scheduleMonthOffsetsToFetch(forOneYear: Bool = false) -> [Int] {
