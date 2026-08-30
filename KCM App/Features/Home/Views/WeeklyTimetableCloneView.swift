@@ -72,8 +72,7 @@ struct WeeklyTimetableCloneView: View {
             IntensiveScheduleSheet(
                 courseID: selectedCourseID,
                 courseTitle: selectedCourseTitle,
-                semester: viewModel.selectedSemester,
-                intensiveCourses: $viewModel.intensiveCourses
+                semester: viewModel.selectedSemester
             )
             .presentationDetents([.height(480)])
         }
