@@ -8,15 +8,18 @@ nonisolated final class PortalCacheStore {
     private let noticeCache: NoticeCacheStore
     private let classroomURLCache: ClassroomURLCacheStore
     private let userProfileCache: UserProfileCacheStore
+    private let customLinkCache: CustomLinkCacheStore
 
     init(courseCache: CourseCacheStore = CourseCacheStore(),
          noticeCache: NoticeCacheStore = NoticeCacheStore(),
          classroomURLCache: ClassroomURLCacheStore = ClassroomURLCacheStore(),
-         userProfileCache: UserProfileCacheStore = UserProfileCacheStore()) {
+         userProfileCache: UserProfileCacheStore = UserProfileCacheStore(),
+         customLinkCache: CustomLinkCacheStore = CustomLinkCacheStore()) {
         self.courseCache = courseCache
         self.noticeCache = noticeCache
         self.classroomURLCache = classroomURLCache
         self.userProfileCache = userProfileCache
+        self.customLinkCache = customLinkCache
     }
 
     // MARK: - 月次予定
@@ -133,6 +136,16 @@ nonisolated final class PortalCacheStore {
 
     func saveClassroomURLs(_ urls: [String: String]) {
         classroomURLCache.saveClassroomURLs(urls)
+    }
+
+    // MARK: - カスタムリンク
+
+    func loadCustomLinks() -> [CustomLink] {
+        customLinkCache.loadCustomLinks()
+    }
+
+    func saveCustomLinks(_ links: [CustomLink]) {
+        customLinkCache.saveCustomLinks(links)
     }
 
     // MARK: - 全ユーザーデータ削除
