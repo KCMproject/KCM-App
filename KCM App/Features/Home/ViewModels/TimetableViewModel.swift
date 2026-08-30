@@ -45,7 +45,8 @@ final class TimetableViewModel: ObservableObject {
             weeklySchedule = Self.buildGrid(from: cachedWeeklyCourses)
         } else if !cachedCourses.isEmpty {
             // 週間時間割キャッシュがない場合は月次予定からグリッドを構築し、起動時に空表示を防ぐ
-            weeklySchedule = Self.buildGrid(from: cachedCourses)
+            // （月次予定は前後期が混在するため、選択中の学期のものだけに絞る）
+            weeklySchedule = Self.buildGrid(from: Self.scheduleCourses(in: cachedCourses, semester: selectedSemester))
         }
         if !cachedIntensive.isEmpty {
             intensiveCourses = cachedIntensive
@@ -103,21 +104,42 @@ final class TimetableViewModel: ObservableObject {
 
         do {
             var didUpdate = false
-            var fetchedScheduleCourses: [Course] = []
 
             if scope.includesSchedule {
                 let scheduleMonthOffsets = scope.explicitScheduleMonthOffsets ?? scheduleMonthOffsetsToFetch(forOneYear: scope.isOneYear)
                 let scheduleMonthKeys = Set(scheduleMonthOffsets.map { scheduleMonthKey(monthOffset: $0) })
                 let fetchedCourses = try await portalClient.fetchTimetable(monthOffsets: scheduleMonthOffsets)
-                fetchedScheduleCourses = fetchedCourses
                 let appliedSchedule = await applyScheduleCourses(fetchedCourses, monthKeys: scheduleMonthKeys)
                 didUpdate = didUpdate || appliedSchedule
+                // スケジュール取得成功時に、並行実行中の週間時間割などの失敗で残ったエラーをクリアする。
+                // 初回起動時（キャッシュなし）は週間時間割の失敗が先に終わり、データが空の状態で
+                // エラーが設定されることがあるため、後から揃ったスケジュールで解消する。
+                errorMessage = nil
             }
 
             if scope.includesWeekly {
-                let (fetchedWeeklyCourses, weeklyHtml) = try await portalClient.fetchWeeklyTimetableWithHTML(semester: selectedSemester)
-                let appliedWeekly = await applyWeeklyContent(courses: fetchedWeeklyCourses, html: weeklyHtml, fallbackCourses: fetchedScheduleCourses)
-                didUpdate = didUpdate || appliedWeekly
+                let fetchSemester = selectedSemester
+                // フォールバックに使うスケジュールは全キャッシュ（courses）から選択中の学期のものに絞る。
+                // 今回取得した分だけだと該当学期の月が含まれず、空グリッドで表示を消してしまうため。
+                let scheduleFallbackCourses = Self.scheduleCourses(in: courses, semester: fetchSemester)
+                do {
+                    let (fetchedWeeklyCourses, weeklyHtml) = try await portalClient.fetchWeeklyTimetableWithHTML(semester: fetchSemester)
+                    let appliedWeekly = await applyWeeklyContent(courses: fetchedWeeklyCourses, html: weeklyHtml, fallbackCourses: scheduleFallbackCourses, semester: fetchSemester)
+                    didUpdate = didUpdate || appliedWeekly
+                } catch {
+                    // 取得中に学期が切り替わっていた場合は、古い学期のデータで表示を上書きしない
+                    if selectedSemester == fetchSemester {
+                        // 通常の時間割（RSW）の取得に失敗した場合、今日タブで取得済みのスケジュールから時間割を構築してフォールバックする。
+                        // スケジュールと時間割は同じ内容のため、ユーザーには通知しない（静かにフォールバックする）
+                        let appliedFallback = applyFallbackWeeklyContent(from: scheduleFallbackCourses)
+                        didUpdate = didUpdate || appliedFallback
+                        if !appliedFallback, courses.isEmpty, intensiveCourses.isEmpty,
+                           weeklySchedule.allSatisfy({ $0.allSatisfy({ $0.title == nil }) }) {
+                            // 表示できるデータが何もない場合のみエラーを表示する
+                            errorMessage = "時間割を取得できませんでした。時間をおいて再度お試しください。"
+                        }
+                    }
+                }
             }
 
             isLoading = false
@@ -147,17 +169,15 @@ final class TimetableViewModel: ObservableObject {
         return didUpdate
     }
 
-    private func applyWeeklyContent(courses fetchedWeeklyCourses: [Course], html weeklyHtml: String, fallbackCourses: [Course]) async -> Bool {
-        let semester = selectedSemester
+    private func applyWeeklyContent(courses fetchedWeeklyCourses: [Course], html weeklyHtml: String, fallbackCourses: [Course], semester: TimetableSemester) async -> Bool {
         let existingIntensive = intensiveCourses
-        let currentCourses = courses
         // グリッド構築・集中講義パース・キャッシュ保存はメインスレッドを塞がないようバックグラウンドで行う
-        let result = await Task.detached(priority: .utility) { [fetchedWeeklyCourses, weeklyHtml, fallbackCourses, semester, existingIntensive, currentCourses] in
+        let result = await Task.detached(priority: .utility) { [fetchedWeeklyCourses, weeklyHtml, fallbackCourses, semester, existingIntensive] in
             let store = PortalCacheStore.shared
             var newWeeklySchedule = Self.buildGrid(from: fetchedWeeklyCourses)
             if newWeeklySchedule.allSatisfy({ row in row.allSatisfy({ $0.title == nil }) }) {
-                let fallback = fallbackCourses.isEmpty ? currentCourses : fallbackCourses
-                newWeeklySchedule = Self.buildGrid(from: fallback)
+                // 取得結果が空の場合は、選択中の学期のスケジュールからフォールバック
+                newWeeklySchedule = Self.buildGrid(from: fallbackCourses)
             }
             // 取得結果が空の場合、キャッシュを上書きしない（セッション切れ・パース失敗等で空配列が返る可能性があるため）
             if !fetchedWeeklyCourses.isEmpty {
@@ -175,8 +195,15 @@ final class TimetableViewModel: ObservableObject {
             return (weeklySchedule: newWeeklySchedule, intensiveCourses: mergedIntensive)
         }.value
 
+        // フェッチ中に学期が切り替わっていた場合は、古い学期のデータを表示に適用しない
+        // （起動時 refreshAll や先行する切り替えのフェッチが遅れて完了し、表示を上書きする競合を防ぐ）
+        guard selectedSemester == semester else { return false }
+
         // 内容が変わったときだけ発火して、不要な再レンダリングを避ける
-        let weeklyChanged = result.weeklySchedule != weeklySchedule
+        // 取得結果が空の場合は既存の表示を消さない（一時的な取得失敗・学期切替失敗で空白になるのを防ぐ）
+        let hasNewContent = weeklyScheduleHasContent(result.weeklySchedule)
+        let keepExistingDisplay = !hasNewContent && weeklyScheduleHasContent(weeklySchedule)
+        let weeklyChanged = !keepExistingDisplay && result.weeklySchedule != weeklySchedule
         if weeklyChanged {
             weeklySchedule = result.weeklySchedule
         }
@@ -187,15 +214,57 @@ final class TimetableViewModel: ObservableObject {
         return weeklyChanged || intensiveChanged
     }
 
+    /// 月次スケジュールから選択中の学期（前期4〜8月・後期9〜3月）のコースだけを抽出する。
+    /// 月次予定は前後期の授業が混在するため、グリッドフォールバック前に絞り込む。
+    nonisolated private static func scheduleCourses(in source: [Course], semester: TimetableSemester) -> [Course] {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.calendar = Calendar(identifier: .gregorian)
+        return source.filter { course in
+            guard let dateString = course.dateString,
+                  let date = formatter.date(from: dateString) else { return false }
+            let month = formatter.calendar.component(.month, from: date)
+            switch semester {
+            case .first: return (4...8).contains(month)
+            case .second: return !(4...8).contains(month)
+            }
+        }
+    }
+
+    /// 通常の時間割（RSW）の取得に失敗した際に、今日タブで取得済みの月次スケジュールから週間グリッドを構築するフォールバック。
+    /// キャッシュには実際のRSWデータのみを保存する方針のため、フォールバック結果はキャッシュへ保存しない。
+    private func applyFallbackWeeklyContent(from scheduleCourses: [Course]) -> Bool {
+        let fallbackGrid = Self.buildGrid(from: scheduleCourses)
+        // スケジュールに該当学期のデータがない場合は、空のグリッドで既存の表示を上書きしない
+        guard weeklyScheduleHasContent(fallbackGrid) else { return false }
+        let weeklyChanged = fallbackGrid != weeklySchedule
+        if weeklyChanged {
+            weeklySchedule = fallbackGrid
+        }
+        return weeklyChanged
+    }
+
     private func scheduleMonthOffsetsToFetch(forOneYear: Bool = false) -> [Int] {
         let loadedMonthKeys = cacheStore.loadScheduleMonthKeys()
-        let maxOffset = forOneYear ? 12 : 2
-        let range = (0...maxOffset)
-        // 1年分更新の場合は毎回全月を読み直して、変更を見逃さない
-        guard !forOneYear else { return Array(range) }
-        return range.filter { offset in
+        let academicYearOffsets = Self.academicYearMonthOffsets()
+        // 1年分更新の場合は毎回全月（年度12ヶ月）を読み直して、変更を見逃さない
+        guard !forOneYear else { return academicYearOffsets }
+        return academicYearOffsets.filter { offset in
             !loadedMonthKeys.contains(scheduleMonthKey(monthOffset: offset))
         }
+    }
+
+    /// 年度（4月〜翌3月）を丸ごとカバーする月オフセット（基準月からの相対月）。
+    /// 過去の前期（4〜8月）のスケジュールも取得対象に含めることで、
+    /// 週間時間割（RSW）が取得できない期間でも、スケジュールからのフォールバックに
+    /// 前期・後期どちらの学期のデータも揃うようにする。
+    static func academicYearMonthOffsets(from referenceDate: Date = Date()) -> [Int] {
+        let calendar = Calendar(identifier: .gregorian)
+        let components = calendar.dateComponents([.year, .month], from: referenceDate)
+        guard let refYear = components.year, let refMonth = components.month else { return Array(0...11) }
+        let yearStartMonthIndex = (refMonth >= 4 ? refYear : refYear - 1) * 12 + 3
+        let refMonthIndex = refYear * 12 + (refMonth - 1)
+        return (0..<12).map { yearStartMonthIndex + $0 - refMonthIndex }
     }
 
     func scheduleMonthOffsets(through targetDate: Date, referenceDate: Date = Date()) -> [Int] {
