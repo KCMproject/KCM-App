@@ -4,31 +4,22 @@ struct IntensiveScheduleSheet: View {
     let courseID: UUID?
     let courseTitle: String
     let semester: TimetableSemester
-    @Binding var intensiveCourses: [IntensiveCourseCard]
+    @ObservedObject private var viewModel = TimetableViewModel.shared
     @Environment(\.dismiss) private var dismiss
 
     @State private var showingAddSheet = false
-
-    private var existingCourse: IntensiveCourseCard? {
-        if let id = courseID, let course = intensiveCourses.first(where: { $0.id == id }) {
-            return course
-        }
-        if !courseTitle.isEmpty, let course = intensiveCourses.first(where: { $0.title == courseTitle }) {
-            return course
-        }
-        return nil
-    }
+    @State private var dateRanges: [DateRange] = []
 
     var body: some View {
         NavigationStack {
             Form {
                 Section(header: Text("登録済み日程")) {
-                    if existingCourse?.dateRanges.isEmpty ?? true {
+                    if dateRanges.isEmpty {
                         Text("まだ日程が追加されていません")
                             .font(.system(size: 14))
                             .foregroundStyle(AppTheme.textMuted)
                     } else {
-                        ForEach(existingCourse?.dateRanges ?? []) { range in
+                        ForEach(dateRanges) { range in
                             HStack {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(range.formatted)
@@ -61,7 +52,6 @@ struct IntensiveScheduleSheet: View {
                     }
                 }
             }
-            .id(existingCourse?.dateRanges.count ?? -1)
             .navigationTitle("日程を編集")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -71,42 +61,53 @@ struct IntensiveScheduleSheet: View {
                     }
                 }
             }
+            .navigationDestination(isPresented: $showingAddSheet) {
+                IntensiveScheduleAddSheet(
+                    onSave: { newRange in
+                        addRange(newRange)
+                    }
+                )
+            }
         }
-        .sheet(isPresented: $showingAddSheet) {
-            IntensiveScheduleAddSheet(
-                courseID: courseID,
-                courseTitle: courseTitle,
-                semester: semester,
-                intensiveCourses: $intensiveCourses
-            )
-            .presentationDetents([.height(480)])
+        .onAppear {
+            loadDateRanges()
+        }
+        .onChange(of: viewModel.intensiveCourses) {
+            loadDateRanges()
         }
     }
 
-    private func courseIndex(matchingID id: UUID?, title: String, in courses: [IntensiveCourseCard]) -> Int? {
-        courses.firstIndex { course in
-            if let id, course.id == id { return true }
-            if !title.isEmpty, course.title == title { return true }
-            return false
+    private func loadDateRanges() {
+        if let id = courseID, let course = viewModel.intensiveCourses.first(where: { $0.id == id }) {
+            dateRanges = course.dateRanges
+        } else if !courseTitle.isEmpty, let course = viewModel.intensiveCourses.first(where: { $0.title == courseTitle }) {
+            dateRanges = course.dateRanges
         }
+    }
+
+    private func addRange(_ range: DateRange) {
+        dateRanges.append(range)
+        viewModel.updateIntensiveCourseDateRanges(
+            courseID: courseID,
+            courseTitle: courseTitle,
+            dateRanges: dateRanges,
+            for: semester
+        )
     }
 
     private func deleteRange(_ range: DateRange) {
-        guard let index = courseIndex(matchingID: courseID, title: courseTitle, in: intensiveCourses) else { return }
-        var updated = intensiveCourses[index]
-        updated.dateRanges.removeAll { $0.id == range.id }
-        var newCourses = intensiveCourses
-        newCourses[index] = updated
-        intensiveCourses = newCourses
-        PortalCacheStore.shared.saveIntensiveCourses(intensiveCourses, for: semester)
+        dateRanges.removeAll { $0.id == range.id }
+        viewModel.updateIntensiveCourseDateRanges(
+            courseID: courseID,
+            courseTitle: courseTitle,
+            dateRanges: dateRanges,
+            for: semester
+        )
     }
 }
 
 struct IntensiveScheduleAddSheet: View {
-    let courseID: UUID?
-    let courseTitle: String
-    let semester: TimetableSemester
-    @Binding var intensiveCourses: [IntensiveCourseCard]
+    let onSave: (DateRange) -> Void
     @Environment(\.dismiss) private var dismiss
 
     @State private var startDate = Date()
@@ -115,49 +116,39 @@ struct IntensiveScheduleAddSheet: View {
     @State private var endTimeText = "17:00"
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section(header: Text("日程範囲")) {
-                    DatePicker("開始日", selection: $startDate, displayedComponents: .date)
-                    DatePicker("終了日", selection: $endDate, displayedComponents: .date)
-                }
+        Form {
+            Section(header: Text("日程範囲")) {
+                DatePicker("開始日", selection: $startDate, displayedComponents: .date)
+                DatePicker("終了日", selection: $endDate, displayedComponents: .date)
+            }
 
-                Section(header: Text("時間")) {
-                    HStack {
-                        TextField("開始", text: $startTimeText)
-                            .keyboardType(.numbersAndPunctuation)
-                        Text("〜")
-                        TextField("終了", text: $endTimeText)
-                            .keyboardType(.numbersAndPunctuation)
-                    }
+            Section(header: Text("時間")) {
+                HStack {
+                    TextField("開始", text: $startTimeText)
+                        .keyboardType(.numbersAndPunctuation)
+                    Text("〜")
+                    TextField("終了", text: $endTimeText)
+                        .keyboardType(.numbersAndPunctuation)
                 }
             }
-            .navigationTitle("日程を追加")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("キャンセル") {
-                        dismiss()
-                    }
+        }
+        .navigationTitle("日程を追加")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("キャンセル") {
+                    dismiss()
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("保存") {
-                        addSchedule()
-                    }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("保存") {
+                    saveSchedule()
                 }
             }
         }
     }
 
-    private func courseIndex(matchingID id: UUID?, title: String, in courses: [IntensiveCourseCard]) -> Int? {
-        courses.firstIndex { course in
-            if let id, course.id == id { return true }
-            if !title.isEmpty, course.title == title { return true }
-            return false
-        }
-    }
-
-    private func addSchedule() {
+    private func saveSchedule() {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
 
@@ -171,17 +162,7 @@ struct IntensiveScheduleAddSheet: View {
             endTime: trimmedEnd.isEmpty ? nil : trimmedEnd
         )
 
-        guard let index = courseIndex(matchingID: courseID, title: courseTitle, in: intensiveCourses) else {
-            dismiss()
-            return
-        }
-        var updated = intensiveCourses[index]
-        updated.dateRanges.append(newRange)
-        var newCourses = intensiveCourses
-        newCourses[index] = updated
-        intensiveCourses = newCourses
-        PortalCacheStore.shared.saveIntensiveCourses(intensiveCourses, for: semester)
-
+        onSave(newRange)
         dismiss()
     }
 }

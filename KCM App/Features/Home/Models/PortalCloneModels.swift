@@ -272,6 +272,7 @@ struct SettingRow {
     enum Kind {
         case toggle(String)
         case link(() -> Void)
+        case customLink(id: UUID, urlString: String)
     }
 
     let icon: String

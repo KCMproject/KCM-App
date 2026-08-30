@@ -1,6 +1,7 @@
 import LocalAuthentication
 import SwiftUI
 import UniformTypeIdentifiers
+import UserNotifications
 
 struct AccountProfileCloneView: View {
     struct TabOrderItem: Identifiable, Codable, Hashable {
@@ -14,6 +15,7 @@ struct AccountProfileCloneView: View {
 
     @AppStorage(AppSettings.tabBarConfiguration) private var tabBarData: Data = Data()
     @AppStorage(AppSettings.gameTabEnabled) private var gameTabEnabled = true
+    @AppStorage(AppSettings.pushNotificationsEnabled) private var pushNotificationsEnabled = false
     @State private var tabOrder: [TabOrderItem] = []
     @StateObject private var loginViewModel = LoginViewModel.shared
     @State private var showingPasswordManager = false
@@ -25,6 +27,10 @@ struct AccountProfileCloneView: View {
     @State private var showGradeReportShare = false
     @State private var gradeReportDownloadError: String?
     @State private var showingAppInfo = false
+    @State private var customLinks: [CustomLink] = []
+    @State private var showingAddLinkAlert = false
+    @State private var newLinkTitle = ""
+    @State private var newLinkURL = ""
 
     private let cacheStore = PortalCacheStore.shared
 
@@ -84,9 +90,32 @@ struct AccountProfileCloneView: View {
         } message: {
             Text(authenticationErrorMessage ?? "時間をおいて再度お試しください。")
         }
-        .onAppear(perform: syncTabOrderFromStorage)
+        .onAppear {
+            syncTabOrderFromStorage()
+            customLinks = cacheStore.loadCustomLinks()
+        }
+        .onChange(of: pushNotificationsEnabled) { _, enabled in
+            guard enabled else { return }
+            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        }
         .onChange(of: tabBarData) { _, _ in
             syncTabOrderFromStorage()
+        }
+        .alert("URLを追加", isPresented: $showingAddLinkAlert) {
+            TextField("タイトル", text: $newLinkTitle)
+            TextField("URL", text: $newLinkURL)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            Button("キャンセル", role: .cancel) {
+                newLinkTitle = ""
+                newLinkURL = ""
+            }
+            Button("追加") {
+                addCustomLink()
+            }
+            .disabled(!isNewLinkInputValid)
+        } message: {
+            Text("くにおんポータルや図書館の下に表示するURLを追加できます。")
         }
         .alert("KCM App", isPresented: $showingAppInfo) {
             Button("OK", role: .cancel) {}
@@ -136,14 +165,67 @@ struct AccountProfileCloneView: View {
         }
     }
 
+    private var linkRows: [SettingRow] {
+        var rows: [SettingRow] = [
+            .link("globe", AppTheme.accent, "くにおんポータル", nil, {
+                openURL("https://cs.kunitachi.ac.jp/campusweb/portal.do")
+            }),
+            .link("books.vertical", Color.blue, "図書館", nil, {
+                openURL("https://wopac.lib.kunitachi.ac.jp/")
+            })
+        ]
+
+        rows.append(contentsOf: customLinks.map { link in
+            SettingRow(
+                icon: "link",
+                color: AppTheme.textSoft,
+                title: link.title,
+                subtitle: link.urlString,
+                kind: .customLink(id: link.id, urlString: link.urlString)
+            )
+        })
+
+        rows.append(.link("plus.circle", AppTheme.accent, "URLを追加", nil, {
+            newLinkTitle = ""
+            newLinkURL = ""
+            showingAddLinkAlert = true
+        }))
+
+        return rows
+    }
+
+    private var isNewLinkInputValid: Bool {
+        let title = newLinkTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        var urlString = newLinkURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !urlString.isEmpty, !urlString.contains("://") {
+            urlString = "https://" + urlString
+        }
+        guard !title.isEmpty, let url = URL(string: urlString), url.scheme != nil, url.host != nil else {
+            return false
+        }
+        return true
+    }
+
     private var settingsView: some View {
         VStack(spacing: 20) {
+            settingsSection(
+                title: "リンク",
+                rows: linkRows
+            )
+
             settingsSection(
                 title: "タブ",
                 rows: [
                     .toggle("gamecontroller", AppTheme.accent, "ゲームタブを表示", nil, "gameTab")
                 ],
                 customContent: { tabOrderSettingsList }
+            )
+
+            settingsSection(
+                title: "通知",
+                rows: [
+                    .toggle("bell", AppTheme.accent, "お知らせ通知", "新着のお知らせを通知で受け取る", "pushNotifications")
+                ]
             )
 
             settingsSection(
@@ -265,6 +347,17 @@ struct AccountProfileCloneView: View {
 
                     case .link(let action):
                         linkRow(row, action: action)
+
+                    case .customLink(let id, let urlString):
+                        linkRow(row, action: { openURL(urlString) })
+                            .contextMenu {
+                                Button(role: .destructive, action: {
+                                    customLinks.removeAll { $0.id == id }
+                                    saveCustomLinks()
+                                }) {
+                                    Label("削除", systemImage: "trash")
+                                }
+                            }
                     }
 
                     if index < rows.count - 1 {
@@ -291,6 +384,8 @@ struct AccountProfileCloneView: View {
             switch id {
             case "gameTab":
                 return $gameTabEnabled
+            case "pushNotifications":
+                return $pushNotificationsEnabled
             default:
                 return .constant(false)
             }
@@ -370,6 +465,28 @@ struct AccountProfileCloneView: View {
 
         let filtered = decoded.filter { $0.id != "account" }
         tabOrder = filtered.isEmpty ? defaultTabOrder : filtered
+    }
+
+    private func openURL(_ urlString: String) {
+        guard let url = URL(string: urlString), UIApplication.shared.canOpenURL(url) else { return }
+        UIApplication.shared.open(url)
+    }
+
+    private func addCustomLink() {
+        let title = newLinkTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        var urlString = newLinkURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !urlString.isEmpty, !urlString.contains("://") {
+            urlString = "https://" + urlString
+        }
+        guard !title.isEmpty, let url = URL(string: urlString), url.scheme != nil, url.host != nil else { return }
+        customLinks.append(CustomLink(title: title, urlString: urlString))
+        saveCustomLinks()
+        newLinkTitle = ""
+        newLinkURL = ""
+    }
+
+    private func saveCustomLinks() {
+        cacheStore.saveCustomLinks(customLinks)
     }
 
     private func downloadGradeReport() async {

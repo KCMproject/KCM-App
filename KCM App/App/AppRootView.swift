@@ -3,6 +3,7 @@ import SwiftUI
 struct AppRootView: View {
     @StateObject private var loginViewModel = LoginViewModel.shared
     @StateObject private var bannerCenter = AppBannerCenter.shared
+    @StateObject private var announcementService = AnnouncementService.shared
     @AppStorage(AppSettings.termsAgreed) private var termsAgreed = false
 
     var body: some View {
@@ -52,8 +53,27 @@ struct AppRootView: View {
                 }
             }
         }
+        .overlay {
+            if !announcementService.pendingAnnouncements.isEmpty {
+                AnnouncementModalView(
+                    announcements: announcementService.pendingAnnouncements,
+                    onDismiss: { announcement in
+                        announcementService.markSeen(announcement)
+                    }
+                )
+                .transition(.opacity)
+            }
+        }
         .onAppear {
             loginViewModel.checkSession()
+        }
+        .task {
+            await announcementService.refresh()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            Task {
+                await announcementService.refreshIfStale()
+            }
         }
         .animation(.easeInOut(duration: 0.2), value: bannerCenter.message)
         .animation(.easeInOut(duration: 0.2), value: loginViewModel.isLoading)

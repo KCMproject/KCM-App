@@ -169,10 +169,9 @@ final class TimetableViewModel: ObservableObject {
         return didUpdate
     }
 
-    private func applyWeeklyContent(courses fetchedWeeklyCourses: [Course], html weeklyHtml: String, fallbackCourses: [Course], semester: TimetableSemester) async -> Bool {
-        let existingIntensive = intensiveCourses
+private func applyWeeklyContent(courses fetchedWeeklyCourses: [Course], html weeklyHtml: String, fallbackCourses: [Course], semester: TimetableSemester) async -> Bool {
         // グリッド構築・集中講義パース・キャッシュ保存はメインスレッドを塞がないようバックグラウンドで行う
-        let result = await Task.detached(priority: .utility) { [fetchedWeeklyCourses, weeklyHtml, fallbackCourses, semester, existingIntensive] in
+        let result = await Task.detached(priority: .utility) { [fetchedWeeklyCourses, weeklyHtml, fallbackCourses, semester] in
             let store = PortalCacheStore.shared
             var newWeeklySchedule = Self.buildGrid(from: fetchedWeeklyCourses)
             if newWeeklySchedule.allSatisfy({ row in row.allSatisfy({ $0.title == nil }) }) {
@@ -185,7 +184,8 @@ final class TimetableViewModel: ObservableObject {
             }
 
             let parsedIntensive = CampusSquareParser.parseIntensiveCoursesFromRSW(from: weeklyHtml)
-            let mergedIntensive = Self.mergeIntensiveCourses(existing: existingIntensive, parsed: parsedIntensive)
+            let latestIntensive = store.loadIntensiveCourses(for: semester)
+            let mergedIntensive = Self.mergeIntensiveCourses(existing: latestIntensive, parsed: parsedIntensive)
             store.saveIntensiveCourses(mergedIntensive, for: semester)
 
             if let userName = CampusSquareParser.parseUserName(from: weeklyHtml) {
@@ -399,5 +399,16 @@ final class TimetableViewModel: ObservableObject {
         
         // 注意: ここでは weeklySchedule の更新は行いません。
         // RSWのデータを尊重し、PTWデータとの混同を防ぎます。
+    }
+
+    func updateIntensiveCourseDateRanges(courseID: UUID?, courseTitle: String, dateRanges: [DateRange], for semester: TimetableSemester) {
+        guard let index = intensiveCourses.firstIndex(where: { course in
+            if let id = courseID, course.id == id { return true }
+            if !courseTitle.isEmpty, course.title == courseTitle { return true }
+            return false
+        }) else { return }
+        
+        intensiveCourses[index].dateRanges = dateRanges
+        cacheStore.saveIntensiveCourses(intensiveCourses, for: semester)
     }
 }
