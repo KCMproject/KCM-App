@@ -5,7 +5,6 @@ import SwiftUI
 enum AppSettings {
     static let tapToSwitchDayEnabled = "tapToSwitchDayEnabled"
     static let darkModeEnabled = "darkModeEnabled"
-    static let pushNotificationsEnabled = "pushNotificationsEnabled"
     static let reminderEnabled = "reminderEnabled"
     static let tabBarConfiguration = "tabBarConfiguration"
     static let gameTabEnabled = "gameTabEnabled"

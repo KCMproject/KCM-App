@@ -99,8 +99,6 @@ final class AnnouncementService: ObservableObject {
     // MARK: - ローカル通知
 
     private func scheduleLocalNotification(for announcement: AppAnnouncement) {
-        guard UserDefaults.standard.bool(forKey: AppSettings.pushNotificationsEnabled) else { return }
-
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, _ in
             guard granted else { return }
 
