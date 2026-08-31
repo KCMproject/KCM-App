@@ -1,10 +1,11 @@
 import SwiftUI
 
 /// ソシャゲのデイリーボーナス風の最前面お知らせモーダル
-/// ×ボタンで閉じるとそのお知らせが既読になり、未読が残っていれば次のカードが表示される
+/// ×ボタンで閉じても次回アプリ起動時にもう一度表示される。
+/// 「2度と表示しない」にチェックして閉じると、そのお知らせは二度と表示されない
 struct AnnouncementModalView: View {
     let announcements: [AppAnnouncement]
-    let onDismiss: (AppAnnouncement) -> Void
+    let onDismiss: (AppAnnouncement, _ neverShowAgain: Bool) -> Void
 
     @State private var isAppeared = false
 
@@ -16,10 +17,17 @@ struct AnnouncementModalView: View {
                 .ignoresSafeArea()
 
             if let announcement = current {
-                card(for: announcement)
-                    .padding(.horizontal, 36)
-                    .scaleEffect(isAppeared ? 1 : 0.8)
-                    .opacity(isAppeared ? 1 : 0)
+                AnnouncementCardView(
+                    announcement: announcement,
+                    pageCount: announcements.count,
+                    onDismiss: { neverShowAgain in
+                        onDismiss(announcement, neverShowAgain)
+                    }
+                )
+                .id(announcement.id)
+                .padding(.horizontal, 36)
+                .scaleEffect(isAppeared ? 1 : 0.8)
+                .opacity(isAppeared ? 1 : 0)
             }
         }
         .transition(.opacity)
@@ -36,27 +44,35 @@ struct AnnouncementModalView: View {
             }
         }
     }
+}
 
-    // MARK: - Card
+// MARK: - Card
 
-    private func card(for announcement: AppAnnouncement) -> some View {
-        let level = announcement.resolvedLevel
+private struct AnnouncementCardView: View {
+    let announcement: AppAnnouncement
+    let pageCount: Int
+    let onDismiss: (_ neverShowAgain: Bool) -> Void
 
-        return VStack(spacing: 14) {
+    @State private var neverShowAgain = false
+
+    private var level: AnnouncementLevel { announcement.resolvedLevel }
+
+    var body: some View {
+        VStack(spacing: 14) {
             HStack(spacing: 10) {
                 ZStack {
                     Circle()
-                        .fill(levelColor(level).opacity(0.12))
+                        .fill(levelColor.opacity(0.12))
                         .frame(width: 40, height: 40)
-                    Image(systemName: levelIcon(level))
+                    Image(systemName: levelIcon)
                         .font(.system(size: 17, weight: .bold))
-                        .foregroundStyle(levelColor(level))
+                        .foregroundStyle(levelColor)
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(levelLabel(level))
+                    Text(levelLabel)
                         .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(levelColor(level))
+                        .foregroundStyle(levelColor)
                     if let date = announcement.date, !date.isEmpty {
                         Text(date)
                             .font(.system(size: 11))
@@ -79,10 +95,26 @@ struct AnnouncementModalView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            if announcements.count > 1 {
+            Button {
+                neverShowAgain.toggle()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: neverShowAgain ? "checkmark.square.fill" : "square")
+                        .font(.system(size: 17))
+                        .foregroundStyle(neverShowAgain ? levelColor : AppTheme.textMuted)
+                    Text("2度と表示しない")
+                        .font(.system(size: 13))
+                        .foregroundStyle(AppTheme.textSecondary)
+                    Spacer()
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if pageCount > 1 {
                 HStack {
                     Spacer()
-                    Text("1 / \(announcements.count)")
+                    Text("1 / \(pageCount)")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(AppTheme.textMuted)
                         .padding(.horizontal, 10)
@@ -97,25 +129,21 @@ struct AnnouncementModalView: View {
         .background(
             RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .fill(AppTheme.surface)
-                .overlay(alignment: .top) {
-                    LinearGradient(
-                        colors: [levelColor(level).opacity(0.16), levelColor(level).opacity(0)],
-                        startPoint: .top,
-                        endPoint: .center
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-                }
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .stroke(AppTheme.accent.opacity(0.35), lineWidth: 1)
+                )
                 .shadow(color: .black.opacity(0.25), radius: 24, y: 8)
         )
         .overlay(alignment: .topTrailing) {
-            closeButton(for: announcement)
+            closeButton
                 .padding(10)
         }
     }
 
-    private func closeButton(for announcement: AppAnnouncement) -> some View {
+    private var closeButton: some View {
         Button {
-            onDismiss(announcement)
+            onDismiss(neverShowAgain)
         } label: {
             Image(systemName: "xmark")
                 .font(.system(size: 13, weight: .bold))
@@ -129,7 +157,7 @@ struct AnnouncementModalView: View {
 
     // MARK: - Level helpers
 
-    private func levelColor(_ level: AnnouncementLevel) -> Color {
+    private var levelColor: Color {
         switch level {
         case .info: return AppTheme.accent
         case .warning: return .orange
@@ -137,7 +165,7 @@ struct AnnouncementModalView: View {
         }
     }
 
-    private func levelIcon(_ level: AnnouncementLevel) -> String {
+    private var levelIcon: String {
         switch level {
         case .info: return "megaphone.fill"
         case .warning: return "exclamationmark.triangle.fill"
@@ -145,7 +173,7 @@ struct AnnouncementModalView: View {
         }
     }
 
-    private func levelLabel(_ level: AnnouncementLevel) -> String {
+    private var levelLabel: String {
         switch level {
         case .info: return "お知らせ"
         case .warning: return "重要なお知らせ"
@@ -166,6 +194,6 @@ struct AnnouncementModalView: View {
                 active: true
             )
         ],
-        onDismiss: { _ in }
+        onDismiss: { _, _ in }
     )
 }

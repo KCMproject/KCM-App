@@ -4,6 +4,7 @@ struct AppRootView: View {
     @StateObject private var loginViewModel = LoginViewModel.shared
     @StateObject private var bannerCenter = AppBannerCenter.shared
     @StateObject private var announcementService = AnnouncementService.shared
+    @State private var hiddenAnnouncementIDs: Set<String> = []
     @AppStorage(AppSettings.termsAgreed) private var termsAgreed = false
 
     var body: some View {
@@ -54,11 +55,16 @@ struct AppRootView: View {
             }
         }
         .overlay {
-            if !announcementService.pendingAnnouncements.isEmpty {
+            let visibleAnnouncements = announcementService.pendingAnnouncements
+                .filter { !hiddenAnnouncementIDs.contains($0.id) }
+            if !visibleAnnouncements.isEmpty {
                 AnnouncementModalView(
-                    announcements: announcementService.pendingAnnouncements,
-                    onDismiss: { announcement in
-                        announcementService.markSeen(announcement)
+                    announcements: visibleAnnouncements,
+                    onDismiss: { announcement, neverShowAgain in
+                        hiddenAnnouncementIDs.insert(announcement.id)
+                        if neverShowAgain {
+                            announcementService.mute(announcement)
+                        }
                     }
                 )
                 .transition(.opacity)
@@ -71,6 +77,7 @@ struct AppRootView: View {
             await announcementService.refresh()
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            hiddenAnnouncementIDs.removeAll()
             Task {
                 await announcementService.refreshIfStale()
             }
