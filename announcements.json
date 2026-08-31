@@ -1,3 +1,12 @@
 {
-  "announcements": []
+  "announcements": [
+    {
+      "id": "2026-08-31-notification-test",
+      "level": "info",
+      "title": "お知らせ機能テスト",
+      "body": "このお知らせが表示され、×で閉じた約1秒後にローカル通知が飛んだら成功です。\n（テスト配信中のため、確認後に削除されます）",
+      "date": "2026-08-31",
+      "active": true
+    }
+  ]
 }
