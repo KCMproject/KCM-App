@@ -1,7 +1,6 @@
 import LocalAuthentication
 import SwiftUI
 import UniformTypeIdentifiers
-import UserNotifications
 
 struct AccountProfileCloneView: View {
     struct TabOrderItem: Identifiable, Codable, Hashable {
@@ -15,7 +14,6 @@ struct AccountProfileCloneView: View {
 
     @AppStorage(AppSettings.tabBarConfiguration) private var tabBarData: Data = Data()
     @AppStorage(AppSettings.gameTabEnabled) private var gameTabEnabled = true
-    @AppStorage(AppSettings.pushNotificationsEnabled) private var pushNotificationsEnabled = false
     @State private var tabOrder: [TabOrderItem] = []
     @StateObject private var loginViewModel = LoginViewModel.shared
     @State private var showingPasswordManager = false
@@ -93,10 +91,6 @@ struct AccountProfileCloneView: View {
         .onAppear {
             syncTabOrderFromStorage()
             customLinks = cacheStore.loadCustomLinks()
-        }
-        .onChange(of: pushNotificationsEnabled) { _, enabled in
-            guard enabled else { return }
-            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
         }
         .onChange(of: tabBarData) { _, _ in
             syncTabOrderFromStorage()
@@ -219,13 +213,6 @@ struct AccountProfileCloneView: View {
                     .toggle("gamecontroller", AppTheme.accent, "ゲームタブを表示", nil, "gameTab")
                 ],
                 customContent: { tabOrderSettingsList }
-            )
-
-            settingsSection(
-                title: "通知",
-                rows: [
-                    .toggle("bell", AppTheme.accent, "お知らせ通知", "新着のお知らせを通知で受け取る", "pushNotifications")
-                ]
             )
 
             settingsSection(
@@ -384,8 +371,6 @@ struct AccountProfileCloneView: View {
             switch id {
             case "gameTab":
                 return $gameTabEnabled
-            case "pushNotifications":
-                return $pushNotificationsEnabled
             default:
                 return .constant(false)
             }
