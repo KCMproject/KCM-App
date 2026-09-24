@@ -145,6 +145,20 @@ struct CampusWebView: UIViewRepresentable {
             }
         }
 
+        /// CampusSquare はシラバス詳細などの子画面を `window.open` の別ウィンドウで開く。
+        /// iOS では別ウィンドウを出せないため、要求された URL を同じ WebView に読み込んで遷移させる。
+        func webView(
+            _ webView: WKWebView,
+            createWebViewWith configuration: WKWebViewConfiguration,
+            for navigationAction: WKNavigationAction,
+            windowFeatures: WKWindowFeatures
+        ) -> WKWebView? {
+            if navigationAction.request.url != nil {
+                webView.load(navigationAction.request)
+            }
+            return nil
+        }
+
         private func runPageValidation(_ webView: WKWebView) {
             guard let script = pageValidationScript else { return }
             webView.evaluateJavaScript(script) { [weak self] result, _ in
